@@ -18,12 +18,12 @@ char *inet_ntoa(struct in_addr in);
 
 static int my_inet_stream_connect(struct socket *sock, struct sockaddr * uaddr, int addr_len, int flags)
 {	
-	if(sock-> ops != NULL && sock->ops->family == AF_INET)
+	if(sock->ops->family == PF_INET)
 	{
-		printk("SOCK_STREAM connect to IP %s UID: %d PID: %d Process name: %s\n", 
-			inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk), current->pid, current->comm);
+		printk("%s[%d] TCP connect start %s by UID %d\n", current->comm, current->pid, 
+		 	inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
 	}
-	else if(sock-> ops != NULL && sock->ops->family == AF_INET6)
+	else if(sock-> ops != NULL && sock->ops->family == PF_INET6)
 	{
 		//TODO ipv6 handling by calling ipv6 version of inet_ntoa
 	}
@@ -37,12 +37,12 @@ static int my_inet_stream_connect(struct socket *sock, struct sockaddr * uaddr, 
 
 static int my_inet_dgram_connect(struct socket *sock, struct sockaddr * uaddr, int addr_len, int flags)
 {
-	if(sock-> ops != NULL && sock->ops->family == AF_INET)
+	if(sock->ops->family == PF_INET)
 	{
-		printk("SOCK_DGRAM connect to IP %s UID: %d PID: %d Process name: %s\n", 
-			inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk), current->pid, current->comm);
+		printk("%s[%d] UDP connect to %s by UID %d\n", current->comm, current->pid, 
+			inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
 	}
-	else if(sock-> ops != NULL && sock->ops->family == AF_INET6)
+	else if(sock->ops->family == PF_INET6)
 	{
 		//TODO ipv6 handling by calling the ipv6 version of inet_ntoa
 	}
@@ -63,24 +63,25 @@ static long my_sys_accept4(int fd, struct sockaddr *uaddr, int *addr_len, int fl
 	
 	if(!sock)
 	{
+		printk("WTF BITCH?\n");
 		jprobe_return();
 		return 0;
 	}
 	
-	if(sock-> ops != NULL && sock->ops->family == AF_INET)
+	if(sock->ops->family == PF_INET)
 	{
 		if(sock->type == SOCK_STREAM)
 		{
-		printk("SOCK_STREAM accept from IP %s UID: %d PID: %d Process name: %s\n", 
-			inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk), current->pid, current->comm);
+		printk("%s[%d] TCP accept from %s by UID: %d\n", current->comm, current->pid, 
+			inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
 		}
 		else if(sock->type == SOCK_DGRAM)
 		{
-		printk("SOCK_DGRAM accept from IP %s UID: %d PID: %d Process name: %s\n", 
-			inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk), current->pid, current->comm);
+		printk("%s[%d] UDP accept from %s by UID %d\n", current->comm, current->pid, 
+			inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
 		}	
 	}	
-	else if(sock-> ops != NULL && sock->ops->family == AF_INET6)
+	else if(sock->ops->family == PF_INET6)
 	{
 		//TODO ipv6 handling by calling the ipv6 version of inet_ntoa
 	}
@@ -125,7 +126,7 @@ int init_module(void)
 	register_jprobe(&inet_dgram_connect_jprobe);
 	register_jprobe(&accept_jprobe);
 	
-	printk(KERN_INFO "probes planted\n");
+	printk(KERN_INFO "netlog planted\n");
 
 	return 0;
 }
@@ -140,7 +141,7 @@ void cleanup_module(void)
   	unregister_jprobe(&inet_dgram_connect_jprobe);
   	unregister_jprobe(&accept_jprobe);
 
-  	printk(KERN_INFO  "probes unplanted\n");
+  	printk(KERN_INFO  "netlog unplanted\n");
 }
 
 MODULE_LICENSE("GPL");
