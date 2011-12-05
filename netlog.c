@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/kprobes.h>
 #include <net/sock.h>
+#include <linux/in.h>
 //#include <arpa/inet>
 
 //I miss the header file for this function. Normally it should by at arpa/inet.h
