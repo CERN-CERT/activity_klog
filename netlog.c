@@ -20,10 +20,10 @@ static int my_inet_stream_connect(struct socket *sock, struct sockaddr * uaddr, 
 {	
 	if(sock->ops->family == PF_INET)
 	{
-		printk("%s[%d] TCP connect start %s by UID %d\n", current->comm, current->pid, 
+		printk("%s[%d] TCP connect to %s by UID %d\n", current->comm, current->pid, 
 		 	inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
 	}
-	else if(sock-> ops != NULL && sock->ops->family == PF_INET6)
+	else if(sock->ops->family == PF_INET6)
 	{
 		//TODO ipv6 handling by calling ipv6 version of inet_ntoa
 	}
@@ -63,7 +63,7 @@ static long my_sys_accept4(int fd, struct sockaddr *uaddr, int *addr_len, int fl
 	
 	if(!sock)
 	{
-		printk("WTF BITCH?\n");
+		printk("WTF\n");
 		jprobe_return();
 		return 0;
 	}
