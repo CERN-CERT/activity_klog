@@ -10,6 +10,8 @@
 #include <linux/in.h>
 //#include <arpa/inet>
 
+#define PROBE_UDP 1
+
 //I miss the header file for this function. Normally it should by at arpa/inet.h
 char *inet_ntoa(struct in_addr in);
 
@@ -20,10 +22,10 @@ static int my_inet_stream_connect(struct socket *sock, struct sockaddr * uaddr, 
 {	
 	if(sock->ops->family == PF_INET)
 	{
-		printk("%s[%d] TCP connect to %s by UID %d\n", current->comm, current->pid, 
+		printk("%s[%d] TCP connect start %s by UID %d\n", current->comm, current->pid, 
 		 	inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
 	}
-	else if(sock->ops->family == PF_INET6)
+	else if(sock-> ops != NULL && sock->ops->family == PF_INET6)
 	{
 		//TODO ipv6 handling by calling ipv6 version of inet_ntoa
 	}
@@ -35,6 +37,7 @@ static int my_inet_stream_connect(struct socket *sock, struct sockaddr * uaddr, 
 /* Probe for int inet_dgram_connect(struct socket *sock, struct sockaddr * uaddr, int addr_len, int flags) */
 /* This function is called when a socket of SOCK_DGRAM type tries to connect*/
 
+#if PROBE_UDP
 static int my_inet_dgram_connect(struct socket *sock, struct sockaddr * uaddr, int addr_len, int flags)
 {
 	if(sock->ops->family == PF_INET)
@@ -50,7 +53,7 @@ static int my_inet_dgram_connect(struct socket *sock, struct sockaddr * uaddr, i
 	jprobe_return();
 	return 0;
 }
-
+#endif
 /* Probe for long sys_accept4(int fd, struct sockaddr *uaddr, int *addr_len, int flags) */
 /* This functions is called when accept4 system called is called from the user space*/
 
@@ -63,7 +66,7 @@ static long my_sys_accept4(int fd, struct sockaddr *uaddr, int *addr_len, int fl
 	
 	if(!sock)
 	{
-		printk("WTF\n");
+		printk("WTF BITCH?\n");
 		jprobe_return();
 		return 0;
 	}
@@ -75,11 +78,13 @@ static long my_sys_accept4(int fd, struct sockaddr *uaddr, int *addr_len, int fl
 		printk("%s[%d] TCP accept from %s by UID: %d\n", current->comm, current->pid, 
 			inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
 		}
+#if PROBE_UDP		
 		else if(sock->type == SOCK_DGRAM)
 		{
 		printk("%s[%d] UDP accept from %s by UID %d\n", current->comm, current->pid, 
 			inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
-		}	
+		}
+#endif	
 	}	
 	else if(sock->ops->family == PF_INET6)
 	{
@@ -101,12 +106,14 @@ static struct jprobe inet_stream_connect_jprobe = {
 	},
 };
 
+#if PROBE_UDP
 static struct jprobe inet_dgram_connect_jprobe = {	
 	.entry 			= my_inet_dgram_connect,
 	.kp = {
 		.symbol_name 	= "inet_dgram_connect",
 	},
 };
+#endif
 
 static struct jprobe accept_jprobe = {	
 	.entry 			= my_sys_accept4,
@@ -123,7 +130,9 @@ static struct jprobe accept_jprobe = {
 int init_module(void)
 {
 	register_jprobe(&inet_stream_connect_jprobe);
+#if PROBE_UDP
 	register_jprobe(&inet_dgram_connect_jprobe);
+#endif
 	register_jprobe(&accept_jprobe);
 	
 	printk(KERN_INFO "netlog planted\n");
@@ -138,7 +147,9 @@ int init_module(void)
 void cleanup_module(void)
 {
   	unregister_jprobe(&inet_stream_connect_jprobe);
+#if PROBE_UDP
   	unregister_jprobe(&inet_dgram_connect_jprobe);
+#endif
   	unregister_jprobe(&accept_jprobe);
 
   	printk(KERN_INFO  "netlog unplanted\n");
