@@ -61,14 +61,7 @@ static long my_sys_accept(int fd, struct sockaddr *uaddr, int *addr_len, int fla
 	struct socket * sock;
 	
 	sock = sockfd_lookup(fd, &err);
-	
-	if(!sock)
-	{
-		printk("WTF BITCH?\n");
-		jprobe_return();
-		return 0;
-	}
-	
+		
 	if(sock->ops->family == PF_INET)
 	{
 		if(sock->type == SOCK_STREAM)
