@@ -8,11 +8,9 @@
 #include <linux/kprobes.h>
 #include <net/sock.h>
 #include <linux/in.h>
-//#include <arpa/inet>
 
 #define PROBE_UDP 1
 
-//I miss the header file for this function. Normally it should by at arpa/inet.h
 char *inet_ntoa(struct in_addr in);
 
 /* Probe for int inet_stream_connect(struct socket *sock, struct sockaddr * uaddr, int addr_len, int flags) */
@@ -22,7 +20,7 @@ static int my_inet_stream_connect(struct socket *sock, struct sockaddr * uaddr, 
 {	
 	if(sock->ops->family == PF_INET)
 	{
-		printk("%s[%d] TCP connect start %s by UID %d\n", current->comm, current->pid, 
+		printk("%s[%d] TCP connect to %s by UID %d\n", current->comm, current->pid, 
 		 	inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
 	}
 	else if(sock-> ops != NULL && sock->ops->family == PF_INET6)
@@ -54,10 +52,10 @@ static int my_inet_dgram_connect(struct socket *sock, struct sockaddr * uaddr, i
 	return 0;
 }
 #endif
-/* Probe for long sys_accept4(int fd, struct sockaddr *uaddr, int *addr_len, int flags) */
-/* This functions is called when accept4 system called is called from the user space*/
+/* Probe for long sys_accept(int fd, struct sockaddr *uaddr, int *addr_len, int flags) */
+/* This functions is called when accept system called is called from the user space*/
 
-static long my_sys_accept4(int fd, struct sockaddr *uaddr, int *addr_len, int flags)
+static long my_sys_accept(int fd, struct sockaddr *uaddr, int *addr_len, int flags)
 {
 	int err;
 	struct socket * sock;
@@ -75,14 +73,14 @@ static long my_sys_accept4(int fd, struct sockaddr *uaddr, int *addr_len, int fl
 	{
 		if(sock->type == SOCK_STREAM)
 		{
-		printk("%s[%d] TCP accept from %s by UID: %d\n", current->comm, current->pid, 
-			inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
+			printk("%s[%d] TCP accept from %s by UID: %d\n", current->comm, current->pid, 
+				inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
 		}
 #if PROBE_UDP		
 		else if(sock->type == SOCK_DGRAM)
 		{
-		printk("%s[%d] UDP accept from %s by UID %d\n", current->comm, current->pid, 
-			inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
+			printk("%s[%d] UDP accept from %s by UID %d\n", current->comm, current->pid, 
+				inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
 		}
 #endif	
 	}	
@@ -116,9 +114,9 @@ static struct jprobe inet_dgram_connect_jprobe = {
 #endif
 
 static struct jprobe accept_jprobe = {	
-	.entry 			= my_sys_accept4,
+	.entry 			= my_sys_accept,
 	.kp = {
-		.symbol_name 	= "sys_accept4",
+		.symbol_name 	= "sys_accept",
 	},
 };
 
