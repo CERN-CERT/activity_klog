@@ -28,8 +28,8 @@ static int my_inet_stream_connect(struct socket *sock, struct sockaddr *addr, in
 		if(sock->ops->family == PF_INET)
 		{
 			struct sockaddr_in *addrin = (struct sockaddr_in *)addr;
-			printk("%s[%d]%d TCP connect to %s by UID %d\n", current->comm, current->pid, 
-			 	ntohs(addrin->sin_port), inet_ntoa(addrin->sin_addr), sock_i_uid(sock->sk));
+			printk("%s[%d] TCP connect to %s %d by UID %d\n", current->comm, current->pid, 
+				inet_ntoa(addrin->sin_addr), ntohs(addrin->sin_port), sock_i_uid(sock->sk));
 		}
 		else if(sock->ops->family == PF_INET6)
 		{
@@ -60,13 +60,13 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, size_t addrlen)
 			
 			if(!strcmp(ip, "0.0.0.0"))
 			{
-				printk("%s[%d]%d accepts UDP by UID %d\n", current->comm, current->pid, 
-					ntohs(addrin->sin_port), sock_i_uid(sock->sk));
+				printk("%s[%d] accepts UDP at port %d by UID %d\n", 
+				current->comm, current->pid, ntohs(addrin->sin_port), sock_i_uid(sock->sk));
 			}
 			else
 			{
-				printk("%s[%d]%d UDP connect to %s by UID %d\n", current->comm,
-					current->pid, ntohs(addrin->sin_port), ip, sock_i_uid(sock->sk));
+				printk("%s[%d] UDP connect to %s %d by UID %d\n", current->comm,
+					current->pid, ip, ntohs(addrin->sin_port), sock_i_uid(sock->sk));
 			}
 		}
 		else if(sock->ops->family == PF_INET6)
@@ -95,8 +95,8 @@ static long my_sys_accept(int sockfd, struct sockaddr *addr, int *addr_len, int 
 		if(sock->ops->family == PF_INET)
 		{
 			struct sockaddr_in *addrin = (struct sockaddr_in *)addr;
-			printk("%s[%d]%d TCP accept from %s by UID: %d\n", current->comm, current->pid, 
-				ntohs(addrin->sin_port), inet_ntoa(addrin->sin_addr), sock_i_uid(sock->sk));
+			printk("%s[%d] TCP accept from %s %d by UID: %d\n", current->comm, current->pid, 
+				inet_ntoa(addrin->sin_addr), ntohs(addrin->sin_port), sock_i_uid(sock->sk));
 		}
 		else if(sock->ops->family == PF_INET6)
 		{
