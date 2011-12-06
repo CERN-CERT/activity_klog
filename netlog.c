@@ -12,6 +12,7 @@
 #include <linux/socket.h>
 
 #define PROBE_UDP 1
+#define INET6_ADDRSTRLEN 48
 
 char *inet_ntoa(struct in_addr in);
 
