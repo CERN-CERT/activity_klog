@@ -4,14 +4,18 @@
  * Description:	TODO
  */
 
+#include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kprobes.h>
 #include <net/sock.h>
 #include <linux/in.h>
+#include <linux/socket.h>
 
 #define PROBE_UDP 1
 
 char *inet_ntoa(struct in_addr in);
+
+char host_ip[INET6_ADDRSTRLEN];
 
 /* Probe for int inet_stream_connect(struct socket *sock, struct sockaddr * uaddr, int addr_len, int flags) */
 /* This function is called when a socket of SOCK_STREAM type tries to connect*/
@@ -35,18 +39,32 @@ static int my_inet_stream_connect(struct socket *sock, struct sockaddr * uaddr, 
 	return 0;
 }
 
-/* Probe for int inet_dgram_connect(struct socket *sock, struct sockaddr * uaddr, int addr_len, int flags) */
-/* This function is called when a socket of SOCK_DGRAM type tries to connect*/
+/* UDP protocol is connectionless protocol, so we probe the bind system call */
 
 #if PROBE_UDP
-static int my_inet_dgram_connect(struct socket *sock, struct sockaddr * uaddr, int addr_len, int flags)
+static int my_sys_bind(int sockfd, const struct sockaddr *addr, size_t addrlen)
 {
+	int err;
+	struct socket * sock;
+
+	sock = sockfd_lookup(sockfd, &err);
+
 	if(sock->sk->sk_protocol == IPPROTO_UDP)
 	{
 		if(sock->ops->family == PF_INET)
 		{
-			printk("%s[%d] UDP connect to %s by UID %d\n", current->comm, current->pid, 
-				inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
+			char *ip = inet_ntoa(((struct sockaddr_in *)addr)->sin_addr);
+			
+			if(!strcmp(ip, "0.0.0.0"))
+			{
+				printk("%s[%d] accepts UDP by UID %d\n", current->comm, current->pid, sock_i_uid(sock->sk));
+			}
+			else
+			{
+				printk("%s[%d] UDP connect to %s by UID %d\n", current->comm, current->pid, 
+					ip, sock_i_uid(sock->sk));
+			
+			}
 		}
 		else if(sock->ops->family == PF_INET6)
 		{
@@ -58,15 +76,16 @@ static int my_inet_dgram_connect(struct socket *sock, struct sockaddr * uaddr, i
 	return 0;
 }
 #endif
-/* Probe for long sys_accept(int fd, struct sockaddr *uaddr, int *addr_len, int flags) */
+
+/* Probe for long sys_accept(int sockfd, struct sockaddr *uaddr, int *addr_len, int flags) */
 /* This functions is called when accept system called is called from the user space*/
 
-static long my_sys_accept(int fd, struct sockaddr *uaddr, int *addr_len, int flags)
+static long my_sys_accept(int sockfd, struct sockaddr *uaddr, int *addr_len, int flags)
 {
 	int err;
 	struct socket * sock;
 	
-	sock = sockfd_lookup(fd, &err);
+	sock = sockfd_lookup(sockfd, &err);
 		
 	if(sock->sk->sk_protocol == IPPROTO_TCP)
 	{
@@ -75,13 +94,6 @@ static long my_sys_accept(int fd, struct sockaddr *uaddr, int *addr_len, int fla
 			printk("%s[%d] TCP accept from %s by UID: %d\n", current->comm, current->pid, 
 				inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
 		}
-#if PROBE_UDP		
-		else if(sock->type == SOCK_DGRAM)
-		{
-			printk("%s[%d] UDP accept from %s by UID %d\n", current->comm, current->pid, 
-				inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
-		}
-#endif		
 		else if(sock->ops->family == PF_INET6)
 		{
 			//TODO ipv6 handling by calling the ipv6 version of inet_ntoa
@@ -105,9 +117,9 @@ static struct jprobe inet_stream_connect_jprobe = {
 
 #if PROBE_UDP
 static struct jprobe inet_dgram_connect_jprobe = {	
-	.entry 			= my_inet_dgram_connect,
+	.entry 			= my_sys_bind,
 	.kp = {
-		.symbol_name 	= "inet_dgram_connect",
+		.symbol_name 	= "sys_bind",
 	},
 };
 #endif
