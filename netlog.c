@@ -21,14 +21,15 @@ char host_ip[INET6_ADDRSTRLEN];
 /* Probe for int inet_stream_connect(struct socket *sock, struct sockaddr * uaddr, int addr_len, int flags) */
 /* This function is called when a socket of SOCK_STREAM type tries to connect*/
 
-static int my_inet_stream_connect(struct socket *sock, struct sockaddr * uaddr, int addr_len, int flags)
+static int my_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
 {	
 	if(sock->sk->sk_protocol == IPPROTO_TCP)
 	{
 		if(sock->ops->family == PF_INET)
 		{
-			printk("%s[%d] TCP connect to %s by UID %d\n", current->comm, current->pid, 
-			 	inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
+			struct sockaddr_in *addrin = (struct sockaddr_in *)addr;
+			printk("%s[%d]%d TCP connect to %s by UID %d\n", current->comm, current->pid, 
+			 	ntohs(addrin->sin_port), inet_ntoa(addrin->sin_addr), sock_i_uid(sock->sk));
 		}
 		else if(sock->ops->family == PF_INET6)
 		{
@@ -54,17 +55,18 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, size_t addrlen)
 	{
 		if(sock->ops->family == PF_INET)
 		{
-			char *ip = inet_ntoa(((struct sockaddr_in *)addr)->sin_addr);
+			struct sockaddr_in *addrin = (struct sockaddr_in *)addr;
+			char *ip = inet_ntoa(addrin->sin_addr);
 			
 			if(!strcmp(ip, "0.0.0.0"))
 			{
-				printk("%s[%d] accepts UDP by UID %d\n", current->comm, current->pid, sock_i_uid(sock->sk));
+				printk("%s[%d]%d accepts UDP by UID %d\n", current->comm, current->pid, 
+					ntohs(addrin->sin_port), sock_i_uid(sock->sk));
 			}
 			else
 			{
-				printk("%s[%d] UDP connect to %s by UID %d\n", current->comm, current->pid, 
-					ip, sock_i_uid(sock->sk));
-			
+				printk("%s[%d]%d UDP connect to %s by UID %d\n", current->comm,
+					current->pid, ntohs(addrin->sin_port), ip, sock_i_uid(sock->sk));
 			}
 		}
 		else if(sock->ops->family == PF_INET6)
@@ -79,9 +81,9 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, size_t addrlen)
 #endif
 
 /* Probe for long sys_accept(int sockfd, struct sockaddr *uaddr, int *addr_len, int flags) */
-/* This functions is called when accept system called is called from the user space*/
+/* This function is called when accept system call is called from the user space*/
 
-static long my_sys_accept(int sockfd, struct sockaddr *uaddr, int *addr_len, int flags)
+static long my_sys_accept(int sockfd, struct sockaddr *addr, int *addr_len, int flags)
 {
 	int err;
 	struct socket * sock;
@@ -92,8 +94,9 @@ static long my_sys_accept(int sockfd, struct sockaddr *uaddr, int *addr_len, int
 	{
 		if(sock->ops->family == PF_INET)
 		{
-			printk("%s[%d] TCP accept from %s by UID: %d\n", current->comm, current->pid, 
-				inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
+			struct sockaddr_in *addrin = (struct sockaddr_in *)addr;
+			printk("%s[%d]%d TCP accept from %s by UID: %d\n", current->comm, current->pid, 
+				ntohs(addrin->sin_port), inet_ntoa(addrin->sin_addr), sock_i_uid(sock->sk));
 		}
 		else if(sock->ops->family == PF_INET6)
 		{
@@ -139,6 +142,8 @@ static struct jprobe accept_jprobe = {
 
 int init_module(void)
 {
+	//TODO get the host ip
+
 	register_jprobe(&inet_stream_connect_jprobe);
 #if PROBE_UDP
 	register_jprobe(&inet_dgram_connect_jprobe);
