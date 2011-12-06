@@ -18,16 +18,19 @@ char *inet_ntoa(struct in_addr in);
 
 static int my_inet_stream_connect(struct socket *sock, struct sockaddr * uaddr, int addr_len, int flags)
 {	
-	if(sock->ops->family == PF_INET)
+	if(sock->sk->sk_protocol == IPPROTO_TCP)
 	{
-		printk("%s[%d] TCP connect to %s by UID %d\n", current->comm, current->pid, 
-		 	inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
+		if(sock->ops->family == PF_INET)
+		{
+			printk("%s[%d] TCP connect to %s by UID %d\n", current->comm, current->pid, 
+			 	inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
+		}
+		else if(sock->ops->family == PF_INET6)
+		{
+			//TODO ipv6 handling by calling ipv6 version of inet_ntoa
+		}
 	}
-	else if(sock-> ops != NULL && sock->ops->family == PF_INET6)
-	{
-		//TODO ipv6 handling by calling ipv6 version of inet_ntoa
-	}
-
+	
 	jprobe_return();
 	return 0;
 }
@@ -38,16 +41,19 @@ static int my_inet_stream_connect(struct socket *sock, struct sockaddr * uaddr, 
 #if PROBE_UDP
 static int my_inet_dgram_connect(struct socket *sock, struct sockaddr * uaddr, int addr_len, int flags)
 {
-	if(sock->ops->family == PF_INET)
+	if(sock->sk->sk_protocol == IPPROTO_UDP)
 	{
-		printk("%s[%d] UDP connect to %s by UID %d\n", current->comm, current->pid, 
-			inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
+		if(sock->ops->family == PF_INET)
+		{
+			printk("%s[%d] UDP connect to %s by UID %d\n", current->comm, current->pid, 
+				inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
+		}
+		else if(sock->ops->family == PF_INET6)
+		{
+			//TODO ipv6 handling by calling the ipv6 version of inet_ntoa
+		}
 	}
-	else if(sock->ops->family == PF_INET6)
-	{
-		//TODO ipv6 handling by calling the ipv6 version of inet_ntoa
-	}
-
+	
 	jprobe_return();
 	return 0;
 }
@@ -62,9 +68,9 @@ static long my_sys_accept(int fd, struct sockaddr *uaddr, int *addr_len, int fla
 	
 	sock = sockfd_lookup(fd, &err);
 		
-	if(sock->ops->family == PF_INET)
+	if(sock->sk->sk_protocol == IPPROTO_TCP)
 	{
-		if(sock->type == SOCK_STREAM)
+		if(sock->ops->family == PF_INET)
 		{
 			printk("%s[%d] TCP accept from %s by UID: %d\n", current->comm, current->pid, 
 				inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
@@ -75,11 +81,11 @@ static long my_sys_accept(int fd, struct sockaddr *uaddr, int *addr_len, int fla
 			printk("%s[%d] UDP accept from %s by UID %d\n", current->comm, current->pid, 
 				inet_ntoa(((struct sockaddr_in *)uaddr)->sin_addr), sock_i_uid(sock->sk));
 		}
-#endif	
-	}	
-	else if(sock->ops->family == PF_INET6)
-	{
-		//TODO ipv6 handling by calling the ipv6 version of inet_ntoa
+#endif		
+		else if(sock->ops->family == PF_INET6)
+		{
+			//TODO ipv6 handling by calling the ipv6 version of inet_ntoa
+		}
 	}
 	
 	jprobe_return();
