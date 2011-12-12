@@ -52,8 +52,8 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	}
 	
 	printk("netlog: %s[%d] TCP connect %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
-				get_local_ip(inet->inet_saddr), ntohs(inet->inet_sport),
-				get_remote_ip(inet->inet_daddr), ntohs(inet->inet_dport), 
+				get_local_ip(inet->saddr), ntohs(inet->sport),
+				get_remote_ip(inet->daddr), ntohs(inet->dport), 
 				sock_i_uid(sock->sk));	
 	
 	return 0;
@@ -86,8 +86,8 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	}
 	
 	printk("netlog: %s[%d] TCP accept %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
-				get_local_ip(inet->inet_saddr), ntohs(inet->inet_sport),
-				get_remote_ip(inet->inet_daddr), ntohs(inet->inet_dport), 
+				get_local_ip(inet->saddr), ntohs(inet->sport),
+				get_remote_ip(inet->daddr), ntohs(inet->dport), 
 				sock_i_uid(sock->sk));	
 
         return 0;
@@ -113,8 +113,8 @@ static int my_inet_shutdown(struct socket *sock, int how)
 		}
 	
 		printk("netlog: %s[%d] TCP close %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-					get_local_ip(inet->inet_saddr), ntohs(inet->inet_sport),
-					get_remote_ip(inet->inet_daddr), ntohs(inet->inet_dport), 
+					get_local_ip(inet->saddr), ntohs(inet->sport),
+					get_remote_ip(inet->daddr), ntohs(inet->dport), 
 					sock_i_uid(sock->sk));	
 	}
 #if PROBE_UDP
@@ -129,8 +129,8 @@ static int my_inet_shutdown(struct socket *sock, int how)
 		}
 	
 		printk("netlog: %s[%d] UDP close %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-					get_local_ip(inet->inet_saddr), ntohs(inet->inet_sport),
-					get_remote_ip(inet->inet_daddr), ntohs(inet->inet_dport), 
+					get_local_ip(inet->saddr), ntohs(inet->sport),
+					get_remote_ip(inet->daddr), ntohs(inet->dport), 
 					sock_i_uid(sock->sk));	
 	}
 
