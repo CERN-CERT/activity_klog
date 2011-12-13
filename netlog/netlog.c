@@ -156,7 +156,7 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 		if(sock->ops->family == PF_INET)
 		{
 			struct sockaddr_in *addrin = (struct sockaddr_in *)addr;
-			char *ip = inet_ntoa(addrin->sin_addr);
+			char *ip = get_local_ip(addrin->sin_addr.s_addr);
 			
 			if(!strcmp(ip, "0.0.0.0"))
 			{
@@ -300,17 +300,9 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Panos Sakkos <panos.sakkos@cern.ch>");
 MODULE_DESCRIPTION("TODO");
 
-char *inet_ntoa(struct in_addr in)
-{
-	static char b[18];
-	register char *p;
-
-	p = (char *)&in;
-#define	UC(b)	(((int)b)&0xff)
-	(void)snprintf(b, sizeof(b),
-	    "%u.%u.%u.%u", UC(p[0]), UC(p[1]), UC(p[2]), UC(p[3]));
-	return (b);
-}
+/************************************/
+/*             IP UTILS             */
+/************************************/
 
 char *get_local_ip(int in)
 {
@@ -335,4 +327,5 @@ char *get_remote_ip(int in)
 	    "%u.%u.%u.%u", UC(p[0]), UC(p[1]), UC(p[2]), UC(p[3]));
 	return (b);		
 }
+
 
