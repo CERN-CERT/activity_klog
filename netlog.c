@@ -52,8 +52,8 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	}
 	
 	printk("netlog: %s[%d] TCP connect %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
-				get_local_ip(inet->saddr), ntohs(inet->sport),
-				get_remote_ip(inet->daddr), ntohs(inet->dport), 
+				get_local_ip(sock), ntohs(inet->sport),
+				"TODO", ntohs(inet->dport), 
 				sock_i_uid(sock->sk));	
 	
 	return 0;
@@ -304,28 +304,36 @@ MODULE_DESCRIPTION("TODO");
 /*             IP UTILS             */
 /************************************/
 
-char *get_local_ip(int in)
+char *get_local_ip(struct socket *sock)
 {
-	static char b[18];
-	register char*p;
-	
-	p = (char *)&in;
-#define	UC(b)	(((int)b)&0xff)
-	(void)snprintf(b, sizeof(b),
-	    "%u.%u.%u.%u", UC(p[0]), UC(p[1]), UC(p[2]), UC(p[3]));
-	return (b);		
+	if(sock == NULL || sock->sk == NULL)
+	{
+		return NULL;
+	}
+
+	struct inet_sock *inet = inet_sk(sock->sk);
+
+	if(sock->ops->family == PF_INET)
+	{
+		static char *ipv4[INET_ADDRSTRLEN];
+		snprintf(ipv4, INET_ADDRSTRLEN, "%pI4", &((struct sockaddr_in) inet->saddr)->sin_addr);
+		return ipv4;
+	}
+	else if(sock->ops->family == PF_INET6)
+	{
+		static char *ipv6[INET6_ADDRSTRLEN];
+		snprintf(ipv6, INET6_ADDRSTRLEN, "%pI6", &((struct sockaddr_in6) inet->saddr)->sin6_addr);
+		return ipv6;
+	}
+	else
+	{
+		return NULL;
+	}
 }
 
-char *get_remote_ip(int in)
+char *get_remote_ip(struct socket *sock)
 {
-	static char b[18];
-	register char*p;
-	
-	p = (char *)&in;
-#define	UC(b)	(((int)b)&0xff)
-	(void)snprintf(b, sizeof(b),
-	    "%u.%u.%u.%u", UC(p[0]), UC(p[1]), UC(p[2]), UC(p[3]));
-	return (b);		
+	return NULL;
 }
 
 
