@@ -4,45 +4,9 @@
 #include <linux/in.h>
 #include <linux/socket.h>
 #include <net/inet_sock.h>
-
-#define CONNECT_PROBE_FAILED -1
-#define ACCEPT_PROBE_FAILED -2
-#define SHUTDOWN_PROBE_FAILED -3
-#define BIND_PROBE_FAILED -4 
-
-#define PROBE_UDP 0
-#define PROBE_CONNECTION_CLOSE 1
-
-#define MAX_ACTIVE 100
-
-#ifndef INET6_ADDRSTRLEN
-	#define INET6_ADDRSTRLEN 48
-#endif
-
-/* For *forward* compatibility... God bless linux kernel developers. NOT */
-
-#ifndef NIPQUAD
-	#define NIPQUAD(addr) \
-	    ((unsigned char *)&addr)[0], \
-	    ((unsigned char *)&addr)[1], \
-	    ((unsigned char *)&addr)[2], \
-	    ((unsigned char *)&addr)[3]
-#endif
-
-#ifndef NIP6
-	#define NIP6(addr) \
-	    ntohs((addr).s6_addr16[0]), \
-	    ntohs((addr).s6_addr16[1]), \
-	    ntohs((addr).s6_addr16[2]), \
-	    ntohs((addr).s6_addr16[3]), \
-	    ntohs((addr).s6_addr16[4]), \
-	    ntohs((addr).s6_addr16[5]), \
-	    ntohs((addr).s6_addr16[6]), \
-	    ntohs((addr).s6_addr16[7])
-#endif
-
-char *get_remote_ip(struct socket *sock);
-char *get_local_ip(struct socket *sock);
+#include <linux/ipv6.h>
+#include "netlog.h"
+#include "iputils.h"
 
 static struct socket *socket_hash[PID_MAX_LIMIT];
 
@@ -296,81 +260,3 @@ void cleanup_module(void)
 	
 	printk("netlog: unplanted\n");
 }
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Panos Sakkos <panos.sakkos@cern.ch>");
-MODULE_DESCRIPTION("TODO");
-
-/************************************/
-/*             IP UTILS             */
-/************************************/
-
-char *get_local_ip(struct socket *sock)
-{
-	if(sock == NULL)
-	{
-		return NULL;
-	}
-
-	if(sock->ops->family == PF_INET)
-	{
-		int len;
-		static char ipv4[INET_ADDRSTRLEN];
-		struct sockaddr_in addrin;
-		
-		kernel_getsockname(sock, (struct sockaddr *) &addrin, &len);
-		snprintf(ipv4, sizeof(ipv4), "%d.%d.%d.%d", NIPQUAD(addrin.sin_addr));
-		return ipv4;
-	}
-	else if(sock->ops->family == PF_INET6)
-	{
-		int len;
-		static char ipv6[INET6_ADDRSTRLEN];
-		struct sockaddr_in6 addrin6;
-
-		kernel_getsockname(sock, (struct sockaddr *) &addrin6, &len);
-		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
-								NIP6(addrin6.sin6_addr));
-		return ipv6;
-	}
-	else
-	{
-		return NULL;
-	}
-}
-
-char *get_remote_ip(struct socket *sock)
-{
-	if(sock == NULL)
-	{
-		return NULL;
-	}
-
-	if(sock->ops->family == PF_INET)
-	{
-		int len;
-		static char ipv4[INET_ADDRSTRLEN];
-		struct sockaddr_in addrin;
-		
-		kernel_getpeername(sock, (struct sockaddr *) &addrin, &len);
-		snprintf(ipv4, sizeof(ipv4), "%d.%d.%d.%d", NIPQUAD(addrin.sin_addr));
-		return ipv4;
-	}
-	else if(sock->ops->family == PF_INET6)
-	{
-		int len;
-		static char ipv6[INET6_ADDRSTRLEN];
-		struct sockaddr_in6 addrin6;
-
-		kernel_getpeername(sock, (struct sockaddr *) &addrin6, &len);
-		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
-								NIP6(addrin6.sin6_addr));
-		return ipv6;
-	}
-	else
-	{
-		return NULL;
-	}
-}
-
-
