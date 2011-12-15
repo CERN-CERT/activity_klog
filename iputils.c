@@ -25,7 +25,7 @@
 #endif
 
 #ifndef INET_ADDRSTRLEN
-	#define INET6_ADDRSTRLEN 16
+	#define INET_ADDRSTRLEN 16
 #endif
 
 char *get_local_ip(struct socket *sock)
