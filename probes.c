@@ -1,10 +1,7 @@
 #include <linux/module.h>
 #include <linux/kprobes.h>
-#include <net/sock.h>
+#include <linux/init.h>
 #include <linux/in.h>
-#include <linux/socket.h>
-#include <net/inet_sock.h>
-#include <linux/ipv6.h>
 #include "netlog.h"
 #include "iputils.h"
 
@@ -33,8 +30,8 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	}
 	
 	printk("netlog: %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
-				get_local_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_sport),
-				get_remote_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_dport), 
+				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
+				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
 				sock_i_uid(sock->sk));	
 	
 	return 0;
@@ -59,8 +56,8 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	}
 	
 	printk("netlog: %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
-				get_local_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_sport),
-				get_remote_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_dport), 
+				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
+				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
 				sock_i_uid(sock->sk));	
 
         return 0;
@@ -72,30 +69,21 @@ static int my_inet_shutdown(struct socket *sock, int how)
 	if(sock == NULL || sock->sk == NULL)
 	{
 		jprobe_return();
-		return 0;
 	}
 	
 	if(sock->sk->sk_protocol == IPPROTO_TCP)
 	{
-		struct inet_sock *inet = inet_sk(sock->sk);
-	
-		if(inet == NULL)
-		{
-			jprobe_return();
-			return 0;
-		}
-	
 		printk("netlog: %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-				get_local_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_sport),
-				get_remote_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_dport), 
+				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
+				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
 				sock_i_uid(sock->sk));	
 	}
 #if PROBE_UDP
 	if(sock->sk->sk_protocol == IPPROTO_UDP)
 	{	
 		printk("netlog: %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-				get_local_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_sport),
-				get_remote_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_dport), 
+				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
+				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
 				sock_i_uid(sock->sk));	
 	}
 
@@ -116,26 +104,26 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 
 	sock = sockfd_lookup(sockfd, &err);
 
-	if(sock == NULL || sock->sk == NULL)
+	if(sock == NULL)
 	{
 		jprobe_return();
 	}
 
 	if(sock->sk->sk_protocol == IPPROTO_UDP)
 	{
-		char *ip = get_local_ip(sock);
+		char *ip = get_ip(addr);
 			
-		if(!strncmp(ip, "0.0.0.0", sizeof(ip)) ||
-		   !strncmp(ip, "[0000:0000:0000:0000:0000:0000:0000:0000]", sizeof(ip)))
-		{
+		if(!strncmp(ip, "0.0.0.0", sizeof(ip))
+		   || !strncmp(ip, "[0000:0000:0000:0000:0000:0000:0000:0000]", sizeof(ip)))
+		{				
 			printk("netlog: %s[%d] accepts UDP at port %d (uid=%d)\n", 
-				current->comm, current->pid, ((struct inet_sock *)sock->sk)->inet_sport,
+				current->comm, current->pid, ntohs(((struct sockaddr_in *)addr)->sin_port),
 				sock_i_uid(sock->sk));
 		}
 		else
 		{
 			printk("netlog: %s[%d] UDP connect to %s:%d by (uid=%d)\n", current->comm,
-				current->pid, ip, ntohs(((struct inet_sock *)sock->sk)->inet_dport),
+				current->pid, ip, ntohs(((struct sockaddr_in6 *)addr)->sin6_port),	
 				sock_i_uid(sock->sk));
 		}
 	}
@@ -168,7 +156,7 @@ static struct kretprobe accept_kretprobe = {
         .handler                = post_accept,
         .maxactive              = MAX_ACTIVE,
         .kp = {
-        	.symbol_name = "sys_accept4"
+        	.symbol_name = "sys_accept"
         	},
 };
 
@@ -194,10 +182,9 @@ static struct jprobe bind_jprobe = {
 /*             INIT MODULE          */
 /************************************/
 
-int init_module(void)
+int __init plant_probes(void)
 {
-	int return_value;
-	
+	int return_value;	
 
 	return_value = register_jprobe(&connect_jprobe);
 
@@ -246,7 +233,7 @@ int init_module(void)
 /*             EXIT MODULE          */
 /************************************/
 
-void cleanup_module(void)
+void __exit unplant_probes(void)
 {
   	unregister_jprobe(&connect_jprobe);
 	unregister_kretprobe(&connect_kretprobe);

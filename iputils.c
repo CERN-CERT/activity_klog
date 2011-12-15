@@ -1,7 +1,5 @@
 #include "iputils.h"
 
-/* For *forward* compatibility... God bless linux kernel developers. NOT */
-
 #ifndef NIPQUAD
 	#define NIPQUAD(addr) \
 	    ((unsigned char *)&addr)[0], \
@@ -26,9 +24,13 @@
 	#define INET6_ADDRSTRLEN 48
 #endif
 
+#ifndef INET_ADDRSTRLEN
+	#define INET6_ADDRSTRLEN 16
+#endif
+
 char *get_local_ip(struct socket *sock)
 {
-	if(sock == NULL || sock->sk == NULL)
+	if(sock == NULL || sock->sk == NULL ||sock->ops == NULL)
 	{
 		return NULL;
 	}
@@ -37,13 +39,14 @@ char *get_local_ip(struct socket *sock)
 	{
 		static char ipv4[INET_ADDRSTRLEN];
 			
-	        snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sock->sk)->inet_saddr));
+	        snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sock->sk)->saddr));
 		return ipv4;
 	}
 	else if(sock->ops->family == AF_INET6)
 	{
 		static char ipv6[INET6_ADDRSTRLEN + 2];
-		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", NIP6(inet6_sk(sock->sk)->saddr));
+		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
+							NIP6(inet6_sk(sock->sk)->saddr));
 
 		return ipv6;
 	}
@@ -55,7 +58,7 @@ char *get_local_ip(struct socket *sock)
 
 char *get_remote_ip(struct socket *sock)
 {
-	if(sock == NULL || sock->sk == NULL)
+	if(sock == NULL || sock->sk == NULL ||sock->ops == NULL)
 	{
 		return NULL;
 	}
@@ -64,14 +67,15 @@ char *get_remote_ip(struct socket *sock)
 	{
 		static char ipv4[INET_ADDRSTRLEN];
 		
-		snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sock->sk)->inet_daddr));
+		snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sock->sk)->daddr));
 		return ipv4;
 	}
 	else if(sock->ops->family == AF_INET6)
 	{
 		static char ipv6[INET6_ADDRSTRLEN + 2];
                 
-		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", NIP6(inet6_sk(sock->sk)->daddr));
+		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
+							NIP6(inet6_sk(sock->sk)->daddr));
                 return ipv6;
 
 	}
@@ -80,4 +84,52 @@ char *get_remote_ip(struct socket *sock)
 		return NULL;
 	}
 }
+
+char *get_ip(const struct sockaddr *addr)
+{
+	if(addr == NULL)
+	{
+		return NULL;
+	}
+	
+	if(addr->sa_family == AF_INET)
+	{
+		static char ipv4[INET_ADDRSTRLEN];
+		struct sockaddr_in *addrin = (struct sockaddr_in *) addr;
+
+		snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(addrin->sin_addr));
+		return ipv4;
+	}
+	else if(addr->sa_family == AF_INET6)
+	{
+		static char ipv6[INET6_ADDRSTRLEN + 2];
+		struct sockaddr_in6 *addrin6 = (struct sockaddr_in6 *) addr;
+		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]",
+								NIP6(addrin6->sin6_addr));	
+									 
+		return ipv6;							 
+	}
+	else
+	{
+		return NULL;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
