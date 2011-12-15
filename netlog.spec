@@ -6,7 +6,8 @@ Version: 1.0
 Release: 0
 Vendor: CERN, http://cern.ch/linux
 BuildRoot: %{_tmppath}/%{name}-%{version}-build
-BuildRequires: %kernel_module_package_buildreqs %kernel_module_package kernel-syms
+BuildRequires: %kernel_module_package_buildreqs
+%kernel_module_package
 
 %description
 Logs process name, pid, uid, source ip, source port number, destination ip and destination portnumber
