@@ -2,6 +2,9 @@
 #include <linux/kprobes.h>
 #include <linux/init.h>
 #include <linux/in.h>
+#include <linux/net.h>
+#include <net/ip.h>
+#include <linux/socket.h>
 #include "netlog.h"
 #include "iputils.h"
 

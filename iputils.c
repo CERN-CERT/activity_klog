@@ -1,5 +1,6 @@
 #include "iputils.h"
 #include <linux/ipv6.h>
+#include <net/ip.h>
 
 #ifndef NIPQUAD
 	#define NIPQUAD(addr) \
