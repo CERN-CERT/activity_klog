@@ -6,7 +6,7 @@
 #define SHUTDOWN_PROBE_FAILED -3
 #define BIND_PROBE_FAILED -4 
 
-#define PROBE_UDP 1
+#define PROBE_UDP 0
 #define PROBE_CONNECTION_CLOSE 1
 
 #define MAX_ACTIVE 100
