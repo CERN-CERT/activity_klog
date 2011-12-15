@@ -1,16 +1,17 @@
 Name: netlog
 License: GPL
-Group: System/Kernel
-Summary: Logs TCP connections
+Group: System/Security
+Summary: Logs information for every connection
 Version: 1.0
 Release: 0
-#Source0: %name-%version.tar.bz2
+Vendor: CERN, http://cern.ch/linux
 BuildRoot: %{_tmppath}/%{name}-%{version}-build
 BuildRequires: %kernel_module_package_buildreqs
 %kernel_module_package
 
 %description
-TODO
+Logs process name, pid, uid, source ip, source port number, destination ip and destination portnumber
+for every TCP connection. Also logs connection close and UDP binds
 
 %prep
 (cd %{_sourcedir}; tar --exclude .git -chf - *) | tar xf -
@@ -39,5 +40,5 @@ done
 rm -rf %{buildroot}
 
 %changelog
-* Tue Dec  13 2011 Panos Sakkos 
-- Updated original examples
+* Thu Dec  15 2011 Panos Sakkos <panos.sakkos@cern.ch>
+- First RPM release.

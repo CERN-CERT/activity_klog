@@ -4,20 +4,9 @@
 #include <linux/in.h>
 #include <linux/socket.h>
 #include <net/inet_sock.h>
-
-#define CONNECT_PROBE_FAILED -1
-#define ACCEPT_PROBE_FAILED -2
-#define SHUTDOWN_PROBE_FAILED -3
-#define BIND_PROBE_FAILED -4 
-
-#define PROBE_UDP 0   
-#define PROBE_CONNECTION_CLOSE 1
-
-#define MAX_ACTIVE 100
-
-char *get_remote_ip(int);
-char *get_local_ip(int);
-char *inet_ntoa(struct in_addr in);
+#include <linux/ipv6.h>
+#include "netlog.h"
+#include "iputils.h"
 
 static struct socket *socket_hash[PID_MAX_LIMIT];
 
@@ -31,7 +20,6 @@ static int my_inet_stream_connect(struct socket *sock, struct sockaddr *addr, in
 
 static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	struct inet_sock *inet;
 	struct socket *sock = socket_hash[current->pid];
 	
 	if(sock == NULL || sock->sk == NULL)
@@ -43,17 +31,10 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	{
 		return 0;
 	}
-
-	inet = inet_sk(sock->sk);
 	
-	if(inet == NULL)
-	{
-		return 0;
-	}
-	
-	printk("netlog: %s[%d] TCP connect %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
-				get_local_ip(inet->saddr), ntohs(inet->sport),
-				get_remote_ip(inet->daddr), ntohs(inet->dport), 
+	printk("netlog: %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
+				get_local_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_sport),
+				get_remote_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_dport), 
 				sock_i_uid(sock->sk));	
 	
 	return 0;
@@ -65,7 +46,6 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	int err;
-	struct inet_sock *inet;
 	struct socket *sock = sockfd_lookup(regs_return_value(regs), &err);
 		
 	if(sock == NULL || sock->sk == NULL)
@@ -77,17 +57,10 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	{
 		return 0;
 	}
-
-	inet = inet_sk(sock->sk);
 	
-	if(inet == NULL)
-	{
-		return 0;
-	}
-	
-	printk("netlog: %s[%d] TCP accept %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
-				get_local_ip(inet->saddr), ntohs(inet->sport),
-				get_remote_ip(inet->daddr), ntohs(inet->dport), 
+	printk("netlog: %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
+				get_local_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_sport),
+				get_remote_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_dport), 
 				sock_i_uid(sock->sk));	
 
         return 0;
@@ -112,26 +85,18 @@ static int my_inet_shutdown(struct socket *sock, int how)
 			return 0;
 		}
 	
-		printk("netlog: %s[%d] TCP close %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-					get_local_ip(inet->saddr), ntohs(inet->sport),
-					get_remote_ip(inet->daddr), ntohs(inet->dport), 
-					sock_i_uid(sock->sk));	
+		printk("netlog: %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+				get_local_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_sport),
+				get_remote_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_dport), 
+				sock_i_uid(sock->sk));	
 	}
 #if PROBE_UDP
 	if(sock->sk->sk_protocol == IPPROTO_UDP)
-	{
-		struct inet_sock *inet = inet_sk(sock->sk);
-	
-		if(inet == NULL)
-		{
-			jprobe_return();
-			return 0;
-		}
-	
-		printk("netlog: %s[%d] UDP close %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-					get_local_ip(inet->saddr), ntohs(inet->sport),
-					get_remote_ip(inet->daddr), ntohs(inet->dport), 
-					sock_i_uid(sock->sk));	
+	{	
+		printk("netlog: %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+				get_local_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_sport),
+				get_remote_ip(sock), ntohs(((struct inet_sock *)sock->sk)->inet_dport), 
+				sock_i_uid(sock->sk));	
 	}
 
 #endif
@@ -151,30 +116,30 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 
 	sock = sockfd_lookup(sockfd, &err);
 
+	if(sock == NULL || sock->sk == NULL)
+	{
+		jprobe_return();
+	}
+
 	if(sock->sk->sk_protocol == IPPROTO_UDP)
 	{
-		if(sock->ops->family == PF_INET)
-		{
-			struct sockaddr_in *addrin = (struct sockaddr_in *)addr;
-			char *ip = get_local_ip(addrin->sin_addr.s_addr);
+		char *ip = get_local_ip(sock);
 			
-			if(!strcmp(ip, "0.0.0.0"))
-			{
-				printk("netlog: %s[%d] accepts UDP at port %d (uid=%d)\n", 
-				current->comm, current->pid, ntohs(addrin->sin_port), sock_i_uid(sock->sk));
-			}
-			else
-			{
-				printk("netlog: %s[%d] UDP connect to %s:%d by (uid=%d)\n", current->comm,
-					current->pid, ip, ntohs(addrin->sin_port), sock_i_uid(sock->sk));
-			}
-		}
-		else if(sock->ops->family == PF_INET6)
+		if(!strncmp(ip, "0.0.0.0", sizeof(ip)) ||
+		   !strncmp(ip, "[0000:0000:0000:0000:0000:0000:0000:0000]", sizeof(ip)))
 		{
-			//TODO ipv6 handling by calling the ipv6 version of inet_ntoa
+			printk("netlog: %s[%d] accepts UDP at port %d (uid=%d)\n", 
+				current->comm, current->pid, ((struct inet_sock *)sock->sk)->inet_sport,
+				sock_i_uid(sock->sk));
+		}
+		else
+		{
+			printk("netlog: %s[%d] UDP connect to %s:%d by (uid=%d)\n", current->comm,
+				current->pid, ip, ntohs(((struct inet_sock *)sock->sk)->inet_dport),
+				sock_i_uid(sock->sk));
 		}
 	}
-	
+
 	jprobe_return();
 	return 0;
 }
@@ -203,7 +168,7 @@ static struct kretprobe accept_kretprobe = {
         .handler                = post_accept,
         .maxactive              = MAX_ACTIVE,
         .kp = {
-        	.symbol_name = "sys_accept"
+        	.symbol_name = "sys_accept4"
         	},
 };
 
@@ -295,37 +260,3 @@ void cleanup_module(void)
 	
 	printk("netlog: unplanted\n");
 }
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Panos Sakkos <panos.sakkos@cern.ch>");
-MODULE_DESCRIPTION("TODO");
-
-/************************************/
-/*             IP UTILS             */
-/************************************/
-
-char *get_local_ip(int in)
-{
-	static char b[18];
-	register char*p;
-	
-	p = (char *)&in;
-#define	UC(b)	(((int)b)&0xff)
-	(void)snprintf(b, sizeof(b),
-	    "%u.%u.%u.%u", UC(p[0]), UC(p[1]), UC(p[2]), UC(p[3]));
-	return (b);		
-}
-
-char *get_remote_ip(int in)
-{
-	static char b[18];
-	register char*p;
-	
-	p = (char *)&in;
-#define	UC(b)	(((int)b)&0xff)
-	(void)snprintf(b, sizeof(b),
-	    "%u.%u.%u.%u", UC(p[0]), UC(p[1]), UC(p[2]), UC(p[3]));
-	return (b);		
-}
-
-
