@@ -99,7 +99,7 @@ char *get_ip(const struct sockaddr *addr)
 		static char ipv4[INET_ADDRSTRLEN];
 		struct sockaddr_in *addrin = (struct sockaddr_in *) addr;
 
-		snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(addrin->sin_addr->s_addr));
+		snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(addrin->sin_addr.s_addr));
 		return ipv4;
 	}
 	else if(addr->sa_family == AF_INET6)
