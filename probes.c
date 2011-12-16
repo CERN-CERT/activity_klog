@@ -119,13 +119,13 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 		if(!strncmp(ip, "0.0.0.0", sizeof(ip))
 		   || !strncmp(ip, "[0000:0000:0000:0000:0000:0000:0000:0000]", sizeof(ip)))
 		{				
-			printk("netlog: %s[%d] accepts UDP at port %d (uid=%d)\n", 
+			printk("netlog: %s[%d] UDP bind  (any ip address):%d (uid=%d)\n", 
 				current->comm, current->pid, ntohs(((struct sockaddr_in *)addr)->sin_port),
 				sock_i_uid(sock->sk));
 		}
 		else
 		{
-			printk("netlog: %s[%d] UDP connect to %s:%d by (uid=%d)\n", current->comm,
+			printk("netlog: %s[%d] UDP bind %s:%d by (uid=%d)\n", current->comm,
 				current->pid, ip, ntohs(((struct sockaddr_in6 *)addr)->sin6_port),	
 				sock_i_uid(sock->sk));
 		}
