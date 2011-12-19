@@ -8,6 +8,14 @@
 #include "netlog.h"
 #include "iputils.h"
 
+/* The next two probes are for the connect system call. We need to associate the process that 
+ * requested the connection with the socket file descriptor that the kernel returned.
+ * The socket file descriptor is available only after the system call returns. 
+ * Though we need to be able to get the pointer to the socket struct that was given as a parameter
+ * to connect and log its contents. We cannot have a process requesting two connects in the same time,
+ * because when a system call is called, the process is suspended untill its end of execution.
+ */
+
 static struct socket *socket_hash[PID_MAX_LIMIT];
 
 static int my_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
@@ -41,7 +49,11 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 }
 
 
-/* Post handler probe for accept system call */
+/* post_accept probe is called right after the accept system call returns.
+ * In the return register is placed the socket file descriptor. So with the
+ * user of regs_return_value we can get the socket file descriptor and log 
+ * the data that we want for the socket.
+ */
 
 static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
@@ -66,6 +78,10 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
         return 0;
 }
 
+/* Probe for inet_shutdown kernel call. This kernel call is called
+ * When close system call is called.
+ */
+ 
 #if PROBE_CONNECTION_CLOSE
 static int my_inet_shutdown(struct socket *sock, int how)
 {
@@ -119,7 +135,7 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 		if(!strncmp(ip, "0.0.0.0", sizeof(ip))
 		   || !strncmp(ip, "[0000:0000:0000:0000:0000:0000:0000:0000]", sizeof(ip)))
 		{				
-			printk("netlog: %s[%d] UDP bind  (any ip address):%d (uid=%d)\n", 
+			printk("netlog: %s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
 				current->comm, current->pid, ntohs(((struct sockaddr_in *)addr)->sin_port),
 				sock_i_uid(sock->sk));
 		}

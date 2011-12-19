@@ -64,7 +64,7 @@ Dec 19 14:18:37 panos-PC kernel: [ 2262.125936] netlog: sshd[827] TCP 137.138.19
 
 UDP binds:
 Dec 19 14:22:50 panos-PC kernel: [ 2515.081074] netlog: skype[4261] UDP bind 127.0.0.1:0 (uid=1000)
-Dec 19 14:22:50 panos-PC kernel: [ 2515.271375] netlog: skype[4261] UDP bind  (any ip address):2752 (uid=1000)
+Dec 19 14:22:50 panos-PC kernel: [ 2515.271375] netlog: skype[4261] UDP bind (any IP address):2752 (uid=1000)
 
 Connection close:
 Dec 19 14:19:07 panos-PC kernel: [ 2292.580879] netlog: sshd[3755] TCP 137.138.191.167:22 <-> 137.138.32.18:49904 (uid=0)

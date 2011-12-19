@@ -2,6 +2,11 @@
 #include <linux/ipv6.h>
 #include <net/ip.h>
 
+/* Needed in order to convert binary network address to readable.
+ * these macros were existing in previous kernel versions but were removed.
+ * NIPQUAD is for IPv4 and NIP6 for IPv6 addresses.
+ */
+
 #ifndef NIPQUAD
 	#define NIPQUAD(addr) \
 	    ((unsigned char *)&addr)[0], \
@@ -107,7 +112,7 @@ char *get_ip(const struct sockaddr *addr)
 		static char ipv6[INET6_ADDRSTRLEN + 2];
 		struct sockaddr_in6 *addrin6 = (struct sockaddr_in6 *) addr;
 		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]",
-								NIP6(addrin6->sin6_addr));	
+							NIP6(addrin6->sin6_addr));	
 									 
 		return ipv6;							 
 	}
@@ -116,12 +121,6 @@ char *get_ip(const struct sockaddr *addr)
 		return NULL;
 	}
 }
-
-
-
-
-
-
 
 
 
