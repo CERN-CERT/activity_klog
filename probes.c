@@ -125,7 +125,7 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 		}
 		else
 		{
-			printk("netlog: %s[%d] UDP bind %s:%d by (uid=%d)\n", current->comm,
+			printk("netlog: %s[%d] UDP bind %s:%d (uid=%d)\n", current->comm,
 				current->pid, ip, ntohs(((struct sockaddr_in6 *)addr)->sin6_port),	
 				sock_i_uid(sock->sk));
 		}
