@@ -15,14 +15,14 @@ Author Email:		<panos.sakkos@cern.ch>
 											|Introduction|
 											+------------+
 
-In the Computer Security Team, we need to track the incoming and outgoing connections of our
+In the Computer Security Team, we need to track the incoming and outgoing connections of CERN
 production machines and associate them with the process that established them, as well as with
-the users that own these processes. Our production machines, are pushed to their limits, so we
+the users that own these processes. These production machines, are pushed to their limits, so we
 needed something stealth enough in order to work for our needs. The present work is a Loadable
 Kernel Module that implements the behaviour of a netlog software. Our machines run a redhat flavour
 called Scientific Linux CERN, so the current work is developed for machines running redhat distros*.
 
-*I am mentioning this, because some names of structure data members change.
+*I am mentioning this, because some names of kernel structure data members change.
  so if you want to compile it for another distribution you will need to do some changes in the code.
 
 											+-----------+
@@ -31,14 +31,14 @@ called Scientific Linux CERN, so the current work is developed for machines runn
 
 Netlog is a Loadable Kernel Module that logs information for every connection.
 With the help of kprobes API, it tracks the connect and accept system calls and 
-in case that the connection is a TCP one, it logs the process name and Process ID, 
+in case that the connection for TCP, it logs the process name and Process ID, 
 the User ID that owns this process, the protocol (TCP), the local IP address and port as well
 as the remote IP address and port.
 
 For UDP, it tracks the bind system call, because UDP is a connectionless protocol,
 so the other approach was to track the packet communication, something that would
-ad a lot of overhead. The data that is logged, is the process name and Process ID,
-the Used ID of the process owner, the protocol (UDP) and the information about the IP address
+add a lot of overhead. The data that is logged, is the process name and Process ID,
+the User ID of the process owner, the protocol (UDP) and the information about the IP address
 and port that bind holds at its parameters. In order to compile the code that tracks UDP, you 
 have to change the symbolic constant (PROBE_UDP) that it's defined in the netlog header (netlog.h) from
 zero (0) to a non-zero value (i.e. 1).
@@ -50,7 +50,7 @@ logs the process name and Process ID that created it, as well as the Used ID tha
 process, the protocol (TCP or UDP), the local IP address and port and the remote IP address and port.
 in order to compile the code that tracks the connection close, you need to change the value of the
 symbolic constant (PROBE_CONNECTION_CLOSE) that is defined in the netlog header file (netlog.h) from 
-zero (0) to a non-zero value.
+zero (0) to a non-zero value (i.e. 1).
 
 									+--------------------------+
 									|Format of the log messages|
@@ -81,7 +81,7 @@ Then run:
 
 	insmod netlog.ko
 
-in order to isnert the module in the kernel.
+in order to insert the module in the kernel.
 And in order to remove it, run:
 
 	rmmod netlog
@@ -92,8 +92,8 @@ And in order to remove it, run:
 
 First of all you have to be experienced with the C language and by experienced I mean at least to
 be familiar with pointers. Also you need to know how the system calls are handled from the Linux Kernel
-and to be familiar with the inet level of the kernel source code. For the last thing, grep is your friend.\
-Furthermore you have to be know the kprobes library.
+and to be familiar with the inet level of the kernel source code. For the last thing, grep is your friend.
+Furthermore you have to know how kprobes works (or at least its API).
 
 											+----------+
 											|References|
