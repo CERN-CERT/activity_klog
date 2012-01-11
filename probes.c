@@ -157,7 +157,7 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 /*************************************/
 
 static struct jprobe connect_jprobe = {	
-	.entry 			= my_inet_stream_connect,
+	.entry 			= (kprobe_opcode_t *) my_inet_stream_connect,
 	.kp = {
 		.symbol_name 	= "inet_stream_connect",
 	},
@@ -181,7 +181,7 @@ static struct kretprobe accept_kretprobe = {
 
 #if PROBE_CONNECTION_CLOSE
 static struct jprobe shutdown_jprobe = {	
-	.entry 			= my_inet_shutdown,
+	.entry 			= (kprobe_opcode_t *) my_inet_shutdown,
 	.kp = {
 		.symbol_name 	= "inet_shutdown",
 	},
@@ -190,7 +190,7 @@ static struct jprobe shutdown_jprobe = {
 
 #if PROBE_UDP
 static struct jprobe bind_jprobe = {	
-	.entry 			= my_sys_bind,
+	.entry 			= (kprobe_opcode_t *) my_sys_bind,
 	.kp = {
 		.symbol_name 	= "sys_bind",
 	},
