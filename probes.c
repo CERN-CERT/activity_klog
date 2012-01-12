@@ -276,7 +276,9 @@ int __init plant_probes(void)
 		return BIND_PROBE_FAILED;
 	}
 #endif	
-	
+
+	printk("netlog: planted\n");
+
 	/*Deal with the whitelisting*/
 
 	for(i = 0; i < NO_WHITELISTS; i++)
@@ -294,8 +296,6 @@ int __init plant_probes(void)
 			printk("netlog: whitelisted %s\n", procs_to_whitelist[i]);
 		}
 	}
-
-	printk("netlog: planted\n");        
 
 	return 0;
 }
