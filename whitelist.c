@@ -4,7 +4,7 @@
 int size = 0;
 char white_list[MAX_LIST_SIZE][TASK_COMM_LEN];
 
-int whitelist(char *process_name)
+int whitelist(const char *process_name)
 {
 	if(size == MAX_LIST_SIZE)
 	{
@@ -13,8 +13,10 @@ int whitelist(char *process_name)
 		return LIST_FULL;
 	}
 
-	if(strnlen(process_name, TASK_COM_LEN) == 0)
+	if(strnlen(process_name, TASK_COMM_LEN) == 0)
 	{
+		/*No reason to whitelist an ampty process name...*/
+
 		return NOT_WHITELISTED;
 	}
 
@@ -24,7 +26,7 @@ int whitelist(char *process_name)
 	return WHITELISTED;
 }
 
-int is_whitelisted(char *process_name)
+int is_whitelisted(const char *process_name)
 {
 	int i;
 

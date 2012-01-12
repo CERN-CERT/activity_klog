@@ -24,6 +24,14 @@
 
 #define MAX_ACTIVE 100
 
+/*Process names to be whitelisted */
+
+#define NO_WHITELISTS 1
+const char procs_to_whitelist[NO_WHITELISTS][TASK_COMM_LEN] =
+{
+		"sshd"
+};
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Panos Sakkos <panos.sakkos@cern.ch>");
 MODULE_DESCRIPTION("Logs process name, pid, uid, source ip, source port,\

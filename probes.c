@@ -40,6 +40,12 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	{
 		return 0;
 	}
+
+	if(is_whitelisted(current->comm))
+	{
+		printk("netlog: %s is whitelisted!\n", current->comm);
+		return 0;
+	}
 	
 	printk("netlog: %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
@@ -52,7 +58,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 /* post_accept probe is called right after the accept system call returns.
  * In the return register is placed the socket file descriptor. So with the
- * user of regs_return_value we can get the socket file descriptor and log 
+ * user of regs_register_status we can get the socket file descriptor and log
  * the data that we want for the socket.
  */
 
@@ -71,6 +77,12 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 		return 0;
 	}
 	
+	if(is_whitelisted(current->comm))
+	{
+		printk("netlog: %s is whitelisted!\n", current->comm);
+		return 0;
+	}
+
 	printk("netlog: %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
@@ -93,6 +105,12 @@ static int my_inet_shutdown(struct socket *sock, int how)
 	
 	if(sock->sk->sk_protocol == IPPROTO_TCP)
 	{
+		if(is_whitelisted(current->comm))
+		{
+			printk("netlog: %s is whitelisted!\n", current->comm);
+			jprobe_return();
+		}
+
 		printk("netlog: %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
@@ -101,6 +119,12 @@ static int my_inet_shutdown(struct socket *sock, int how)
 #if PROBE_UDP
 	if(sock->sk->sk_protocol == IPPROTO_UDP)
 	{	
+		if(is_whitelisted(current->comm))
+		{
+			printk("netlog: %s is whitelisted!\n", current->comm);
+			jprobe_return();
+		}
+
 		printk("netlog: %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
@@ -131,7 +155,15 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 
 	if(sock->sk->sk_protocol == IPPROTO_UDP)
 	{
-		char *ip = get_ip(addr);
+		char *ip;
+
+		if(is_whitelisted(current->comm))
+		{
+			printk("netlog: %s is whitelisted!\n", current->comm);
+			jprobe_return();
+		}
+
+		ip = get_ip(addr);
 			
 		if(!strncmp(ip, "0.0.0.0", sizeof(ip))
 		   || !strncmp(ip, "[0000:0000:0000:0000:0000:0000:0000:0000]", sizeof(ip)))
@@ -204,42 +236,42 @@ static struct jprobe bind_jprobe = {
 
 int __init plant_probes(void)
 {
-	int return_value;	
+	int register_status, i;
 
-	return_value = register_jprobe(&connect_jprobe);
+	register_status = register_jprobe(&connect_jprobe);
 
-	if(return_value < 0)
+	if(register_status < 0)
 	{
 		return CONNECT_PROBE_FAILED;
 	}
 
-	return_value = register_kretprobe(&connect_kretprobe);
+	register_status = register_kretprobe(&connect_kretprobe);
         
-    if(return_value < 0)
+    if(register_status < 0)
     {
     	return CONNECT_PROBE_FAILED;
     }
 
-	return_value = register_kretprobe(&accept_kretprobe);
+	register_status = register_kretprobe(&accept_kretprobe);
         
-    if(return_value < 0)
+    if(register_status < 0)
     {
     	return ACCEPT_PROBE_FAILED;
     }
 
 #if PROBE_CONNECTION_CLOSE
-	return_value = register_jprobe(&shutdown_jprobe);
+	register_status = register_jprobe(&shutdown_jprobe);
 
-	if(return_value < 0)
+	if(register_status < 0)
 	{
 		return SHUTDOWN_PROBE_FAILED;
 	}
 #endif
 	
 #if PROBE_UDP
-	return_value = register_jprobe(&bind_jprobe);
+	register_status = register_jprobe(&bind_jprobe);
 
-	if(return_value < 0)
+	if(register_status < 0)
 	{
 		return BIND_PROBE_FAILED;
 	}
@@ -247,7 +279,21 @@ int __init plant_probes(void)
 	
 	/*Deal with the whitelisting*/
 
+	for(i = 0; i < NO_WHITELISTS; i++)
+	{
+		int whitelist_status;
 
+		whitelist_status = whitelist(procs_to_whitelist[i]);
+
+		if(whitelist_status < 0)
+		{
+			printk("netlog: failed to whitelist %s\n", procs_to_whitelist[i]);
+		}
+		else
+		{
+			printk("netlog: whitelisted %s\n", procs_to_whitelist[i]);
+		}
+	}
 
 	printk("netlog: planted\n");        
 

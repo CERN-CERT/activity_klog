@@ -1,6 +1,7 @@
 #include "iputils.h"
 #include <linux/ipv6.h>
 #include <net/ip.h>
+#include <linux/socket.h>
 
 /* Needed in order to convert binary network address to readable.
  * these macros were existing in previous kernel versions but were removed.
@@ -35,7 +36,7 @@
 	#define INET_ADDRSTRLEN 16
 #endif
 
-char *get_local_ip(struct socket *sock)
+char *get_local_ip(const struct socket *sock)
 {
 	if(sock == NULL || sock->sk == NULL ||sock->ops == NULL)
 	{
@@ -63,7 +64,7 @@ char *get_local_ip(struct socket *sock)
 	}
 }
 
-char *get_remote_ip(struct socket *sock)
+char *get_remote_ip(const struct socket *sock)
 {
 	if(sock == NULL || sock->sk == NULL ||sock->ops == NULL)
 	{
