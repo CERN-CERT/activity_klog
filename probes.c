@@ -118,7 +118,6 @@ static int my_inet_shutdown(struct socket *sock, int how)
 	{	
 		if(is_whitelisted(current->comm))
 		{
-			printk("netlog: %s is whitelisted!\n", current->comm);
 			jprobe_return();
 		}
 
