@@ -8,8 +8,6 @@ Vendor: CERN, http://cern.ch/linux
 BuildRoot: %{_tmppath}/%{name}-%{version}-build
 BuildRequires: %kernel_module_package_buildreqs
 %kernel_module_package
-Buildrequires: kernel = %{kernel}
-BuildRequires: kernel-devel = %{kernel}
 
 %description
 Logs process name, pid, uid, source ip, source port, destination ip and destination port
