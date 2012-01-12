@@ -13,6 +13,11 @@ int whitelist(char *process_name)
 		return LIST_FULL;
 	}
 
+	if(strnlen(process_name, TASK_COM_LEN) == 0)
+	{
+		return NOT_WHITELISTED;
+	}
+
 	strncpy(white_list[size], process_name, TASK_COMM_LEN);
 	size++;
 

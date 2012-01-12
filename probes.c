@@ -7,6 +7,7 @@
 #include <linux/socket.h>
 #include "netlog.h"
 #include "iputils.h"
+#include "whitelist.h"
 
 /* The next two probes are for the connect system call. We need to associate the process that 
  * requested the connection with the socket file descriptor that the kernel returned.
@@ -214,17 +215,18 @@ int __init plant_probes(void)
 
 	return_value = register_kretprobe(&connect_kretprobe);
         
-        if(return_value < 0) 
-        {
-                return CONNECT_PROBE_FAILED;
-        }
+    if(return_value < 0)
+    {
+    	return CONNECT_PROBE_FAILED;
+    }
 
 	return_value = register_kretprobe(&accept_kretprobe);
         
-        if(return_value < 0) 
-        {
-                return ACCEPT_PROBE_FAILED;
-        }
+    if(return_value < 0)
+    {
+    	return ACCEPT_PROBE_FAILED;
+    }
+
 #if PROBE_CONNECTION_CLOSE
 	return_value = register_jprobe(&shutdown_jprobe);
 
@@ -243,6 +245,10 @@ int __init plant_probes(void)
 	}
 #endif	
 	
+	/*Deal with the whitelisting*/
+
+
+
 	printk("netlog: planted\n");        
 
 	return 0;
