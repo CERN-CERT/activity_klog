@@ -26,6 +26,10 @@
 
 /*Process names to be whitelisted */
 
+/*Set to non-zero value in order to compile the whitelisting code*/
+
+#define WHITELISTING 0
+
 #define NO_WHITELISTS 1
 const char procs_to_whitelist[NO_WHITELISTS][TASK_COMM_LEN] =
 {

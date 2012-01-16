@@ -41,10 +41,12 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 		return 0;
 	}
 
+#if WHITELISTING
 	if(is_whitelisted(current->comm))
 	{
 		return 0;
 	}
+#endif
 	
 	printk("netlog: %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
@@ -75,11 +77,12 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	{
 		return 0;
 	}
-	
+#if WHITELISTING
 	if(is_whitelisted(current->comm))
 	{
 		return 0;
 	}
+#endif
 
 	printk("netlog: %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
@@ -103,10 +106,12 @@ static int my_inet_shutdown(struct socket *sock, int how)
 	
 	if(sock->sk->sk_protocol == IPPROTO_TCP)
 	{
+#if WHITELISTING
 		if(is_whitelisted(current->comm))
 		{
 			jprobe_return();
 		}
+#endif
 
 		printk("netlog: %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
@@ -116,10 +121,12 @@ static int my_inet_shutdown(struct socket *sock, int how)
 #if PROBE_UDP
 	if(sock->sk->sk_protocol == IPPROTO_UDP)
 	{	
+#if WHITELISTING
 		if(is_whitelisted(current->comm))
 		{
 			jprobe_return();
 		}
+#endif
 
 		printk("netlog: %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
@@ -153,10 +160,12 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 	{
 		char *ip;
 
+#if WHITELISTING
 		if(is_whitelisted(current->comm))
 		{
 			jprobe_return();
 		}
+#endif
 
 		ip = get_ip(addr);
 			
