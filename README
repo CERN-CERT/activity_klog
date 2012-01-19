@@ -1,33 +1,29 @@
+					+---------------------------+
+					+           netlog          +        
+					+---------------------------+
 
-									+---------------------------+
-									+           netlog          +        
-									+---------------------------+
-
-Product name: 		netlog
+Product name: 			netlog
 Date:				Dec 19 2011
-License:			GPL
 Version:			1.0
+Vendor:				CERN
 Author:				Panos Sakkos while at Computer Security Team 
 CST Email:			cert-sec@cern.ch
-Author Email:		<panos.sakkos@cern.ch> 
+Author Email:			<panos.sakkos@cern.ch> 
+License: 			GPLv3
 
-											+------------+
-											|Introduction|
-											+------------+
+						+-------+
+						|License|
+						+-------+
 
-In the Computer Security Team, we need to track the incoming and outgoing connections of CERN
-production machines and associate them with the process that established them, as well as with
-the users that own these processes. These production machines, are pushed to their limits, so we
-needed something stealth enough in order to work for our needs. The present work is a Loadable
-Kernel Module that implements the behaviour of a netlog software. Our machines run a redhat flavour
-called Scientific Linux CERN, so the current work is developed for machines running redhat distros*.
+Copyright 2011 CERN. This software is distributed under the terms of the GNU General Public
+Licence version 3 (GPL Version 3), copied verbatim in the file ÒCOPYINGÓ. In applying this licence,
+CERN does not waive the privileges and immunities granted to it by virtue of its status as an 
+Intergovernmental Organization or submit itself to any jurisdiction.
 
-*I am mentioning this, because some names of kernel structure data members change.
- so if you want to compile it for another distribution you will need to do some changes in the code.
 
-											+-----------+
-											|Description|
-											+-----------+
+						+-----------+
+						|Description|
+						+-----------+
 
 Netlog is a Loadable Kernel Module that logs information for every connection.
 With the help of kprobes API, it tracks the connect and accept system calls and 
@@ -52,9 +48,15 @@ in order to compile the code that tracks the connection close, you need to chang
 symbolic constant (PROBE_CONNECTION_CLOSE) that is defined in the netlog header file (netlog.h) from 
 zero (0) to a non-zero value (i.e. 1).
 
-									+--------------------------+
-									|Format of the log messages|
-									+--------------------------+
+Whitelisting:
+
+netlog offers whitelisting of executables. Change the symbolic constant WHITELISTING in netlog.h header
+to 0 or 1, if you want to compile or not the whitelisting code accordingly. Then, add the full execution
+path of the executables that you are interested in wtelisting at the netlog.h header.
+
+					+--------------------------+
+					|Format of the log messages|
+					+--------------------------+
 
 TCP connect:
 Dec 19 14:03:17 panos-PC kernel: [ 1341.648413] netlog: http[3206] TCP 137.138.191.167:52507 -> 130.59.10.36:80 (uid=0)
@@ -69,9 +71,9 @@ Dec 19 14:22:50 panos-PC kernel: [ 2515.271375] netlog: skype[4261] UDP bind (an
 Connection close:
 Dec 19 14:19:07 panos-PC kernel: [ 2292.580879] netlog: sshd[3755] TCP 137.138.191.167:22 <-> 137.138.32.18:49904 (uid=0)
 
-										+--------------+
-										|How to compile|
-										+--------------+
+						+--------------+
+						|How to compile|
+						+--------------+
 
 In the source directory run:
 
@@ -86,18 +88,18 @@ And in order to remove it, run:
 
 	rmmod netlog
 
-									+------------------------------+
-									|Before reading the source code|
-									+------------------------------+
+					+------------------------------+
+					|Before reading the source code|
+					+------------------------------+
 
 First of all you have to be experienced with the C language and by experienced I mean at least to
 be familiar with pointers. Also you need to know how the system calls are handled from the Linux Kernel
 and to be familiar with the inet level of the kernel source code. For the last thing, grep is your friend.
 Furthermore you have to know how kprobes works (or at least its API).
 
-											+----------+
-											|References|
-											+----------+
+						+----------+
+						|References|
+						+----------+
 
 Linux Source Code:
 	http://www.kernel.org/
@@ -107,12 +109,15 @@ Article from RedHat about kprobes
 
 Scientific Linux CERN
 	http://linux.web.cern.ch/linux/
-	
-											+----------+
-											|   TODO   |
-											+----------+
+
+						+----------+
+						|   TODO   |
+						+----------+
 
 With the current approach of tracking the connection close, if the process doesn't call the 
 close system call, the tracking cannot be done. So I have to find the kernel call (if any)
 that is called even if the close system call is not called, in order to destroy the socket.
 
+Code of executable whitelisting adds dependency of kernel version >= 2.6.32. Have to get the
+executable path without the use of exe_file struct member of mm_struct, in order to gain compatibility
+with older kernel versions.

@@ -2,8 +2,8 @@ Name: netlog
 License: GPL
 Group: System/Kernel
 Summary: Logs TCP connections
-Version: 1.0
-Release: 0
+Version: 1.1
+Release: 1
 Vendor: CERN, http://cern.ch/linux
 BuildRoot: %{_tmppath}/%{name}-%{version}-build
 BuildRequires: %kernel_module_package_buildreqs
@@ -40,5 +40,7 @@ done
 rm -rf %{buildroot}
 
 %changelog
+* Wed Jan  18 2012 Panos Sakkos 
+- Added whitelisting
 * Thu Dec  15 2011 Panos Sakkos 
 - First RPM release

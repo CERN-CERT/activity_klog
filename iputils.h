@@ -5,7 +5,11 @@ struct socket;
 struct sockaddr;
 
 char *get_remote_ip(const struct socket *sock);
+
 char *get_local_ip(const struct socket *sock);
+
 char *get_ip(const struct sockaddr *addr);
+
+int any_ip_address(const char *ip);
 
 #endif

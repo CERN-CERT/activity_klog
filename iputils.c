@@ -123,7 +123,16 @@ char *get_ip(const struct sockaddr *addr)
 	}
 }
 
+int any_ip_address(const char *ip)
+{
+	if (ip == NULL)
+	{
+		return 0;
+	}
 
+	return (!strncmp(ip, "0.0.0.0", sizeof(ip)) ||
+		!strncmp(ip, "[0000:0000:0000:0000:0000:0000:0000:0000]", sizeof(ip)));
+}
 
 
 

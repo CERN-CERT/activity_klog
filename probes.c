@@ -42,8 +42,9 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	}
 
 #if WHITELISTING
-	if(is_whitelisted(current->comm))
+	if(is_whitelisted(current))
 	{
+		printk("netlog: connect: debug: %s is whitelisted!\n", current->comm);
 		return 0;
 	}
 #endif
@@ -77,9 +78,11 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	{
 		return 0;
 	}
+
 #if WHITELISTING
-	if(is_whitelisted(current->comm))
+	if(is_whitelisted(current))
 	{
+		printk("netlog: accept: debug: %s is whitelisted!\n", current->comm);
 		return 0;
 	}
 #endif
@@ -107,8 +110,9 @@ static int my_inet_shutdown(struct socket *sock, int how)
 	if(sock->sk->sk_protocol == IPPROTO_TCP)
 	{
 #if WHITELISTING
-		if(is_whitelisted(current->comm))
+		if(is_whitelisted(current))
 		{
+			printk("netlog: shutdown: debug: %s is whitelisted!\n", current->comm);
 			jprobe_return();
 		}
 #endif
@@ -120,10 +124,11 @@ static int my_inet_shutdown(struct socket *sock, int how)
 	}
 #if PROBE_UDP
 	if(sock->sk->sk_protocol == IPPROTO_UDP)
-	{	
+	{
 #if WHITELISTING
-		if(is_whitelisted(current->comm))
+		if(is_whitelisted(current))
 		{
+			printk("netlog: shutdown: debug: %s is whitelisted!\n", current->comm);
 			jprobe_return();
 		}
 #endif
@@ -159,18 +164,17 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 	if(sock->sk->sk_protocol == IPPROTO_UDP)
 	{
 		char *ip;
-
 #if WHITELISTING
-		if(is_whitelisted(current->comm))
+		if(is_whitelisted(current))
 		{
+			printk("netlog: bind: debug: %s is whitelisted!\n", current->comm);
 			jprobe_return();
 		}
 #endif
 
 		ip = get_ip(addr);
 			
-		if(!strncmp(ip, "0.0.0.0", sizeof(ip))
-		   || !strncmp(ip, "[0000:0000:0000:0000:0000:0000:0000:0000]", sizeof(ip)))
+		if(any_ip_address(ip))
 		{				
 			printk("netlog: %s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
 				current->comm, current->pid, ntohs(((struct sockaddr_in *)addr)->sin_port),
@@ -212,7 +216,7 @@ static struct kretprobe accept_kretprobe = {
         .handler                = post_accept,
         .maxactive              = MAX_ACTIVE,
         .kp = {
-        	.symbol_name = "sys_accept"
+        	.symbol_name = "sys_accept4"
         	},
 };
 

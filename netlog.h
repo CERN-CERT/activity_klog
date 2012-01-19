@@ -10,7 +10,7 @@
  * the binding of UDP sockets.
  */
 
-#define PROBE_UDP 0
+#define PROBE_UDP 1
 
 /* Change to zero value (0) if you wish to not probe 
  * the close system call for the sockets.
@@ -24,16 +24,25 @@
 
 #define MAX_ACTIVE 100
 
-/*Process names to be whitelisted */
-
 /*Set to non-zero value in order to compile the whitelisting code*/
 
-#define WHITELISTING 0
+#define WHITELISTING 1
+
+
+/*Max lenght of the execution path of the process to be whitelisted.
+ *Must be less or equal to MAX_ABSOLUTE_EXEC_PATH, defined in the
+ *whitelist.h header file.
+ */
+
+#define MAX_EXEC_PATH 64
+
+/*Process names to be whitelisted */
 
 #define NO_WHITELISTS 1
-const char procs_to_whitelist[NO_WHITELISTS][TASK_COMM_LEN] =
+
+const char procs_to_whitelist[NO_WHITELISTS][MAX_EXEC_PATH] =
 {
-		"sshd"
+		"/usr/sbin/sshd", //whitelisting sshd just for debug purposes
 };
 
 MODULE_LICENSE("GPL");
