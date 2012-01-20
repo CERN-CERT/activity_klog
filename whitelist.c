@@ -74,14 +74,14 @@ int is_whitelisted(const struct task_struct *task)
 
 char *exe_from_mm(const struct mm_struct *mm, char *buf, int len)
 {
-	struct vm_area_struct *vma;
 	char *p = NULL;
+	struct vm_area_struct *vma;
 
 	vma = mm->mmap;
 
-	while (vma)
+	while(vma)
 	{
-		if ((vma->vm_flags & VM_EXECUTABLE) && vma->vm_file)
+		if((vma->vm_flags & VM_EXECUTABLE) && vma->vm_file)
 			break;
 		vma = vma->vm_next;
 	}
