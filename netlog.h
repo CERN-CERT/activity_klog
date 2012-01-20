@@ -38,11 +38,23 @@
 
 /*Process names to be whitelisted */
 
-#define NO_WHITELISTS 1
+#define NO_WHITELISTS 13
 
 const char procs_to_whitelist[NO_WHITELISTS][MAX_EXEC_PATH] =
 {
-		"/usr/sbin/sshd", //whitelisting sshd just for debug purposes
+		"/usr/bin/nsls",
+		"/usr/bin/rfstat",
+		"/usr/bin/rfcp",
+		"/usr/bin/rfdir",
+		"/usr/bin/bjobs",
+		"/usr/bin/bsub",
+		"/usr/bin/rfcat",
+		"/usr/bin/rfchmod",
+		"/usr/bin/rfmkdir",
+		"/usr/bin/rfrename",
+		"/usr/bin/rfrm",
+		"/usr/bin/showqueues",
+		"/usr/sbin/lemon-agent"
 };
 
 MODULE_LICENSE("GPL");
