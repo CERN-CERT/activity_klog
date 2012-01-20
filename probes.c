@@ -44,7 +44,6 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 #if WHITELISTING
 	if(is_whitelisted(current))
 	{
-		printk("netlog: connect: debug: %s is whitelisted!\n", current->comm);
 		return 0;
 	}
 #endif
@@ -82,7 +81,6 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 #if WHITELISTING
 	if(is_whitelisted(current))
 	{
-		printk("netlog: accept: debug: %s is whitelisted!\n", current->comm);
 		return 0;
 	}
 #endif
@@ -112,7 +110,6 @@ static int my_inet_shutdown(struct socket *sock, int how)
 #if WHITELISTING
 		if(is_whitelisted(current))
 		{
-			printk("netlog: shutdown: debug: %s is whitelisted!\n", current->comm);
 			jprobe_return();
 		}
 #endif
@@ -128,7 +125,6 @@ static int my_inet_shutdown(struct socket *sock, int how)
 #if WHITELISTING
 		if(is_whitelisted(current))
 		{
-			printk("netlog: shutdown: debug: %s is whitelisted!\n", current->comm);
 			jprobe_return();
 		}
 #endif
@@ -167,7 +163,6 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 #if WHITELISTING
 		if(is_whitelisted(current))
 		{
-			printk("netlog: bind: debug: %s is whitelisted!\n", current->comm);
 			jprobe_return();
 		}
 #endif
