@@ -57,8 +57,6 @@ int is_whitelisted(const struct task_struct *task)
 		return NOT_WHITELISTED;
 	}
 
-printk("netlog: debug: path is %s\n", path);
-
 	/*Check if exists in the whitelist*/
 	
 	for(i = 0; i < size; ++i)

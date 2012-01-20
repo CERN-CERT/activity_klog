@@ -56,7 +56,6 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	return 0;
 }
 
-
 /* post_accept probe is called right after the accept system call returns.
  * In the return register is placed the socket file descriptor. So with the
  * user of regs_register_status we can get the socket file descriptor and log
