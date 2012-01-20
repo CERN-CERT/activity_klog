@@ -4,19 +4,18 @@
 
 Product name: 			netlog
 Date:				Dec 19 2011
-Version:			1.0
+Version:			1.4
 Vendor:				CERN
 Author:				Panos Sakkos while at Computer Security Team 
 CST Email:			cert-sec@cern.ch
 Author Email:			<panos.sakkos@cern.ch> 
-License: 			GPLv3
-
+License: 			GPLv3	
 						+-------+
 						|License|
 						+-------+
 
 Copyright 2011 CERN. This software is distributed under the terms of the GNU General Public
-Licence version 3 (GPL Version 3), copied verbatim in the file ÒCOPYINGÓ. In applying this licence,
+Licence version 3 (GPL Version 3), copied verbatim in the file •ÀÏCOPYING•ÀÏ. In applying this licence,
 CERN does not waive the privileges and immunities granted to it by virtue of its status as an 
 Intergovernmental Organization or submit itself to any jurisdiction.
 
@@ -117,7 +116,3 @@ Scientific Linux CERN
 With the current approach of tracking the connection close, if the process doesn't call the 
 close system call, the tracking cannot be done. So I have to find the kernel call (if any)
 that is called even if the close system call is not called, in order to destroy the socket.
-
-Code of executable whitelisting adds dependency of kernel version >= 2.6.32. Have to get the
-executable path without the use of exe_file struct member of mm_struct, in order to gain compatibility
-with older kernel versions.

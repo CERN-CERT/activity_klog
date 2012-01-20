@@ -2,8 +2,8 @@ Name: netlog
 License: GPL
 Group: System/Kernel
 Summary: Logs TCP connections
-Version: 1.1
-Release: 1
+Version: 1.4
+Release: 4
 Vendor: CERN, http://cern.ch/linux
 BuildRoot: %{_tmppath}/%{name}-%{version}-build
 BuildRequires: %kernel_module_package_buildreqs
@@ -40,6 +40,8 @@ done
 rm -rf %{buildroot}
 
 %changelog
+* Thu Jan  19 2012 Panos Sakkos 
+- Fixed kernel dependency
 * Wed Jan  18 2012 Panos Sakkos 
 - Added whitelisting
 * Thu Dec  15 2011 Panos Sakkos 

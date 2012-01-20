@@ -216,7 +216,7 @@ static struct kretprobe accept_kretprobe = {
         .handler                = post_accept,
         .maxactive              = MAX_ACTIVE,
         .kp = {
-        	.symbol_name = "sys_accept4"
+        	.symbol_name = "sys_accept"
         	},
 };
 
@@ -287,6 +287,7 @@ int __init plant_probes(void)
 
 	printk("netlog: planted\n");
 
+#if WHITELISTING
 	/*Deal with the whitelisting*/
 
 	for(i = 0; i < NO_WHITELISTS; i++)
@@ -304,7 +305,7 @@ int __init plant_probes(void)
 			printk("netlog: whitelisted %s\n", procs_to_whitelist[i]);
 		}
 	}
-
+#endif
 	return 0;
 }
 

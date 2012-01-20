@@ -10,7 +10,7 @@
  * the binding of UDP sockets.
  */
 
-#define PROBE_UDP 1
+#define PROBE_UDP 0
 
 /* Change to zero value (0) if you wish to not probe 
  * the close system call for the sockets.
