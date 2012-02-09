@@ -1,0 +1,4 @@
+# Files to ignore
+
+# Vi swap files
+.*.swp
