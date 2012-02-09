@@ -1,7 +1,12 @@
 #!/bin/bash
 
 # kmodtool - Helper script for building kernel module RPMs
-# Copyright (c) 2003-2008 Ville Skyttä <ville.skytta@iki.fi>,
+#            An original version appeared in Fedora. This version is
+#            generally called only by the %kernel_module_package RPM macro
+#            during the process of building Driver Update Packages (which
+#            are also known as "kmods" in the Fedora community).
+#
+# Copyright (c) 2003-2010 Ville Skyttä <ville.skytta@iki.fi>,
 #                         Thorsten Leemhuis <fedora@leemhuis.info>
 #                         Jon Masters <jcm@redhat.com>
 #
@@ -24,16 +29,25 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+# Changelog:
+#
+#            2010/07/28 - Add fixes for filelists in line with LF standard
+#			- Remove now defunct "framepointer" kernel variant
+#			- Change version to "rhel6-rh2" as a consequence.
+#
+#            2010/01/10 - Simplified for RHEL6. We are working on upstream
+#                         moving to a newer format and in any case do not
+#                         need to retain support for really old systems.
+
 shopt -s extglob
 
 myprog="kmodtool"
-myver="0.10.10_kmp3"
-knownvariants=@(BOOT|PAE|@(big|huge)mem|debug|enterprise|kdump|?(large)smp|uml|xen[0U]?(-PAE)|xen)
+myver="rhel6-rh2"
+knownvariants=@(debug|kdump)
 kmod_name=
 kver=
 verrel=
 variant=
-kmp=
 
 get_verrel ()
 {
@@ -61,123 +75,129 @@ print_variant ()
   echo "${variant}"
 }
 
+get_filelist() {
+	local IFS=$'\n'
+	filelist=($(cat))
+
+	if [ ${#filelist[@]} -gt 0 ];
+	then
+		for ((n = 0; n < ${#filelist[@]}; n++));
+		do
+			line="${filelist[n]}"
+			line=$(echo "$line" \
+				| sed -e "s/%verrel/$verrel/g" \
+				| sed -e "s/%variant/$variant/g" \
+				| sed -e "s/%dashvariant/$dashvariant/g" \
+				| sed -e "s/%dotvariant/$dotvariant/g" \
+				| sed -e "s/\.%1/$dotvariant/g" \
+				| sed -e "s/\-%1/$dotvariant/g" \
+				| sed -e "s/%2/$verrel/g")
+			echo "$line"
+		done
+	else
+		echo "%defattr(644,root,root,755)"
+		echo "/lib/modules/${verrel}${dotvariant}"
+	fi
+}
+	
+
 get_rpmtemplate ()
 {
     local variant="${1}"
     local dashvariant="${variant:+-${variant}}"
-    case "$verrel" in
-        *.el*) kdep="kernel${dashvariant}-%{_target_cpu} = ${verrel}" ;;
-        *.EL*) kdep="kernel${dashvariant}-%{_target_cpu} = ${verrel}" ;;
-        *)     kdep="kernel-%{_target_cpu} = ${verrel}${variant}"     ;;
-    esac
+    local dotvariant="${variant:+.${variant}}"
 
     echo "%package       -n kmod-${kmod_name}${dashvariant}"
 
-    if [ -z "$kmp_provides_summary" ]; then
+    if [ -z "$kmod_provides_summary" ]; then
         echo "Summary:          ${kmod_name} kernel module(s)"
     fi
 
-    if [ -z "$kmp_provides_group" ]; then
+    if [ -z "$kmod_provides_group" ]; then
         echo "Group:            System Environment/Kernel"
     fi
 
-    if [ ! -z "$kmp_version" ]; then
-        echo "Version: %{kmp_version}"
+    if [ ! -z "%{kmod_version}" ]; then
+        echo "Version: %{kmod_version}"
     fi
 
-    if [ ! -z "$kmp_release" ]; then
-        echo "Release: %{kmp_release}"
+    if [ ! -z "%{kmod_release}" ]; then
+        echo "Release: %{kmod_release}"
     fi
     
-    if [ ! -z "$kmp" ]; then
-        echo "%global _use_internal_dependency_generator 0"
-    fi
-    
+    # Turn of the internal dep generator so we will use the kmod scripts.
+    echo "%global _use_internal_dependency_generator 0"
+
     cat <<EOF
-Provides:         kernel-modules = ${verrel}${variant}
+Provides:         kernel-modules >= ${verrel}${dotvariant}
 Provides:         ${kmod_name}-kmod = %{?epoch:%{epoch}:}%{version}-%{release}
-EOF
-    
-    if [ -z "$kmp" ]; then
-        echo "Requires:         ${kdep}"
-    fi
-
-#
-# RHEL5 - Remove common package requirement on general kmod packages.
-# Requires: ${kmod_name}-kmod-common >= %{?epoch:%{epoch}:}%{version}
-#
-
-    cat <<EOF
 Requires(post):   /sbin/depmod
 Requires(postun): /sbin/depmod
 EOF
 
-if [ "no" != "$kmp_nobuildreqs" ]
-then
-    echo "BuildRequires: kernel${dashvariant}-devel-%{_target_cpu} = ${verrel}"
-fi
+    if [ "yes" != "$nobuildreqs" ]
+    then
+        echo "BuildRequires: kernel${dashvariant}-devel"
+    fi
 
-if [ "" != "$kmp_override_preamble" ]
-then
-    cat "$kmp_override_preamble"
-fi
+    if [ "" != "$override_preamble" ]
+    then
+        cat "$override_preamble"
+    fi
 
 cat <<EOF
 %description   -n kmod-${kmod_name}${dashvariant}
-This package provides the ${kmod_name} kernel modules built for the Linux
-kernel ${verrel}${variant} for the %{_target_cpu} family of processors.
-%post          -n kmod-${kmod_name}${dashvariant}
-if [ -e "/boot/System.map-${verrel}${variant}" ]; then
-    /sbin/depmod -aeF "/boot/System.map-${verrel}${variant}" "${verrel}${variant}" > /dev/null || :
-fi
+This package provides the ${kmod_name} kernel modules built for
+the Linux kernel ${verrel}${dotvariant} for the %{_target_cpu}
+family of processors.
 EOF
-    
-    if [ ! -z "$kmp" ]; then
-        cat <<EOF
 
-#modules=( \$(rpm -ql kmod-${kmod_name}${dashvariant} | grep '\.ko$') )
-modules=( \$(find /lib/modules/${verrel}${variant}/extra/${kmod_name} \
-          | grep '\.ko$') )
+##############################################################################
+## The following are not part of this script directly, they are scripts     ##
+## that will be executed by RPM during various stages of package processing ##
+##############################################################################
+
+cat <<EOF
+%post          -n kmod-${kmod_name}${dashvariant}
+if [ -e "/boot/System.map-${verrel}${dotvariant}" ]; then
+    /sbin/depmod -aeF "/boot/System.map-${verrel}${dotvariant}" "${verrel}${dotvariant}" > /dev/null || :
+fi
+
+modules=( \$(find /lib/modules/${verrel}${dotvariant}/extra/${kmod_name} | grep '\.ko$') )
 if [ -x "/sbin/weak-modules" ]; then
     printf '%s\n' "\${modules[@]}" \
     | /sbin/weak-modules --add-modules
 fi
+EOF
+
+cat <<EOF
 %preun         -n kmod-${kmod_name}${dashvariant}
-rpm -ql kmod-${kmod_name}${dashvariant} | grep '\.ko$' \
-    > /var/run/rpm-kmod-${kmod_name}${dashvariant}-modules
+rpm -ql kmod-${kmod_name}${dashvariant}-%{kmod_version}-%{kmod_release}.$(arch) | grep '\.ko$' > /var/run/rpm-kmod-${kmod_name}${dashvariant}-modules
 EOF
         
-    fi
-    
-    cat <<EOF
+cat <<EOF
 %postun        -n kmod-${kmod_name}${dashvariant}
-/sbin/depmod -aF /boot/System.map-${verrel}${variant} ${verrel}${variant} &> /dev/null || :
-EOF
-    
-    if [ ! -z "$kmp" ]; then
-        cat <<EOF
+if [ -e "/boot/System.map-${verrel}${dotvariant}" ]; then
+    /sbin/depmod -aeF "/boot/System.map-${verrel}${dotvariant}" "${verrel}${dotvariant}" > /dev/null || :
+fi
+
 modules=( \$(cat /var/run/rpm-kmod-${kmod_name}${dashvariant}-modules) )
-#rm /var/run/rpm-kmod-${kmod_name}${dashvariant}-modules
+rm /var/run/rpm-kmod-${kmod_name}${dashvariant}-modules
 if [ -x "/sbin/weak-modules" ]; then
     printf '%s\n' "\${modules[@]}" \
     | /sbin/weak-modules --remove-modules
 fi
 EOF
-    fi
 
 echo "%files         -n kmod-${kmod_name}${dashvariant}"
 
-if [ "" == "$kmp_override_filelist" ];
+if [ "" == "$override_filelist" ];
 then
     echo "%defattr(644,root,root,755)"
-    echo "/lib/modules/${verrel}${variant}/"
+    echo "/lib/modules/${verrel}${dotvariant}"
     echo "%config /etc/depmod.d/kmod-${kmod_name}.conf"
-    #BZ252188 - I've commented this out for the moment since RHEL5 doesn't
-    #           really support external firmware e.g. at install time. If
-    #           you really want it, use an override filelist solution.
-    #echo "/lib/firmware/"
 else
-    cat "$kmp_override_filelist"
+    cat "$override_filelist" | get_filelist
 fi
 }
 
@@ -222,8 +242,6 @@ Usage: ${myprog} <command> <option>+
     - Get variant from uname.
   rpmtemplate <mainpgkname> <uname> <variants> 
     - Return a template for use in a source RPM
-  rpmtemplate_kmp <mainpgkname> <uname> <variants>
-    - Return a template for use in a source RPM with KMP dependencies
   version  
     - Output version number and exit.
 EOF
@@ -244,12 +262,6 @@ while [ "${1}" ] ; do
       ;;
     rpmtemplate)
       shift
-      print_rpmtemplate "$@"
-      exit $?
-      ;;
-    rpmtemplate_kmp)
-      shift
-      kmp=1
       print_rpmtemplate "$@"
       exit $?
       ;;
