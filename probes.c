@@ -5,9 +5,22 @@
 #include <linux/net.h>
 #include <net/ip.h>
 #include <linux/socket.h>
+#include <linux/version.h>
 #include "netlog.h"
 #include "iputils.h"
 #include "whitelist.h"
+
+/* The following code is a *dirty patch* for the crashes on SLC 6.
+ * TODO: Find the exact kernel version where they removed the uid member from task_struct
+ * and update the kernel version macro with this.
+ */
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
+#define CURRENT_UID current->uid
+#else
+#define CURRENT_UID current_uid()
+#endif
+
 
 /* The next two probes are for the connect system call. We need to associate the process that 
  * requested the connection with the socket file descriptor that the kernel returned.
@@ -51,7 +64,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	printk("netlog: %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
-				sock_i_uid(sock->sk));	
+				CURRENT_UID);
 	
 	return 0;
 }
@@ -87,7 +100,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	printk("netlog: %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
-				sock_i_uid(sock->sk));	
+				CURRENT_UID);
 
         return 0;
 }
@@ -116,7 +129,7 @@ static int my_inet_shutdown(struct socket *sock, int how)
 		printk("netlog: %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
-				sock_i_uid(sock->sk));	
+				CURRENT_UID);
 	}
 #if PROBE_UDP
 	if(sock->sk->sk_protocol == IPPROTO_UDP)
@@ -131,7 +144,7 @@ static int my_inet_shutdown(struct socket *sock, int how)
 		printk("netlog: %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
-				sock_i_uid(sock->sk));	
+				CURRENT_UID);
 	}
 
 #endif
@@ -172,13 +185,13 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 		{				
 			printk("netlog: %s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
 				current->comm, current->pid, ntohs(((struct sockaddr_in *)addr)->sin_port),
-				sock_i_uid(sock->sk));
+				CURRENT_UID);
 		}
 		else
 		{
 			printk("netlog: %s[%d] UDP bind %s:%d (uid=%d)\n", current->comm,
 				current->pid, ip, ntohs(((struct sockaddr_in6 *)addr)->sin6_port),	
-				sock_i_uid(sock->sk));
+				CURRENT_UID);
 		}
 	}
 
@@ -205,7 +218,7 @@ static struct kretprobe connect_kretprobe = {
         	.symbol_name = "inet_stream_connect"
         	},
 };
-
+//TODO add kernel version macro in order to probe sys_accept4 at newer kernel versions
 static struct kretprobe accept_kretprobe = {
         .handler                = post_accept,
         .maxactive              = MAX_ACTIVE,
