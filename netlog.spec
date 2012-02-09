@@ -4,13 +4,13 @@
 
 Name:           netlog
 Version:        1.4
-Release:        2%{?dist}
+Release:        3
 Summary:        Netlog is a Loadable Kernel Module that logs information for every connection.
 Group:          System Environment/Kernel
 License:        GPL
 URL:            http://www.cern.ch/
-#Source0:        netlog.tar.gz
-Source10:       kmodtool-netlog.sh
+Source0:        %{name}.tar.gz
+Source10:       kmodtool.sh
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires:  sed
 ExclusiveOS:    linux
@@ -26,7 +26,7 @@ Netlog is a Loadable Kernel Module that logs information for every connection.
 %define kmod_release %{release}
 
 # magic hidden here:
-%{expand:%(sh %{SOURCE10} rpmtemplate %{kmod_name} %{kversion} "")}
+%{expand:%(bash %{SOURCE10} rpmtemplate %{kmod_name} %{kversion} "")}
 
 # Define kernel source dir (it differs between el5 and el6)
 %define __ksrc_base__ %{_usrsrc}/kernels/%{kversion}
@@ -39,7 +39,8 @@ Netlog is a Loadable Kernel Module that logs information for every connection.
 %define __find_requires sh %{_builddir}/filter-requires.sh
 
 %prep
-(cd %{_sourcedir}; tar --exclude .git -chf - *) | tar xf -
+tar zxf %{SOURCE0}
+#(cd %{_sourcedir}; tar --exclude .git -chf - *) | tar xf -
 
 echo "/usr/lib/rpm/redhat/find-requires | %{__sed} -e '/^ksym.*/d'" > filter-requires.sh
 echo "override %{kmod_name} * weak-updates/%{kmod_name}" > kmod-%{kmod_name}.conf
