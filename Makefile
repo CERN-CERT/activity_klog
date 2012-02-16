@@ -9,4 +9,4 @@ srcrpm: archive
 
 archive: 
 	rm -f $(name).tar.gz
-	tar --exclude .git --exclude kmodtool.sh --exclude $(name).spec -zchf $(name).tar.gz *
+	tar --exclude .git --exclude *.rpm --exclude kmodtool.sh --exclude $(name).spec -zchf $(name).tar.gz *
