@@ -15,7 +15,7 @@
  * and update the kernel version macro with this.
  */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 #define CURRENT_UID current->uid
 #else
 #define CURRENT_UID current_uid()
