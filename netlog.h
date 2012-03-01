@@ -38,7 +38,7 @@
 
 /*Process names to be whitelisted */
 
-#define NO_WHITELISTS 13
+#define NO_WHITELISTS 14
 
 const char procs_to_whitelist[NO_WHITELISTS][MAX_EXEC_PATH] =
 {
@@ -54,7 +54,8 @@ const char procs_to_whitelist[NO_WHITELISTS][MAX_EXEC_PATH] =
 		"/usr/bin/rfrename",
 		"/usr/bin/rfrm",
 		"/usr/bin/showqueues",
-		"/usr/sbin/lemon-agent"
+		"/usr/sbin/lemon-agent",
+		"/opt/splunkforwarder/bin/splunkd"
 };
 
 MODULE_LICENSE("GPL");
