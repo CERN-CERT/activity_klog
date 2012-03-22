@@ -3,8 +3,8 @@
 # --define "kversion 2.6.18-128.el5"
 
 Name:           netlog
-Version:        1.4
-Release:        5%{?dist}
+Version:        1.5
+Release:        1%{?dist}
 Summary:        Netlog is a Loadable Kernel Module that logs information for every connection.
 Group:          System Environment/Kernel
 License:        GPL
