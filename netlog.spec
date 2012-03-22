@@ -30,7 +30,13 @@ Netlog is a Loadable Kernel Module that logs information for every connection.
 
 # Define kernel source dir (it differs between el5 and el6)
 %define __ksrc_base__ %{_usrsrc}/kernels/%{kversion}
-%define __ksrc__ %(if [ -d %{__ksrc_base__} ]; then echo %{__ksrc_base__}; else echo %{__ksrc_base__}-%{_target_cpu}; fi)
+%define __ksrc__ %(
+  if [ -d %{__ksrc_base__} ]; then
+    echo %{__ksrc_base__};
+  else if [ -d %{__ksrc_base__}.%{_target_cpu} ]; then
+    echo %{__ksrc_base__}.%{_target_cpu};
+  else
+    echo %{__ksrc_base__}-%{_target_cpu}; fi; fi)
 
 # Disable the building of the debug package(s).
 %define debug_package %{nil}
