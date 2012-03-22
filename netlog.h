@@ -38,7 +38,7 @@
 
 /*Process names to be whitelisted */
 
-#define NO_WHITELISTS 14
+#define NO_WHITELISTS 16
 
 const char procs_to_whitelist[NO_WHITELISTS][MAX_EXEC_PATH] =
 {
@@ -55,6 +55,8 @@ const char procs_to_whitelist[NO_WHITELISTS][MAX_EXEC_PATH] =
 		"/usr/bin/rfrm",
 		"/usr/bin/showqueues",
 		"/usr/sbin/lemon-agent",
+		"/usr/sbin/ccm-fetch",
+		"/usr/sbin/ncm-ncd",
 		"/opt/splunkforwarder/bin/splunkd"
 };
 
