@@ -10,15 +10,22 @@
 #include "iputils.h"
 #include "whitelist.h"
 
-/* The following code is a *dirty patch* for the crashes on SLC 6.
- * TODO: Find the exact kernel version where they removed the uid member from task_struct
- * and update the kernel version macro with this.
- */
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 #define CURRENT_UID current->uid
 #else
 #define CURRENT_UID current_uid()
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 25)
+#define SPORT sport
+#else
+#define SPORT inet_sport
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 25)
+#define DPORT dport
+#else
+#define DPORT inet_dport
 #endif
 
 
@@ -62,8 +69,8 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 #endif
 	
 	printk("netlog: %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
-				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
-				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
+				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
+				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
 	
 	return 0;
@@ -98,8 +105,8 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 #endif
 
 	printk("netlog: %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
-				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
-				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
+				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
+				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
 
         return 0;
@@ -127,8 +134,8 @@ static int my_inet_shutdown(struct socket *sock, int how)
 #endif
 
 		printk("netlog: %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
-				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
+				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
+				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
 	}
 #if PROBE_UDP
@@ -142,8 +149,8 @@ static int my_inet_shutdown(struct socket *sock, int how)
 #endif
 
 		printk("netlog: %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-				get_local_ip(sock), ntohs(inet_sk(sock->sk)->sport),
-				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->dport), 
+				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
+				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
 	}
 

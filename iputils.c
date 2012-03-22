@@ -2,6 +2,7 @@
 #include <linux/ipv6.h>
 #include <net/ip.h>
 #include <linux/socket.h>
+#include <linux/version.h>
 
 /* Needed in order to convert binary network address to readable.
  * these macros were existing in previous kernel versions but were removed.
@@ -36,6 +37,19 @@
 	#define INET_ADDRSTRLEN 16
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 25)
+#define SADDR saddr
+#else
+#define SADDR inet_saddr
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 25)
+#define DADDR daddr
+#else
+#define DADDR inet_daddr
+#endif
+
+
 char *get_local_ip(const struct socket *sock)
 {
 	if(sock == NULL || sock->sk == NULL ||sock->ops == NULL)
@@ -47,7 +61,7 @@ char *get_local_ip(const struct socket *sock)
 	{
 		static char ipv4[INET_ADDRSTRLEN];
 			
-	        snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sock->sk)->saddr));
+	        snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sock->sk)->SADDR));
 		return ipv4;
 	}
 	else if(sock->ops->family == AF_INET6)
@@ -75,7 +89,7 @@ char *get_remote_ip(const struct socket *sock)
 	{
 		static char ipv4[INET_ADDRSTRLEN];
 		
-		snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sock->sk)->daddr));
+		snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sock->sk)->DADDR));
 		return ipv4;
 	}
 	else if(sock->ops->family == AF_INET6)
@@ -133,7 +147,6 @@ int any_ip_address(const char *ip)
 	return (!strncmp(ip, "0.0.0.0", sizeof(ip)) ||
 		!strncmp(ip, "[0000:0000:0000:0000:0000:0000:0000:0000]", sizeof(ip)));
 }
-
 
 
 
