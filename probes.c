@@ -97,17 +97,17 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	{
 		return 0;
 	}
+
+	sockfd_put(sock);
 	
 	if(sock->sk->sk_protocol != IPPROTO_TCP)
 	{
-		sockfd_put(sock);
 		return 0;
 	}
 
 	#if WHITELISTING
 	if(is_whitelisted(current))
 	{
-		sockfd_put(sock);
 		return 0;
 	}
 	#endif
@@ -117,7 +117,6 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
 
-	sockfd_put(sock);
         return 0;
 }
 
@@ -186,6 +185,8 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 		jprobe_return();
 	}
 
+	sockfd_put(sock);
+
 	if(sock->sk->sk_protocol == IPPROTO_UDP)
 	{
 		char *ip;
@@ -193,7 +194,6 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 		#if WHITELISTING
 		if(is_whitelisted(current))
 		{
-			sockfd_put(sock);
 			jprobe_return();
 		}
 		#endif
@@ -214,7 +214,6 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 		}
 	}
 
-	sockfd_put(sock);
 	jprobe_return();
 	return 0;
 }
