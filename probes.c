@@ -6,6 +6,7 @@
 #include <net/ip.h>
 #include <linux/socket.h>
 #include <linux/version.h>
+#include <linux/file.h>
 #include "netlog.h"
 #include "iputils.h"
 #include "whitelist.h"
@@ -40,16 +41,9 @@
 static struct socket *socket_hash[PID_MAX_LIMIT] = {NULL};
 
 static int my_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
-{
-	if(addr->sa_family == AF_INET || addr->sa_family == AF_INET6)
-	{
-		socket_hash[current->pid] = sock;
-	}
-	else
-	{
-		socket_hash[current->pid] = NULL;
-	}	
-		
+{	
+	socket_hash[current->pid] = sock;
+
 	jprobe_return();
 	return 0;
 }
@@ -63,14 +57,17 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 		return 0;
 	}
 	
-	if(sock->sk->sk_protocol != IPPROTO_TCP || sock->sk->sk_family != AF_INET)
+	if(sock->sk->sk_protocol != IPPROTO_TCP)
 	{
+
+		socket_hash[current->pid] = NULL;
 		return 0;
 	}
 
 	#if WHITELISTING
 	if(is_whitelisted(current))
 	{
+		socket_hash[current->pid] = NULL;
 		return 0;
 	}
 	#endif
@@ -81,7 +78,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 				CURRENT_UID);
 	
 	socket_hash[current->pid] = NULL;
-
+	
 	return 0;
 }
 
@@ -103,12 +100,14 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	
 	if(sock->sk->sk_protocol != IPPROTO_TCP)
 	{
+		sockfd_put(sock);
 		return 0;
 	}
 
 	#if WHITELISTING
 	if(is_whitelisted(current))
 	{
+		sockfd_put(sock);
 		return 0;
 	}
 	#endif
@@ -118,6 +117,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
 
+	sockfd_put(sock);
         return 0;
 }
 
@@ -148,7 +148,7 @@ static int my_inet_shutdown(struct socket *sock, int how)
 				CURRENT_UID);
 	}
 	#if PROBE_UDP
-	else if(sock->sk->sk_protocol == IPPROTO_UDP)
+	if(sock->sk->sk_protocol == IPPROTO_UDP)
 	{
 		#if WHITELISTING
 		if(is_whitelisted(current))
@@ -171,6 +171,7 @@ static int my_inet_shutdown(struct socket *sock, int how)
 
 
 #if PROBE_UDP
+
 /* UDP protocol is connectionless protocol, so we probe the bind system call */
 
 static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
@@ -188,10 +189,11 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 	if(sock->sk->sk_protocol == IPPROTO_UDP)
 	{
 		char *ip;
-
+		
 		#if WHITELISTING
 		if(is_whitelisted(current))
 		{
+			sockfd_put(sock);
 			jprobe_return();
 		}
 		#endif
@@ -212,6 +214,7 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 		}
 	}
 
+	sockfd_put(sock);
 	jprobe_return();
 	return 0;
 }
@@ -291,27 +294,28 @@ int __init plant_probes(void)
 		return ACCEPT_PROBE_FAILED;
 	}
 
-#if PROBE_CONNECTION_CLOSE
+	#if PROBE_CONNECTION_CLOSE
 	register_status = register_jprobe(&shutdown_jprobe);
 
 	if(register_status < 0)
 	{
 		return SHUTDOWN_PROBE_FAILED;
 	}
-#endif
+	#endif
 	
-#if PROBE_UDP
+	#if PROBE_UDP
 	register_status = register_jprobe(&bind_jprobe);
 
 	if(register_status < 0)
 	{
 		return BIND_PROBE_FAILED;
 	}
-#endif	
+	#endif	
 
 	printk("netlog: planted\n");
 
 	#if WHITELISTING
+
 	/*Deal with the whitelisting*/
 
 	for(i = 0; i < NO_WHITELISTS; i++)
@@ -343,14 +347,12 @@ void __exit unplant_probes(void)
   	unregister_jprobe(&connect_jprobe);
 	unregister_kretprobe(&connect_kretprobe);
 	unregister_kretprobe(&accept_kretprobe);
-
-	#if PROBE_CONNECTION_CLOSE
+#if PROBE_CONNECTION_CLOSE
   	unregister_jprobe(&shutdown_jprobe);
-	#endif
-
-	#if PROBE_UDP
+#endif
+#if PROBE_UDP
   	unregister_jprobe(&bind_jprobe);
-	#endif
+#endif
 	
 	printk("netlog: unplanted\n");
 }
