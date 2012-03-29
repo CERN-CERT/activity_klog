@@ -29,6 +29,7 @@
 #define DPORT inet_dport
 #endif
 
+#define MODULE_NAME "netlog: "
 
 /* The next two probes are for the connect system call. We need to associate the process that 
  * requested the connection with the socket file descriptor that the kernel returned.
@@ -72,7 +73,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	}
 	#endif
 	
-	printk("netlog: %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
+	printk(MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
@@ -112,7 +113,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	}
 	#endif
 
-	printk("netlog: %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
+	printk(MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
@@ -141,7 +142,7 @@ static int my_inet_shutdown(struct socket *sock, int how)
 		}
 		#endif
 
-		printk("netlog: %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		printk(MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
@@ -156,7 +157,7 @@ static int my_inet_shutdown(struct socket *sock, int how)
 		}
 		#endif
 
-		printk("netlog: %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		printk(MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
@@ -202,13 +203,13 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 			
 		if(any_ip_address(ip))
 		{				
-			printk("netlog: %s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
+			printk(MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
 				current->comm, current->pid, ntohs(((struct sockaddr_in *)addr)->sin_port),
 				CURRENT_UID);
 		}
 		else
 		{
-			printk("netlog: %s[%d] UDP bind %s:%d (uid=%d)\n", current->comm,
+			printk(MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm,
 				current->pid, ip, ntohs(((struct sockaddr_in6 *)addr)->sin6_port),	
 				CURRENT_UID);
 		}
@@ -223,43 +224,53 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 /*         probe definitions        */
 /*************************************/
 
-static struct jprobe connect_jprobe = {	
-	.entry 			= (kprobe_opcode_t *) my_inet_stream_connect,
-	.kp = {
-		.symbol_name 	= "inet_stream_connect",
+static struct jprobe connect_jprobe = 
+{	
+	.entry = (kprobe_opcode_t *) my_inet_stream_connect,
+	.kp = 
+	{
+		.symbol_name = "inet_stream_connect",
 	},
 };
 
-static struct kretprobe connect_kretprobe = {
-        .handler                = post_connect,
-        .maxactive              = MAX_ACTIVE,
-        .kp = {
+static struct kretprobe connect_kretprobe = 
+{
+        .handler = post_connect,
+        .maxactive = MAX_ACTIVE,
+        .kp = 
+        {
         	.symbol_name = "inet_stream_connect"
-        	},
+        },
 };
-//TODO add kernel version macro in order to probe sys_accept4 at newer kernel versions
-static struct kretprobe accept_kretprobe = {
-        .handler                = post_accept,
-        .maxactive              = MAX_ACTIVE,
-        .kp = {
+
+static struct kretprobe accept_kretprobe = 
+{
+	.handler = post_accept,
+	.maxactive = MAX_ACTIVE,
+        .kp = 
+        {
         	.symbol_name = "sys_accept"
-        	},
+        },
 };
 
 #if PROBE_CONNECTION_CLOSE
-static struct jprobe shutdown_jprobe = {	
-	.entry 			= (kprobe_opcode_t *) my_inet_shutdown,
-	.kp = {
-		.symbol_name 	= "inet_shutdown",
+static struct jprobe shutdown_jprobe = 
+{	
+	.entry = (kprobe_opcode_t *) my_inet_shutdown,
+	.kp = 
+	{
+		.symbol_name = "inet_shutdown",
 	},
 };
 #endif
 
 #if PROBE_UDP
-static struct jprobe bind_jprobe = {	
-	.entry 			= (kprobe_opcode_t *) my_sys_bind,
-	.kp = {
-		.symbol_name 	= "sys_bind",
+static struct jprobe bind_jprobe = 
+{	
+	.entry = (kprobe_opcode_t *) my_sys_bind,
+	.kp = 
+	{
+		.symbol_name = "sys_bind",
 	},
 };
 #endif
@@ -276,6 +287,7 @@ int __init plant_probes(void)
 
 	if(register_status < 0)
 	{
+		printk(KERN_ERR MODULE_NAME "Failed to plant pre connect probe\n");
 		return CONNECT_PROBE_FAILED;
 	}
 
@@ -283,6 +295,7 @@ int __init plant_probes(void)
         
 	if(register_status < 0)
 	{
+		printk(KERN_ERR MODULE_NAME "Failed to plant post connect probe\n");
 		return CONNECT_PROBE_FAILED;
 	}
 
@@ -290,6 +303,7 @@ int __init plant_probes(void)
 
 	if(register_status < 0)
 	{
+		printk(KERN_ERR MODULE_NAME "Failed to plant accept probe\n");
 		return ACCEPT_PROBE_FAILED;
 	}
 
@@ -298,6 +312,7 @@ int __init plant_probes(void)
 
 	if(register_status < 0)
 	{
+		printk(KERN_ERR MODULE_NAME "Failed to plant close probe\n");
 		return SHUTDOWN_PROBE_FAILED;
 	}
 	#endif
@@ -307,11 +322,12 @@ int __init plant_probes(void)
 
 	if(register_status < 0)
 	{
+		printk(KERN_ERR MODULE_NAME "Failed to plant bind probe\n");
 		return BIND_PROBE_FAILED;
 	}
 	#endif	
 
-	printk("netlog: planted\n");
+	printk(MODULE_NAME "Planted\n");
 
 	#if WHITELISTING
 
@@ -325,11 +341,11 @@ int __init plant_probes(void)
 
 		if(whitelist_status < 0)
 		{
-			printk("netlog: failed to whitelist %s\n", procs_to_whitelist[i]);
+			printk(KERN_ERR MODULE_NAME "Failed to whitelist %s\n", procs_to_whitelist[i]);
 		}
 		else
 		{
-			printk("netlog: whitelisted %s\n", procs_to_whitelist[i]);
+			printk(MODULE_NAME "Whitelisted %s\n", procs_to_whitelist[i]);
 		}
 	}
 	#endif
@@ -346,12 +362,12 @@ void __exit unplant_probes(void)
   	unregister_jprobe(&connect_jprobe);
 	unregister_kretprobe(&connect_kretprobe);
 	unregister_kretprobe(&accept_kretprobe);
-#if PROBE_CONNECTION_CLOSE
+	#if PROBE_CONNECTION_CLOSE
   	unregister_jprobe(&shutdown_jprobe);
-#endif
-#if PROBE_UDP
+	#endif
+	#if PROBE_UDP
   	unregister_jprobe(&bind_jprobe);
-#endif
+	#endif
 	
 	printk("netlog: unplanted\n");
 }
