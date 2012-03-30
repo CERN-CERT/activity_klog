@@ -361,7 +361,7 @@ int __init plant_probes(void)
 		return LOG_FAILURE;
 	}
 	
-	printk(MODULE_NAME "Planted\n");
+	printk(KERN_INFO MODULE_NAME "Planted\n");
 
 	#if WHITELISTING
 
@@ -379,7 +379,7 @@ int __init plant_probes(void)
 		}
 		else
 		{
-			printk(MODULE_NAME "Whitelisted %s\n", procs_to_whitelist[i]);
+			printk(KERN_INFO MODULE_NAME "Whitelisted %s\n", procs_to_whitelist[i]);
 		}
 	}
 	#endif
@@ -405,5 +405,5 @@ void __exit unplant_probes(void)
 
 	destroy_logger();
 
-	printk("netlog: unplanted\n");
+	printk(KERN_INFO MODULE_NAME "Unplanted\n");
 }
