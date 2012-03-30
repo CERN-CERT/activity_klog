@@ -7,6 +7,10 @@
 #include <linux/unistd.h>
 #include <linux/syscalls.h>
 #include <linux/net.h>
+#include <linux/time.h>
+#include <linux/rtc.h>
+#include <linux/utsname.h>
+#include <linux/param.h>
 
 #define LOG_FAILED(A) A < 0
 #define MAX_MESSAGE_SIZE 512
@@ -18,7 +22,7 @@
 
 /*Initiliaze logger facility */
 
-int init_logger(void);
+int init_logger(const char *module_name);
 
 /*Log a message*/
 

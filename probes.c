@@ -355,7 +355,7 @@ int __init plant_probes(void)
 	}
 	#endif	
 
-	if(LOG_FAILED(init_logger()))
+	if(LOG_FAILED(init_logger(MODULE_NAME)))
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to init logging facility\n");
 		return LOG_FAILURE;
