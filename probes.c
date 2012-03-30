@@ -12,6 +12,7 @@
 #include "netlog.h"
 #include "iputils.h"
 #include "whitelist.h"
+#include "logger.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 #define CURRENT_UID current->uid
@@ -53,6 +54,7 @@ static int my_inet_stream_connect(struct socket *sock, struct sockaddr *addr, in
 
 static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
+	char message[MAX_MESSAGE_SIZE];
 	struct socket *sock = socket_hash[current->pid];
 	
 	if(sock == NULL || sock->sk == NULL)
@@ -75,10 +77,15 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	}
 	#endif
 	
-	printk(MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
+	snprintf(message, sizeof(message), MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
+
+	if(LOG_FAILED(log(message)))
+	{
+		printk(KERN_ERR MODULE_NAME "Failed to log message\n");		
+	}
 	
 	socket_hash[current->pid] = NULL;
 	
@@ -94,6 +101,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	int err;
+	char message[MAX_MESSAGE_SIZE];
 	struct socket *sock = sockfd_lookup(regs_return_value(regs), &err);
 		
 	if(sock == NULL || sock->sk == NULL)
@@ -115,10 +123,15 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	}
 	#endif
 
-	printk(MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
+	snprintf(message, sizeof(message), MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
+
+	if(LOG_FAILED(log(message)))
+	{
+		printk(KERN_ERR MODULE_NAME "Failed to log message\n");		
+	}
 
         return 0;
 }
@@ -130,6 +143,8 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 #if PROBE_CONNECTION_CLOSE
 static int my_inet_shutdown(struct socket *sock, int how)
 {
+	char message[MAX_MESSAGE_SIZE];
+
 	if(sock == NULL || sock->sk == NULL)
 	{
 		jprobe_return();
@@ -144,7 +159,7 @@ static int my_inet_shutdown(struct socket *sock, int how)
 		}
 		#endif
 
-		printk(MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		snprintf(message, sizeof(message), MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
@@ -159,12 +174,17 @@ static int my_inet_shutdown(struct socket *sock, int how)
 		}
 		#endif
 
-		printk(MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		snprintf(message, sizeof(message)MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
 	}
 	#endif
+
+	if(LOG_FAILED(log(message)))
+	{
+		printk(KERN_ERR MODULE_NAME "Failed to log message\n");		
+	}
 
 	jprobe_return();
 	return 0;
@@ -180,6 +200,7 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 {
 	int err;
 	struct socket * sock;
+	char message[MAX_MESSAGE_SIZE];
 
 	sock = sockfd_lookup(sockfd, &err);
 
@@ -204,16 +225,21 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 		ip = get_ip(addr);
 			
 		if(any_ip_address(ip))
-		{				
-			printk(MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
+		{
+			snprintf(message, sizeof(message), MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
 				current->comm, current->pid, ntohs(((struct sockaddr_in *)addr)->sin_port),
 				CURRENT_UID);
 		}
 		else
 		{
-			printk(MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm,
+			snprintf(message, sizeof(message), MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm,
 				current->pid, ip, ntohs(((struct sockaddr_in6 *)addr)->sin6_port),	
 				CURRENT_UID);
+		}
+
+		if(LOG_FAILED(log(message)))
+		{
+			printk(KERN_ERR MODULE_NAME "Failed to log message\n");	
 		}
 	}
 
@@ -329,6 +355,12 @@ int __init plant_probes(void)
 	}
 	#endif	
 
+	if(LOG_FAILED(init_logger()))
+	{
+		printk(KERN_ERR MODULE_NAME "Failed to init logging facility\n");
+		return LOG_FAILURE;
+	}
+	
 	printk(MODULE_NAME "Planted\n");
 
 	#if WHITELISTING
@@ -370,6 +402,8 @@ void __exit unplant_probes(void)
 	#if PROBE_UDP
   	unregister_jprobe(&bind_jprobe);
 	#endif
+
+	destroy_logger();
 
 	printk("netlog: unplanted\n");
 }
