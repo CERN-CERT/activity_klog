@@ -1,61 +1,59 @@
 #include "logger.h"
 
 #define NONE -1
-#define MAX_BUFFER_SIZE 1024
+#define BUFFER_SIZE 1024
 
-static int logfd = NONE;
-static char buffer[MAX_MESSAGE_LENGHT] = {'\0'};
+static struct socket *log_socket = NULL;
+static char buffer[BUFFER_SIZE] = {'\0'};
 
-int init_logger()
+int init_logger(void)
 {
-	if(logfd < 0)
+	if(log_socket == NULL)
 	{
-		int return_value;
-		struct sockaddr_un sockaddr_unix;
+		struct sockaddr_un sockaddr_un;
 		
-		logfd = socket(AF_UNIX, SOCK_STREAM, 0);
-		
-		if(logfd < 0)
+		if(sock_create(AF_UNIX, SOCK_STREAM, 0, &log_socket) < 0)
 		{
+			log_socket = NULL;
+			return LOG_FAIL;
+		}		
+
+		memset((void *) &sockaddr_un, 0, sizeof(sockaddr_un));
+		sockaddr_un.sun_family = AF_UNIX;
+		strncpy(sockaddr_un.sun_path, LOG_PATH, strlen(LOG_PATH));
+		
+		if(log_socket->ops->connect(log_socket, (struct sockaddr *) &sockaddr_un, sizeof(sockaddr_un), 0) < 0)
+		{
+			log_socket = NULL;
 			return LOG_FAIL;
 		}
-		
-		memset(sockaddr_unix, 0, sizeof(sockaddr_unix));
-		sockaddr_unix.sun_family = AF_UNIX;
-		strncpy(sockaddr_unix.sun_path, LOG_PATH, strlen(LOG_PATH));
-		
-		return_value = connect(logfd, (struct sockaddr *) &sockaddr_unix, SUN_LEN(&sockaddr_unix));
-		
-		if(return_value < 0)
-		{
-			logfd = NONE;
-			return LOG_FAIL;
-		}
-		
-		
 	}
+
+	return LOG_OK;
 }
 
 int log(char *message)
 {
-	if(logfd < 0 || message == NULL)
+	if(log_socket == NULL || message == NULL)
 	{
 		return LOG_FAIL;
 	}
 	
 	strncpy(buffer, message, sizeof(buffer));
-	
-	//TODO Format buffer to syslog format 
 
-	send(logfd, buffer, strlen(buffer));
+	//TODO format buffer and send the message
+
 	memset(buffer, '\0', sizeof(buffer));
+	
+	return LOG_OK;
 }
 
-void destroy_logger()
+//REVIEW shutdown or other call in order to release the socket?
+void destroy_logger(void)
 {
-	if(logfd >= 0)
+	if(log_socket != NULL)
 	{
-		close(sockfd);
+		log_socket->ops->shutdown(log_socket, SHUT_WR);
 	}
 }
 

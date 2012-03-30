@@ -1,5 +1,5 @@
 name      = netlog
-src_files = iputils.c probes.c whitelist.c
+src_files = iputils.c probes.c whitelist.c logger.c
 
 obj-m += $(name).o
 $(name)-objs := $(src_files:.c=.o)

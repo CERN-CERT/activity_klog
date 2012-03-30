@@ -1,7 +1,14 @@
 #ifndef __LOGGER__
 #define __LOGGER__
 
-#define LOG_FAIL(A) A < 0
+#include <linux/socket.h>
+#include <linux/un.h>
+#include <linux/file.h>
+#include <linux/unistd.h>
+#include <linux/syscalls.h>
+#include <linux/net.h>
+
+#define LOG_FAILED(A) A < 0
 
 #define LOG_OK 1
 #define LOG_FAIL -1
@@ -10,7 +17,7 @@
 
 /*Initiliaze logger facility */
 
-int init_logger();
+int init_logger(void);
 
 /*Log a message*/
 
@@ -18,6 +25,6 @@ int log(char *message);
 
 /*Destroy logger facility*/
 
-void destroy_logger();
+void destroy_logger(void);
 
 #endif
