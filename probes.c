@@ -7,6 +7,8 @@
 #include <linux/socket.h>
 #include <linux/version.h>
 #include <linux/file.h>
+#include <linux/unistd.h>
+#include <linux/syscalls.h>
 #include "netlog.h"
 #include "iputils.h"
 #include "whitelist.h"
@@ -337,7 +339,7 @@ int __init plant_probes(void)
 	{
 		int whitelist_status;
 
-		whitelist_status = whitelist(procs_to_whitelist[i]);
+		whitelist_status = whitelist(procs_to_whitelist[i]ss);
 
 		if(whitelist_status < 0)
 		{
@@ -368,6 +370,6 @@ void __exit unplant_probes(void)
 	#if PROBE_UDP
   	unregister_jprobe(&bind_jprobe);
 	#endif
-	
+
 	printk("netlog: unplanted\n");
 }
