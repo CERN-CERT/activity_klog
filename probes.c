@@ -77,7 +77,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	}
 	#endif
 	
-	snprintf(message, sizeof(message), MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
+	snprintf(message, sizeof(message), "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
@@ -123,7 +123,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	}
 	#endif
 
-	snprintf(message, sizeof(message), MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
+	snprintf(message, sizeof(message), "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
@@ -159,7 +159,7 @@ static int my_inet_shutdown(struct socket *sock, int how)
 		}
 		#endif
 
-		snprintf(message, sizeof(message), MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		snprintf(message, sizeof(message), "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
@@ -174,7 +174,7 @@ static int my_inet_shutdown(struct socket *sock, int how)
 		}
 		#endif
 
-		snprintf(message, sizeof(message)MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		snprintf(message, sizeof(message), "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 				get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
@@ -226,13 +226,13 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 			
 		if(any_ip_address(ip))
 		{
-			snprintf(message, sizeof(message), MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
+			snprintf(message, sizeof(message), "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
 				current->comm, current->pid, ntohs(((struct sockaddr_in *)addr)->sin_port),
 				CURRENT_UID);
 		}
 		else
 		{
-			snprintf(message, sizeof(message), MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm,
+			snprintf(message, sizeof(message), "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm,
 				current->pid, ip, ntohs(((struct sockaddr_in6 *)addr)->sin6_port),	
 				CURRENT_UID);
 		}
@@ -311,6 +311,16 @@ int __init plant_probes(void)
 {
 	int register_status, i;
 
+	if(LOG_FAILED(init_logger(MODULE_NAME)))
+	{
+		printk(KERN_ERR MODULE_NAME "Failed to init logging facility\n");
+		return LOG_FAILURE;
+	}
+	else
+	{
+		printk(KERN_INFO MODULE_NAME "Initialized logging facility\n");
+	}
+
 	register_status = register_jprobe(&connect_jprobe);
 
 	if(register_status < 0)
@@ -355,12 +365,6 @@ int __init plant_probes(void)
 	}
 	#endif	
 
-	if(LOG_FAILED(init_logger(MODULE_NAME)))
-	{
-		printk(KERN_ERR MODULE_NAME "Failed to init logging facility\n");
-		return LOG_FAILURE;
-	}
-	
 	printk(KERN_INFO MODULE_NAME "Planted\n");
 
 	#if WHITELISTING
