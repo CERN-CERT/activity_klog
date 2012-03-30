@@ -5,6 +5,7 @@
 #define ACCEPT_PROBE_FAILED -2
 #define SHUTDOWN_PROBE_FAILED -3
 #define BIND_PROBE_FAILED -4 
+#define LOG_FAILURE -5
 
 /* Change to non zero value (i.e. 1) if you wish to probe 
  * the binding of UDP sockets.

@@ -1,10 +1,7 @@
 #include "logger.h"
 
-#define NONE -1
-#define BUFFER_SIZE 1024
-
 static struct socket *log_socket = NULL;
-static char buffer[BUFFER_SIZE] = {'\0'};
+static char buffer[MAX_MESSAGE_SIZE] = {'\0'};
 
 int init_logger(void)
 {

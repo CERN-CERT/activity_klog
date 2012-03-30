@@ -9,6 +9,7 @@
 #include <linux/net.h>
 
 #define LOG_FAILED(A) A < 0
+#define MAX_MESSAGE_SIZE 512
 
 #define LOG_OK 1
 #define LOG_FAIL -1
