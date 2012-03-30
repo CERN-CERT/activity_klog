@@ -339,7 +339,7 @@ int __init plant_probes(void)
 	{
 		int whitelist_status;
 
-		whitelist_status = whitelist(procs_to_whitelist[i]ss);
+		whitelist_status = whitelist(procs_to_whitelist[i]);
 
 		if(whitelist_status < 0)
 		{
