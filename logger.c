@@ -31,15 +31,40 @@ int init_logger(void)
 
 int log(char *message)
 {
+	struct iovec iov;
+	struct msghdr msg;
+	mm_segment_t oldfs;
+	unsigned int message_lenght;
+	
 	if(log_socket == NULL || message == NULL)
 	{
 		return LOG_FAIL;
 	}
 	
+	message_lenght = strlen(message) + 1;
 	strncpy(buffer, message, sizeof(buffer));
 
-	//TODO format buffer and send the message
+	//TODO format buffer
 
+	/*Prepare and send buffer*/
+
+	msg.msg_name = 0;
+	msg.msg_namelen = 0;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
+
+	msg.msg_flags = MSG_NOSIGNAL;	
+
+	iov.iov_base = (char*) buffer;
+	iov.iov_len =  (__kernel_size_t) message_lenght;
+
+	oldfs = get_fs(); set_fs(KERNEL_DS);
+
+	sock_sendmsg(log_socket, &msg, (size_t) message_lenght);
+
+	set_fs(oldfs);
 	memset(buffer, '\0', sizeof(buffer));
 	
 	return LOG_OK;
