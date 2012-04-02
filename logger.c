@@ -1,9 +1,9 @@
 #include "logger.h"
 
-#define MAX_MODULE_NAME 32
+#define MAX_MODULE_NAME 64
 
 struct socket *log_socket = NULL;
-char buffer[MAX_MESSAGE_SIZE] = {'\0'};
+char buffer[MAX_MODULE_NAME + MAX_MESSAGE_SIZE] = {'\0'};
 char from_module[MAX_MODULE_NAME] = {'\0'};
 
 int init_logger(const char *module_name)
@@ -39,8 +39,6 @@ int log_message(const char *message)
 	struct iovec iov;
 	struct msghdr msg;
 	mm_segment_t oldfs;
-	struct rtc_time tm;
-	struct timespec curtime;
 	unsigned int message_start;
 	
 	if(log_socket == NULL || message == NULL)
@@ -50,34 +48,11 @@ int log_message(const char *message)
 	
 	message_start = 0;
 
-	/*Format buffer (time, node name and log facility's utilizing module name)*/
+	/*Add "kernel: <module name> at the start of the buffer"*/
 
-	/*Format time*/
-	
-	curtime = CURRENT_TIME;
-	rtc_time_to_tm(curtime.tv_sec, &tm);
+	message_start += snprintf(buffer, MAX_MODULE_NAME + 10, "  kernel: %s", from_module);
 
-	message_start += snprintf(buffer, sizeof(buffer), "%d-%02d-%dT%d:%d:%d.%d+00:00 ",
-			      1900 + tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour,
-			      tm.tm_min, tm.tm_sec, (unsigned int) curtime.tv_nsec / 1000);
-
-	/*Format node name*/
-	
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
-	down_read(&uts_sem);	
-	message_start += snprintf(buffer + message_start, MAXHOSTNAMELEN, "%s", system_utsname.nodename);
-	up_read(&uts_sem);
-#else
-	{
-	struct new_utsname *uts_name;
-	uts_name = utsname();
-	message_start += snprintf(buffer + message_start, MAXHOSTNAMELEN, "%s", uts_name->nodename);
-	}
-#endif
-	message_start += snprintf(buffer + message_start, MAX_MODULE_NAME + 10, " kernel: %s", from_module);
-
-
-	snprintf(buffer + message_start, strlen(message) + 1, "%s", message);
+	snprintf(buffer + message_start, MAX_MESSAGE_SIZE, "%s", message);
 
 	/*Send buffer*/
 
@@ -87,7 +62,7 @@ int log_message(const char *message)
 	msg.msg_iovlen = 1;
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
-	msg.msg_flags = MSG_NOSIGNAL;	
+	msg.msg_flags = MSG_NOSIGNAL;
 
 	iov.iov_base = (char *) buffer;
 	iov.iov_len = (__kernel_size_t) strlen(buffer) + 1;
@@ -105,10 +80,10 @@ int log_message(const char *message)
 
 void destroy_logger(void)
 {
-	if(log_socket != NULL && log_socket->sock != NULL)
+	if(log_socket != NULL)
 	{
-		sock_release(log_socket->sock);
-		log_socket = NULL;	
+		sock_release(log_socket);
+		log_socket = NULL;
 	}
 }
 
