@@ -34,14 +34,13 @@ int init_logger(const char *module_name)
 	return LOG_OK;
 }
 
-int log(const char *message)
+int log_message(const char *message)
 {
 	struct iovec iov;
 	struct msghdr msg;
 	mm_segment_t oldfs;
 	struct rtc_time tm;
 	struct timespec curtime;
-	struct new_utsname *uts_name;
 	unsigned int message_start;
 	
 	if(log_socket == NULL || message == NULL)
@@ -54,6 +53,7 @@ int log(const char *message)
 	/*Format buffer (time, node name and log facility's utilizing module name)*/
 
 	/*Format time*/
+	
 	curtime = CURRENT_TIME;
 	rtc_time_to_tm(curtime.tv_sec, &tm);
 
@@ -63,9 +63,17 @@ int log(const char *message)
 
 	/*Format node name*/
 	
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
+	down_read(&uts_sem);	
+	message_start += snprintf(buffer + message_start, MAXHOSTNAMELEN, "%s", system_utsname.nodename);
+	up_read(&uts_sem);
+#else
+	{
+	struct new_utsname *uts_name;
 	uts_name = utsname();
-	
 	message_start += snprintf(buffer + message_start, MAXHOSTNAMELEN, "%s", uts_name->nodename);
+	}
+#endif
 	message_start += snprintf(buffer + message_start, MAX_MODULE_NAME + 10, " kernel: %s", from_module);
 
 
@@ -95,12 +103,12 @@ int log(const char *message)
 	return LOG_OK;
 }
 
-//REVIEW shutdown or other call in order to release the socket?
 void destroy_logger(void)
 {
-	if(log_socket != NULL)
+	if(log_socket != NULL && log_socket->sock != NULL)
 	{
-		log_socket->ops->shutdown(log_socket, SHUT_WR);
+		sock_release(log_socket->sock);
+		log_socket = NULL;	
 	}
 }
 
