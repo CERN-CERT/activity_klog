@@ -82,7 +82,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
 
-	if(LOG_FAILED(log(message)))
+	if(LOG_FAILED(log_message(message)))
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to log message\n");		
 	}
@@ -128,7 +128,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 				get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 				CURRENT_UID);
 
-	if(LOG_FAILED(log(message)))
+	if(LOG_FAILED(log_message(message)))
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to log message\n");		
 	}
@@ -181,7 +181,7 @@ static int my_inet_shutdown(struct socket *sock, int how)
 	}
 	#endif
 
-	if(LOG_FAILED(log(message)))
+	if(LOG_FAILED(log_message(message)))
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to log message\n");		
 	}
@@ -237,7 +237,7 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 				CURRENT_UID);
 		}
 
-		if(LOG_FAILED(log(message)))
+		if(LOG_FAILED(log_message(message)))
 		{
 			printk(KERN_ERR MODULE_NAME "Failed to log message\n");	
 		}

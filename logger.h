@@ -11,6 +11,8 @@
 #include <linux/rtc.h>
 #include <linux/utsname.h>
 #include <linux/param.h>
+#include <linux/version.h>
+#include <net/sock.h>
 
 #define LOG_FAILED(A) A < 0
 #define MAX_MESSAGE_SIZE 512
@@ -26,7 +28,7 @@ int init_logger(const char *module_name);
 
 /*Log a message*/
 
-int log(const char *message);
+int log_message(const char *message);
 
 /*Destroy logger facility*/
 
