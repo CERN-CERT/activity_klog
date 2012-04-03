@@ -28,7 +28,7 @@ int init_logger(const char *module_name);
 
 /*Log a message*/
 
-int log_message(const char *message);
+int log_message(const char *format, ...);
 
 /*Destroy logger facility*/
 
