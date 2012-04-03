@@ -42,11 +42,11 @@
  * because when a system call is called, the process is suspended untill its end of execution.
  */
 
-static struct socket *socket_hash[PID_MAX_LIMIT] = {NULL};
+static struct socket *match_socket[PID_MAX_LIMIT] = {NULL};
 
 static int my_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
 {	
-	socket_hash[current->pid] = sock;
+	match_socket[current->pid] = sock;
 
 	jprobe_return();
 	return 0;
@@ -55,8 +55,7 @@ static int my_inet_stream_connect(struct socket *sock, struct sockaddr *addr, in
 static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	int log_status;
-	char message[MAX_MESSAGE_SIZE];
-	struct socket *sock = socket_hash[current->pid];
+	struct socket *sock = match_socket[current->pid];
 	
 	if(sock == NULL || sock->sk == NULL)
 	{
@@ -66,14 +65,14 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	if(sock->sk->sk_protocol != IPPROTO_TCP)
 	{
 
-		socket_hash[current->pid] = NULL;
+		match_socket[current->pid] = NULL;
 		return 0;
 	}
 
 	#if WHITELISTING
 	if(is_whitelisted(current))
 	{
-		socket_hash[current->pid] = NULL;
+		match_socket[current->pid] = NULL;
 		return 0;
 	}
 	#endif
@@ -88,7 +87,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 		printk(KERN_ERR MODULE_NAME "Failed to log message\n");		
 	}
 
-	socket_hash[current->pid] = NULL;
+	match_socket[current->pid] = NULL;
 
 	return 0;
 }
@@ -102,7 +101,6 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	int err, log_status;
-	char message[MAX_MESSAGE_SIZE];
 	struct socket *sock = sockfd_lookup(regs_return_value(regs), &err);
 		
 	if(sock == NULL || sock->sk == NULL)
@@ -144,8 +142,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 #if PROBE_CONNECTION_CLOSE
 static int my_inet_shutdown(struct socket *sock, int how)
 {
-	int log_status;
-	char message[MAX_MESSAGE_SIZE];
+	int log_status = 0;
 
 	if(sock == NULL || sock->sk == NULL)
 	{
@@ -202,7 +199,6 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 {
 	int err, log_status;
 	struct socket * sock;
-	char message[MAX_MESSAGE_SIZE];
 
 	sock = sockfd_lookup(sockfd, &err);
 

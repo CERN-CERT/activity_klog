@@ -51,7 +51,7 @@ int log_message(const char *format, ...)
 
 	/*Add "kernel: <module name>" at the start of the buffer*/
 
-	message_start += snprintf(buffer, MAX_MODULE_NAME, " kernel: %s", from_module);
+	message_start += snprintf(buffer, MAX_MODULE_NAME, "kernel: %s", from_module);
 	
 	va_start(arguments, format);
 	vsnprintf(buffer + message_start, MAX_MESSAGE_SIZE - message_start, format, arguments);
