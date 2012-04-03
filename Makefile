@@ -74,12 +74,12 @@ release:    _increment_release _update_spec _git_commit_tag
 
 srcrpm: $(DISTS:=.srcrpm)
 
-%.srcrpm: %/$(name).spec %/$(name).tgz
-	@$(RPMBUILD) --define "_sourcedir ${PWD}/$*" --define "_srcrpmdir ${PWD}" -bs $<
+%.srcrpm: dist.%/$(name).spec dist.%/$(name).tgz
+	@$(RPMBUILD) --define "_sourcedir ${PWD}/dist.$*" --define "_srcrpmdir ${PWD}" -bs $<
 
 %.tgz:
 	@version=`cat VERSION`; \
-	tar --no-recursion --exclude .git --exclude "*.rpm" --exclude "*.tgz" -zchf $*-$$version.tgz *
+	tar --no-recursion --exclude .git --exclude "*.rpm" --exclude "*.tgz" --exclude "dist.*" -zchf $*-$$version.tgz *
 
 clean: $(DISTS:=.clean)
 	@rm -f *.rpm
