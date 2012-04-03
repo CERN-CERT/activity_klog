@@ -10,7 +10,7 @@
 Source0: %{kmod_name}-%{kmod_driver_version}.tgz
 Source1: %{kmod_name}.files
 Source2: %{kmod_name}.conf
-Source4: kmodtool-%{kmod_name}.sh
+Source4: kmodtool-%{kmod_name}
 
 Name: %{kmod_name}
 Version: %{kmod_driver_version}

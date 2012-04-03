@@ -1,5 +1,5 @@
 %define kmod_name		netlog
-%define kmod_driver_version	1.5
+%define kmod_driver_version	1.6
 %define kmod_rpm_release	1
 %define kmod_kernel_version	2.6.18-308.1.1.el5
 
@@ -8,7 +8,7 @@
 %{!?dist: %define dist .slc5}
 
 Source0: %{kmod_name}-%{kmod_driver_version}.tgz
-Source1: kmodtool-%{kmod_name}.sh
+Source1: kmodtool-%{kmod_name}
 #Source3: find-requires.ksyms
 
 %define kmodtool bash %{SOURCE1}
