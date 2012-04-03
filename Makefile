@@ -65,6 +65,12 @@ version:    _increment_version _update_spec _git_commit_tag
 release:    _increment_release _update_spec _git_commit_tag
 
 
+#+++############################################################################
+#                                                                              #
+# RPMs building                                                                #
+#                                                                              #
+#---############################################################################
+
 
 srcrpm: $(DISTS:=.srcrpm)
 
@@ -74,3 +80,9 @@ srcrpm: $(DISTS:=.srcrpm)
 %.tgz:
 	@version=`cat VERSION`; \
 	tar --no-recursion --exclude .git --exclude "*.rpm" --exclude "*.tgz" -zchf $*-$$version.tgz *
+
+clean: $(DISTS:=.clean)
+	@rm -f *.rpm
+
+%.clean:
+	@rm -f $*/*.tgz
