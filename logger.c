@@ -3,8 +3,8 @@
 #define MAX_MODULE_NAME 64
 
 struct socket *log_socket = NULL;
-char buffer[MAX_MODULE_NAME + MAX_MESSAGE_SIZE] = {'\0'};
 char from_module[MAX_MODULE_NAME] = {'\0'};
+char buffer[MAX_MESSAGE_SIZE] = {'\0'};
 
 int init_logger(const char *module_name)
 {
@@ -34,25 +34,28 @@ int init_logger(const char *module_name)
 	return LOG_OK;
 }
 
-int log_message(const char *message)
+int log_message(const char *format, ...)
 {
 	struct iovec iov;
 	struct msghdr msg;
 	mm_segment_t oldfs;
+	va_list arguments;
 	unsigned int message_start;
 	
-	if(log_socket == NULL || message == NULL)
+	if(log_socket == NULL || format == NULL)
 	{
 		return LOG_FAIL;
 	}
 	
 	message_start = 0;
 
-	/*Add "kernel: <module name> at the start of the buffer"*/
+	/*Add "kernel: <module name>" at the start of the buffer*/
 
-	message_start += snprintf(buffer, MAX_MODULE_NAME + 10, "  kernel: %s", from_module);
-
-	snprintf(buffer + message_start, MAX_MESSAGE_SIZE, "%s", message);
+	message_start += snprintf(buffer, MAX_MODULE_NAME, "kernel: %s", from_module);
+	
+	va_start(arguments, format);
+	vsnprintf(buffer + message_start, MAX_MESSAGE_SIZE - message_start, format, arguments);
+	va_end(arguments);
 
 	/*Send buffer*/
 
