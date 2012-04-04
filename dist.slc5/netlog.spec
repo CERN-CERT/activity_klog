@@ -62,7 +62,7 @@ echo "/usr/lib/rpm/redhat/find-requires | %{__sed} -e '/^ksym.*/d'" > filter-req
 
 for kvariant in %{kvariants} ; do
     cp -a %{kmod_name}-%{version} _kmod_build_$kvariant
-    done
+done
 
 %build
 echo  %{kverrel}
