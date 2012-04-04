@@ -55,7 +55,7 @@ int is_whitelisted(const struct task_struct *task)
 
 	if(path == NULL)
 	{
-		return WHITELIST_FAIL;
+		return NOT_WHITELISTED;
 	}
 
 	path_length = strnlen(path, MAX_ABSOLUTE_EXEC_PATH);
