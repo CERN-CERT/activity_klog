@@ -144,11 +144,3 @@ int any_ip_address(const char *ip)
 		!strncmp(ip, "[0000:0000:0000:0000:0000:0000:0000:0000]", sizeof(ip)));
 }
 
-
-
-
-
-
-
-
-
