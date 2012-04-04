@@ -1,14 +1,3 @@
-#include <linux/module.h>
-#include <linux/kprobes.h>
-#include <linux/init.h>
-#include <linux/in.h>
-#include <linux/net.h>
-#include <net/ip.h>
-#include <linux/socket.h>
-#include <linux/version.h>
-#include <linux/file.h>
-#include <linux/unistd.h>
-#include <linux/syscalls.h>
 #include "netlog.h"
 #include "iputils.h"
 #include "whitelist.h"
@@ -57,8 +46,14 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	int log_status;
 	struct socket *sock = match_socket[current->pid];
 	
-	if(sock == NULL || sock->sk == NULL)
+	if(sock == NULL || sock->sk == NULL || sock->ops == NULL)
 	{
+		return 0;
+	}
+
+	if(sock->ops->family != AF_INET && sock->ops->family != AF_INET6)
+	{
+		match_socket[current->pid] = NULL;
 		return 0;
 	}
 	
@@ -88,7 +83,6 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	}
 
 	match_socket[current->pid] = NULL;
-
 	return 0;
 }
 
@@ -103,12 +97,17 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	int err, log_status;
 	struct socket *sock = sockfd_lookup(regs_return_value(regs), &err);
 		
-	if(sock == NULL || sock->sk == NULL)
+	if(sock == NULL || sock->sk == NULL || sock->ops == NULL)
 	{
 		return 0;
 	}
 
 	sockfd_put(sock);
+	
+	if(sock->ops->family != AF_INET && sock->ops->family != AF_INET6)
+	{
+		return 0;
+	}
 	
 	if(sock->sk->sk_protocol != IPPROTO_TCP)
 	{
@@ -164,7 +163,7 @@ static int my_inet_shutdown(struct socket *sock, int how)
 							CURRENT_UID);
 	}
 	#if PROBE_UDP
-	if(sock->sk->sk_protocol == IPPROTO_UDP)
+	else if(sock->sk->sk_protocol == IPPROTO_UDP)
 	{
 		#if WHITELISTING
 		if(is_whitelisted(current))
@@ -202,12 +201,17 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 
 	sock = sockfd_lookup(sockfd, &err);
 
-	if(sock == NULL)
+	if(sock == NULL || sock->sk == NULL)
 	{
 		jprobe_return();
 	}
 
 	sockfd_put(sock);
+
+	if(sock->ops->family != AF_INET && sock->ops->family != AF_INET6)
+	{
+		jprobe_return();	
+	}
 
 	if(sock->sk->sk_protocol == IPPROTO_UDP)
 	{
@@ -369,7 +373,7 @@ int __init plant_probes(void)
 
 	/*Deal with the whitelisting*/
 
-	for(i = 0; i < NO_WHITELISTS; i++)
+	for(i = 0; i < NO_WHITELISTS; ++i)
 	{
 		int whitelist_status;
 

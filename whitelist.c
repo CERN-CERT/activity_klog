@@ -1,13 +1,9 @@
 #include "whitelist.h"
-#include <linux/sched.h>
-#include <net/ip.h>
-#include <linux/mm.h>
-#include <linux/version.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 25)
-#define call_d_path(file, buf, len) d_path(file->f_dentry, file->f_vfsmnt, buf, len);
+#define call_d_path(file, buffer, length) d_path(file->f_dentry, file->f_vfsmnt, buffer, length);
 #else
-#define call_d_path(file, buf, len) d_path(&file->f_path, buf, len);
+#define call_d_path(file, buffer, length) d_path(&file->f_path, buffer, length);
 #endif
 
 int size = 0;
@@ -15,23 +11,27 @@ char white_list[MAX_WHITELIST_SIZE][MAX_ABSOLUTE_EXEC_PATH];
 
 int whitelist(const char *process_name)
 {
+	unsigned int name_length;
+
 	if(size == MAX_WHITELIST_SIZE)
 	{
 		/*List is full, cannot whitelist more processes*/
 
-		return LIST_FULL;
+		return WHITELIST_FAIL;
 	}
 
-	if(strnlen(process_name, MAX_ABSOLUTE_EXEC_PATH) == 0)
-	{
-		/*No reason to whitelist an empty process name...*/
+	name_length = strnlen(process_name, MAX_ABSOLUTE_EXEC_PATH);
 
-		return NOT_WHITELISTED;
+	if(name_length == 0 || name_length == MAX_ABSOLUTE_EXEC_PATH)
+	{
+		/*Fail to whitelist empty input or input greater than our limit*/
+
+		return WHITELIST_FAIL;
 	}
 
 	memset(white_list[size], '\0', MAX_ABSOLUTE_EXEC_PATH);
 	strncpy(white_list[size], process_name, MAX_ABSOLUTE_EXEC_PATH);
-	size++;
+	++size;
 
 	return WHITELISTED;
 }
@@ -41,11 +41,12 @@ char *exe_from_mm(const struct mm_struct *mm, char *buf, int len);
 int is_whitelisted(const struct task_struct *task)
 {
 	int i;
-	char *path, buffer[MAX_ABSOLUTE_EXEC_PATH];
+	unsigned int path_length;
+	char *path, buffer[MAX_ABSOLUTE_EXEC_PATH] = {'\0'};
 
 	if(task == NULL || task->mm == NULL)
 	{
-		return NOT_WHITELISTED;
+		return WHITELIST_FAIL;
 	}
 
 	/*Retrieve the absolute execution path of the process*/
@@ -54,6 +55,15 @@ int is_whitelisted(const struct task_struct *task)
 
 	if(path == NULL)
 	{
+		return WHITELIST_FAIL;
+	}
+
+	path_length = strnlen(path, MAX_ABSOLUTE_EXEC_PATH);
+
+	if(path_length == 0 || path_length == MAX_ABSOLUTE_EXEC_PATH)
+	{
+		/*Empty or paths greater than our limit are not whitelisted*/
+
 		return NOT_WHITELISTED;
 	}
 
@@ -72,37 +82,38 @@ int is_whitelisted(const struct task_struct *task)
 	return NOT_WHITELISTED;
 }
 
-char *exe_from_mm(const struct mm_struct *mm, char *buf, int len)
+char *exe_from_mm(const struct mm_struct *mm, char *buffer, int length)
 {
 	char *p = NULL;
 	struct vm_area_struct *vma;
+
+	if(mm == NULL)
+	{
+		return NULL;
+	}
 
 	vma = mm->mmap;
 
 	while(vma)
 	{
 		if((vma->vm_flags & VM_EXECUTABLE) && vma->vm_file)
+		{
 			break;
+		}
+			
 		vma = vma->vm_next;
 	}
 
 	if (vma && vma->vm_file)
 	{
-		p = call_d_path(vma->vm_file, buf, len);
+		p = call_d_path(vma->vm_file, buffer, length);
+		
+		if(IS_ERR(p))
+		{
+			return NULL;
+		}
 	}
 
 	return p;
 }
-
-
-
-
-
-
-
-
-
-
-
-
 

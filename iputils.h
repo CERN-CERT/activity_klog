@@ -1,8 +1,10 @@
 #ifndef __IPUTILS__
 #define __IPUTILS__
 
-struct socket;
-struct sockaddr;
+#include <linux/ipv6.h>
+#include <net/ip.h>
+#include <linux/socket.h>
+#include <linux/version.h>
 
 char *get_remote_ip(const struct socket *sock);
 

@@ -1,8 +1,4 @@
 #include "iputils.h"
-#include <linux/ipv6.h>
-#include <net/ip.h>
-#include <linux/socket.h>
-#include <linux/version.h>
 
 /* Needed in order to convert binary network address to readable.
  * these macros were existing in previous kernel versions but were removed.
