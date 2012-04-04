@@ -85,4 +85,4 @@ clean: $(DISTS:=.clean)
 	@rm -f *.rpm
 
 %.clean:
-	@rm -f $*/*.tgz
+	@rm -f dist.$*/*.tgz
