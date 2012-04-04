@@ -1,5 +1,5 @@
 %define kmod_name		netlog
-%define kmod_driver_version	1.6
+%define kmod_driver_version	1.5
 %define kmod_rpm_release	1
 %define kmod_kernel_version	2.6.32-220.7.1.el6
 
@@ -10,7 +10,7 @@
 Source0: %{kmod_name}-%{kmod_driver_version}.tgz
 Source1: %{kmod_name}.files
 Source2: %{kmod_name}.conf
-Source4: kmodtool-%{kmod_name}.sh
+Source4: kmodtool-%{kmod_name}
 
 Name: %{kmod_name}
 Version: %{kmod_driver_version}

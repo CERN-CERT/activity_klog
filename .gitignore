@@ -3,6 +3,7 @@
 # Vi swap files
 .*.swp
 
+*.tgz
 *.tar.gz
 *.src.rpm
 

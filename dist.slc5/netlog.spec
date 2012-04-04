@@ -8,7 +8,7 @@
 %{!?dist: %define dist .slc5}
 
 Source0: %{kmod_name}-%{kmod_driver_version}.tgz
-Source1: kmodtool-%{kmod_name}.sh
+Source1: kmodtool-%{kmod_name}
 #Source3: find-requires.ksyms
 
 %define kmodtool bash %{SOURCE1}
