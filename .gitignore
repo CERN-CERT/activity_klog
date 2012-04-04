@@ -5,7 +5,7 @@
 
 *.tgz
 *.tar.gz
-*.src.rpm
+*.rpm
 
 .*
 !.gitignore
