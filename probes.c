@@ -376,7 +376,7 @@ int __init plant_probes(void)
 
 		whitelist_status = whitelist(procs_to_whitelist[i]);
 
-		if(whitelist_status < 0)
+		if(WHITELIST_FAILED(whitelist_status))
 		{
 			printk(KERN_ERR MODULE_NAME "Failed to whitelist %s\n", procs_to_whitelist[i]);
 		}
