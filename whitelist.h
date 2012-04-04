@@ -36,3 +36,4 @@ int whitelist(const char *process_name);
 int is_whitelisted(const struct task_struct *task);
 
 #endif
+
