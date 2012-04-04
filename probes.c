@@ -1,7 +1,4 @@
 #include "netlog.h"
-#include "iputils.h"
-#include "whitelist.h"
-#include "logger.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 #define CURRENT_UID current->uid
