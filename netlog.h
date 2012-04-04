@@ -1,6 +1,18 @@
 #ifndef __NETLOG__
 #define __NETLOG__
 
+#include <linux/module.h>
+#include <linux/kprobes.h>
+#include <linux/init.h>
+#include <linux/in.h>
+#include <linux/net.h>
+#include <net/ip.h>
+#include <linux/socket.h>
+#include <linux/version.h>
+#include <linux/file.h>
+#include <linux/unistd.h>
+#include <linux/syscalls.h>
+
 #define CONNECT_PROBE_FAILED -1
 #define ACCEPT_PROBE_FAILED -2
 #define SHUTDOWN_PROBE_FAILED -3
@@ -11,7 +23,7 @@
  * the binding of UDP sockets.
  */
 
-#define PROBE_UDP 0
+#define PROBE_UDP 1
 
 /* Change to zero value (0) if you wish to not probe 
  * the close system call for the sockets.
