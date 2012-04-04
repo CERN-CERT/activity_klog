@@ -43,9 +43,11 @@ _increment_release:
 	@$(PERL) -pi -e 'die("invalid version: $$_\n") unless \
 	  s/^(\d+)\.(\d+)(.*?)$$/sprintf("%d.%d%s", $$1, $$2+1, $$4)/e' VERSION
 
-_update_spec: $(DISTS:=/$(name).spec)
+_update_spec: $(DISTS:=.spec)
+
+%.spec: dist.%/$(name).spec
 	@version=`cat VERSION`; \
-	$(SED) -i -e "s/^\(%define kmod_driver_version\s\+\)\S\+\s*$$/\1$$version/" $^
+	$(SED) -i -e "s/^\(%define kmod_driver_version\s\+\)\S\+\s*$$/\1$$version/" $<
 
 _git_commit_tag:
 	@version=`cat VERSION`; \
