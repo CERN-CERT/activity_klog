@@ -12,6 +12,9 @@
 #include <linux/file.h>
 #include <linux/unistd.h>
 #include <linux/syscalls.h>
+#include "iputils.h"
+#include "whitelist.h"
+#include "logger.h"
 
 #define CONNECT_PROBE_FAILED -1
 #define ACCEPT_PROBE_FAILED -2
