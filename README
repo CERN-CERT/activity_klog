@@ -3,8 +3,8 @@
 					+---------------------------+
 
 Product name: 			netlog
-Date:				Dec 19 2011
-Version:			1.4
+Date:				Apr 5 2012
+Version:			1.6
 Vendor:				CERN
 Author:				Panos Sakkos while at Computer Security Team 
 CST Email:			cert-sec@cern.ch
@@ -24,26 +24,21 @@ Intergovernmental Organization or submit itself to any jurisdiction.
 						|Description|
 						+-----------+
 
-Netlog is a Loadable Kernel Module that logs information for every connection.
-With the help of kprobes API, it tracks the connect and accept system calls and 
-in case that the connection for TCP, it logs the process name and Process ID, 
-the User ID that owns this process, the protocol (TCP), the local IP address and port as well
-as the remote IP address and port.
+Netlog is a Loadable Kernel Module that logs information for every connection on the hosted machine.
+By utilizing the kprobes API, it probes the connect and accept system calls ,for TCP connections,
+as well as the bind system call, for UDP connections, and the socket destruction. 
+While probing, it logs the process name and process id, the user id that owns this process, the protocol
+(TCP/UDP), the local IP address and port as well as the remote IP address and port.
 
-For UDP, it tracks the bind system call, because UDP is a connectionless protocol,
+For UDP, it tracks only the bind system call, because UDP is a connectionless protocol,
 so the other approach was to track the packet communication, something that would
-add a lot of overhead. The data that is logged, is the process name and Process ID,
-the User ID of the process owner, the protocol (UDP) and the information about the IP address
-and port that bind holds at its parameters. In order to compile the code that tracks UDP, you 
+add a lot of overhead. In order to compile the code that tracks UDP, you 
 have to change the symbolic constant (PROBE_UDP) that it's defined in the netlog header (netlog.h) from
 zero (0) to a non-zero value (i.e. 1).
 
 Netlog also tracks the destruction of the sockets. This is done by probing the 
 inet_shutdown kernel call, which is called after the close system call is called.
-If the socket is created for a TCP protocol or a UDP (if UDP probing is true) it
-logs the process name and Process ID that created it, as well as the Used ID that owns this
-process, the protocol (TCP or UDP), the local IP address and port and the remote IP address and port.
-in order to compile the code that tracks the connection close, you need to change the value of the
+In order to compile the code that tracks the connection close, you need to change the value of the
 symbolic constant (PROBE_CONNECTION_CLOSE) that is defined in the netlog header file (netlog.h) from 
 zero (0) to a non-zero value (i.e. 1).
 
@@ -58,17 +53,17 @@ path of the executables that you are interested in wtelisting at the netlog.h he
 					+--------------------------+
 
 TCP connect:
-Dec 19 14:03:17 panos-PC kernel: [ 1341.648413] netlog: http[3206] TCP 137.138.191.167:52507 -> 130.59.10.36:80 (uid=0)
+Dec 19 14:03:17 panos-PC kernel: netlog: http[3206] TCP 137.138.191.167:52507 -> 130.59.10.36:80 (uid=0)
 
 TCP accept:
-Dec 19 14:18:37 panos-PC kernel: [ 2262.125936] netlog: sshd[827] TCP 137.138.191.167:22 <- 137.138.32.18:49904 (uid=0)
+Dec 19 14:18:37 panos-PC kernel: netlog: sshd[827] TCP 137.138.191.167:22 <- 137.138.32.18:49904 (uid=0)
 
 UDP binds:
-Dec 19 14:22:50 panos-PC kernel: [ 2515.081074] netlog: skype[4261] UDP bind 127.0.0.1:0 (uid=1000)
-Dec 19 14:22:50 panos-PC kernel: [ 2515.271375] netlog: skype[4261] UDP bind (any IP address):2752 (uid=1000)
+Dec 19 14:22:50 panos-PC kernel: netlog: skype[4261] UDP bind 127.0.0.1:0 (uid=1000)
+Dec 19 14:22:50 panos-PC kernel: netlog: skype[4261] UDP bind (any IP address):2752 (uid=1000)
 
 Connection close:
-Dec 19 14:19:07 panos-PC kernel: [ 2292.580879] netlog: sshd[3755] TCP 137.138.191.167:22 <-> 137.138.32.18:49904 (uid=0)
+Dec 19 14:19:07 panos-PC kernel: netlog: sshd[3755] TCP 137.138.191.167:22 <-> 137.138.32.18:49904 (uid=0)
 
 						+--------------+
 						|How to compile|
@@ -103,8 +98,8 @@ Furthermore you have to know how kprobes works (or at least its API).
 Linux Source Code:
 	http://www.kernel.org/
 
-Article from RedHat about kprobes
-	http://www.redhat.com/magazine/005mar05/features/kprobes/
+Kernel instrumentation using kprobes:
+	http://www.phrack.org/issues.html?issue=67&id=6
 
 Scientific Linux CERN
 	http://linux.web.cern.ch/linux/
@@ -113,6 +108,8 @@ Scientific Linux CERN
 						|   TODO   |
 						+----------+
 
-With the current approach of tracking the connection close, if the process doesn't call the 
+*With the current approach of tracking the connection close, if the process doesn't call the 
 close system call, the tracking cannot be done. So I have to find the kernel call (if any)
 that is called even if the close system call is not called, in order to destroy the socket.
+
+*Dynamic whitelisting support
