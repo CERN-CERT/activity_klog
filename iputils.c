@@ -123,7 +123,7 @@ char *get_ip(const struct sockaddr *addr)
 		static char ipv6[INET6_ADDRSTRLEN + 2];
 		struct sockaddr_in6 *addrin6 = (struct sockaddr_in6 *) addr;
 		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]",
-							NIP6(addrin6->sin6_addr));	
+								NIP6(addrin6->sin6_addr));	
 									 
 		return ipv6;							 
 	}
