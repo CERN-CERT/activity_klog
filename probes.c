@@ -30,7 +30,7 @@
 
 static struct socket *match_socket[PID_MAX_LIMIT] = {NULL};
 
-static int my_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
+static int netlog_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
 {	
 	match_socket[current->pid] = sock;
 
@@ -136,11 +136,11 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
  */
  
 #if PROBE_CONNECTION_CLOSE
-static void my_tcp_close(struct sock *sk, long timeout)
+static void netlog_tcp_close(struct sock *sk, long timeout)
 {
 	int log_status = 0;
 
-	if(sk == NULL)
+	if(sk == NULL || ntohs(inet_sk(sk)->DPORT == 0))
 	{
 		jprobe_return();
 	}
@@ -164,13 +164,14 @@ static void my_tcp_close(struct sock *sk, long timeout)
 
 	jprobe_return();
 }
+#endif
 
-#if PROBE_UDP
-static void my_udp_close(struct sock *sk, long timeout)
+#if PROBE_UDP && PROBE_CONNECTION_CLOSE
+static void netlog_udp_close(struct sock *sk, long timeout)
 {
 	int log_status = 0;
 
-	if(sk == NULL)
+	if(sk == NULL || ntohs(inet_sk(sk)->DPORT == 0))
 	{
 		jprobe_return();
 	}
@@ -199,14 +200,12 @@ static void my_udp_close(struct sock *sk, long timeout)
 }
 #endif
 
-#endif
-
 
 #if PROBE_UDP
 
 /* UDP protocol is connectionless protocol, so we probe the bind system call */
 
-static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
+static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 {
 	int err, log_status;
 	struct socket * sock;
@@ -268,7 +267,7 @@ static int my_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 
 static struct jprobe connect_jprobe = 
 {	
-	.entry = (kprobe_opcode_t *) my_inet_stream_connect,
+	.entry = (kprobe_opcode_t *) netlog_inet_stream_connect,
 	.kp = 
 	{
 		.symbol_name = "inet_stream_connect",
@@ -296,33 +295,27 @@ static struct kretprobe accept_kretprobe =
 };
 
 #if PROBE_CONNECTION_CLOSE
+extern struct proto tcp_prot;
+
 static struct jprobe tcp_close_jprobe = 
 {	
-	.entry = (kprobe_opcode_t *) my_tcp_close,
-	.kp = 
-	{
-		.symbol_name = "tcp_close",
-	},
+	.entry = (kprobe_opcode_t *) netlog_tcp_close,
 };
-
-#if PROBE_UDP
-static struct jprobe udp_close_jprobe = 
-{	
-	.entry = (kprobe_opcode_t *) my_udp_close,
-	.kp = 
-	{
-		.symbol_name = "udp_close",
-	},
-};
-
 #endif
 
+#if PROBE_UDP && PROBE_CONNECTION_CLOSE
+extern struct proto udp_prot;
+
+static struct jprobe udp_close_jprobe = 
+{	
+	.entry = (kprobe_opcode_t *) netlog_udp_close,
+};
 #endif
 
 #if PROBE_UDP
 static struct jprobe bind_jprobe = 
 {	
-	.entry = (kprobe_opcode_t *) my_sys_bind,
+	.entry = (kprobe_opcode_t *) netlog_sys_bind,
 	.kp = 
 	{
 		.symbol_name = "sys_bind",
@@ -376,6 +369,7 @@ int __init plant_probes(void)
 
 	#if PROBE_CONNECTION_CLOSE
 
+	tcp_close_jprobe.kp.addr = (kprobe_opcode_t *) tcp_prot.close;
 	register_status = register_jprobe(&tcp_close_jprobe);
 
 	if(register_status < 0)
@@ -383,9 +377,11 @@ int __init plant_probes(void)
 		printk(KERN_ERR MODULE_NAME "Failed to plant tcp_close probe\n");
 		return CLOSE_PROBE_FAILED;
 	}
+	#endif
 	
-	#if PROBE_UDP
+	#if PROBE_UDP && PROBE_CONNECTION_CLOSE
 
+	udp_close_jprobe.kp.addr = (kprobe_opcode_t *) udp_prot.close;
 	register_status = register_jprobe(&udp_close_jprobe);
 
 	if(register_status < 0)
@@ -393,10 +389,7 @@ int __init plant_probes(void)
 		printk(KERN_ERR MODULE_NAME "Failed to plant udp_close probe\n");
 		return CLOSE_PROBE_FAILED;
 	}
-	
-	#endif
-	
-	#endif
+	#endif	
 	
 	#if PROBE_UDP
 	register_status = register_jprobe(&bind_jprobe);
@@ -445,9 +438,9 @@ void __exit unplant_probes(void)
 	unregister_kretprobe(&accept_kretprobe);
 	#if PROBE_CONNECTION_CLOSE
 	unregister_jprobe(&tcp_close_jprobe);
-	#if PROBE_UDP
-	unregister_jprobe(&udp_close_jprobe);	
 	#endif
+	#if PROBE_UDP && PROBE_CONNECTION_CLOSE
+	unregister_jprobe(&udp_close_jprobe);	
 	#endif
 	#if PROBE_UDP
   	unregister_jprobe(&bind_jprobe);
