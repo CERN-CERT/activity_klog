@@ -45,6 +45,33 @@
 #define DADDR inet_daddr
 #endif
 
+char *get_local_ip_sk(const struct sock *sk)
+{
+	if(sk == NULL)
+	{
+		return NULL;
+	}
+	
+	if(sk->sk_family == AF_INET)
+	{
+		static char ipv4[INET_ADDRSTRLEN];
+			
+	        snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sk)->SADDR));
+		return ipv4;
+	}
+	else if(sk->sk_family == AF_INET6)
+	{
+		static char ipv6[INET6_ADDRSTRLEN + 2];
+		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
+							NIP6(inet6_sk(sk)->saddr));
+
+		return ipv6;
+	}
+	else
+	{
+		return NULL;
+	}
+}
 
 char *get_local_ip(const struct socket *sock)
 {
@@ -72,6 +99,36 @@ char *get_local_ip(const struct socket *sock)
 	{
 		return NULL;
 	}
+}
+
+char *get_remote_ip_sk(const struct sock *sk)
+{
+	if(sk == NULL)
+	{
+		return NULL;
+	}
+	
+	if(sk->sk_family == AF_INET)
+	{
+		static char ipv4[INET_ADDRSTRLEN];
+		
+		snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sk)->DADDR));
+		return ipv4;
+	}
+	else if(sk->sk_family == AF_INET6)
+	{
+		static char ipv6[INET6_ADDRSTRLEN + 2];
+                
+		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
+							NIP6(inet6_sk(sk)->daddr));
+                return ipv6;
+
+	}
+	else
+	{
+		return NULL;
+	}
+
 }
 
 char *get_remote_ip(const struct socket *sock)
