@@ -136,31 +136,46 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
  */
  
 #if PROBE_CONNECTION_CLOSE
-static int my_inet_shutdown(struct socket *sock, int how)
+static void my_tcp_close(struct sock *sk, long timeout)
 {
 	int log_status = 0;
 
-	if(sock == NULL || sock->sk == NULL)
+	if(sk == NULL)
 	{
 		jprobe_return();
 	}
 	
-	if(sock->sk->sk_protocol == IPPROTO_TCP)
+	#if WHITELISTING
+	if(is_whitelisted(current))
 	{
-		#if WHITELISTING
-		if(is_whitelisted(current))
-		{
-			jprobe_return();
-		}
-		#endif
-
-		log_status = log_message("%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-							get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
-							get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
-							CURRENT_UID);
+		jprobe_return();
 	}
-	#if PROBE_UDP
-	else if(sock->sk->sk_protocol == IPPROTO_UDP)
+	#endif
+
+	log_status = log_message("%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+						get_local_ip_sk(sk), ntohs(inet_sk(sk)->SPORT),
+						get_remote_ip_sk(sk), ntohs(inet_sk(sk)->DPORT), 
+						CURRENT_UID);
+
+	if(LOG_FAILED(log_status))
+	{
+		printk(KERN_ERR MODULE_NAME "Failed to log message\n");		
+	}
+
+	jprobe_return();
+}
+
+#if PROBE_UDP
+static void my_udp_close(struct sock *sk, long timeout)
+{
+	int log_status = 0;
+
+	if(sk == NULL)
+	{
+		jprobe_return();
+	}
+	
+	if(sk->sk_protocol == IPPROTO_UDP)
 	{
 		#if WHITELISTING
 		if(is_whitelisted(current))
@@ -170,11 +185,10 @@ static int my_inet_shutdown(struct socket *sock, int how)
 		#endif
 
 		log_status = log_message("%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-							get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
-							get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
-							CURRENT_UID);
+							get_local_ip_sk(sk), ntohs(inet_sk(sk)->SPORT),
+							get_remote_ip_sk(sk), ntohs(inet_sk(sk)->DPORT), 
+							CURRENT_UID);			
 	}
-	#endif
 
 	if(LOG_FAILED(log_status))
 	{
@@ -182,8 +196,9 @@ static int my_inet_shutdown(struct socket *sock, int how)
 	}
 
 	jprobe_return();
-	return 0;
 }
+#endif
+
 #endif
 
 
@@ -281,14 +296,27 @@ static struct kretprobe accept_kretprobe =
 };
 
 #if PROBE_CONNECTION_CLOSE
-static struct jprobe shutdown_jprobe = 
+static struct jprobe tcp_close_jprobe = 
 {	
-	.entry = (kprobe_opcode_t *) my_inet_shutdown,
+	.entry = (kprobe_opcode_t *) my_tcp_close,
 	.kp = 
 	{
-		.symbol_name = "inet_shutdown",
+		.symbol_name = "tcp_close",
 	},
 };
+
+#if PROBE_UDP
+static struct jprobe udp_close_jprobe = 
+{	
+	.entry = (kprobe_opcode_t *) my_udp_close,
+	.kp = 
+	{
+		.symbol_name = "udp_close",
+	},
+};
+
+#endif
+
 #endif
 
 #if PROBE_UDP
@@ -301,6 +329,8 @@ static struct jprobe bind_jprobe =
 	},
 };
 #endif
+
+
 
 /************************************/
 /*             INIT MODULE          */
@@ -345,13 +375,27 @@ int __init plant_probes(void)
 	}
 
 	#if PROBE_CONNECTION_CLOSE
-	register_status = register_jprobe(&shutdown_jprobe);
+
+	register_status = register_jprobe(&tcp_close_jprobe);
 
 	if(register_status < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant close probe\n");
-		return SHUTDOWN_PROBE_FAILED;
+		printk(KERN_ERR MODULE_NAME "Failed to plant tcp_close probe\n");
+		return CLOSE_PROBE_FAILED;
 	}
+	
+	#if PROBE_UDP
+
+	register_status = register_jprobe(&udp_close_jprobe);
+
+	if(register_status < 0)
+	{
+		printk(KERN_ERR MODULE_NAME "Failed to plant udp_close probe\n");
+		return CLOSE_PROBE_FAILED;
+	}
+	
+	#endif
+	
 	#endif
 	
 	#if PROBE_UDP
@@ -400,7 +444,10 @@ void __exit unplant_probes(void)
 	unregister_kretprobe(&connect_kretprobe);
 	unregister_kretprobe(&accept_kretprobe);
 	#if PROBE_CONNECTION_CLOSE
-  	unregister_jprobe(&shutdown_jprobe);
+	unregister_jprobe(&tcp_close_jprobe);
+	#if PROBE_UDP
+	unregister_jprobe(&udp_close_jprobe);	
+	#endif
 	#endif
 	#if PROBE_UDP
   	unregister_jprobe(&bind_jprobe);

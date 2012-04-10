@@ -6,7 +6,11 @@
 #include <linux/socket.h>
 #include <linux/version.h>
 
+char *get_remote_ip_sk(const struct sock *sk);
+
 char *get_remote_ip(const struct socket *sock);
+
+char *get_local_ip_sk(const struct sock *sk);
 
 char *get_local_ip(const struct socket *sock);
 
