@@ -1,10 +1,10 @@
 #ifndef __IPUTILS__
 #define __IPUTILS__
 
-#include <linux/ipv6.h>
-#include <net/ip.h>
-#include <linux/socket.h>
-#include <linux/version.h>
+/* API that provided remote and local ip addresses, 
+ * given the target struct sock, struct socket or 
+ *the struct sockaddr. 
+ */
 
 char *get_remote_ip_sk(const struct sock *sk);
 

@@ -1,18 +1,10 @@
 #ifndef __LOGGER__
 #define __LOGGER__
 
-#include <linux/socket.h>
-#include <linux/un.h>
-#include <linux/file.h>
-#include <linux/unistd.h>
-#include <linux/syscalls.h>
-#include <linux/net.h>
-#include <linux/time.h>
-#include <linux/rtc.h>
-#include <linux/utsname.h>
-#include <linux/param.h>
-#include <linux/version.h>
-#include <net/sock.h>
+/* API of logging facility. 
+ *
+ * Use instead of printk when ou want to log sensitive data.
+ */
 
 #define LOG_FAILED(A) A < 0
 #define MAX_MESSAGE_SIZE 512

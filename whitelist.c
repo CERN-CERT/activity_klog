@@ -1,3 +1,8 @@
+#include <linux/sched.h>
+#include <net/ip.h>
+#include <linux/mm.h>
+#include <linux/version.h>
+#include <linux/err.h>
 #include "whitelist.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 25)

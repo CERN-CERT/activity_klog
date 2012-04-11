@@ -1,3 +1,18 @@
+#include <linux/module.h>
+#include <linux/kprobes.h>
+#include <linux/init.h>
+#include <linux/in.h>
+#include <linux/net.h>
+#include <net/ip.h>
+#include <linux/socket.h>
+#include <linux/version.h>
+#include <linux/file.h>
+#include <linux/unistd.h>
+#include <linux/syscalls.h>
+#include <linux/kallsyms.h>
+#include "iputils.h"
+#include "whitelist.h"
+#include "logger.h"
 #include "netlog.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
@@ -119,9 +134,9 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	#endif
 
 	log_status = log_message("%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
-							get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
-							get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
-							CURRENT_UID);
+						get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
+						get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
+						CURRENT_UID);
 
 	if(LOG_FAILED(log_status))
 	{
@@ -136,11 +151,12 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
  */
  
 #if PROBE_CONNECTION_CLOSE
-static void netlog_tcp_close(struct sock *sk, long timeout)
+
+static void netlog_tcp_close(struct sock *sk)
 {
 	int log_status = 0;
 
-	if(sk == NULL || ntohs(inet_sk(sk)->DPORT == 0))
+	if(sk == NULL)
 	{
 		jprobe_return();
 	}
@@ -164,6 +180,7 @@ static void netlog_tcp_close(struct sock *sk, long timeout)
 
 	jprobe_return();
 }
+
 #endif
 
 #if PROBE_UDP && PROBE_CONNECTION_CLOSE
@@ -374,9 +391,10 @@ int __init plant_probes(void)
 
 	if(register_status < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant tcp_close probe\n");
+		printk(KERN_ERR MODULE_NAME "Failed to plant tcp_destroy probe\n");
 		return CLOSE_PROBE_FAILED;
 	}
+
 	#endif
 	
 	#if PROBE_UDP && PROBE_CONNECTION_CLOSE
