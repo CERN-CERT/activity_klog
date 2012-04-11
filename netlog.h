@@ -1,28 +1,6 @@
 #ifndef __NETLOG__
 #define __NETLOG__
 
-#include <linux/module.h>
-#include <linux/kprobes.h>
-#include <linux/init.h>
-#include <linux/in.h>
-#include <linux/net.h>
-#include <net/ip.h>
-#include <linux/socket.h>
-#include <linux/version.h>
-#include <linux/file.h>
-#include <linux/unistd.h>
-#include <linux/syscalls.h>
-#include <linux/kallsyms.h>
-#include "iputils.h"
-#include "whitelist.h"
-#include "logger.h"
-
-#define CONNECT_PROBE_FAILED -1
-#define ACCEPT_PROBE_FAILED -2
-#define CLOSE_PROBE_FAILED -3
-#define BIND_PROBE_FAILED -4 
-#define LOG_FAILURE -5
-
 /* Change to non zero value (i.e. 1) if you wish to probe 
  * the binding of UDP sockets.
  */
@@ -41,14 +19,21 @@
 
 #define MAX_ACTIVE 100
 
-/*Set to non-zero value in order to compile the whitelisting code*/
+/* Set to non-zero value in order to compile the whitelisting code*/
 
 #define WHITELISTING 1
 
+/* Error codes */
 
-/*Max lenght of the execution path of the process to be whitelisted.
- *Must be less or equal to MAX_ABSOLUTE_EXEC_PATH, defined in the
- *whitelist.h header file.
+#define CONNECT_PROBE_FAILED -1
+#define ACCEPT_PROBE_FAILED -2
+#define CLOSE_PROBE_FAILED -3
+#define BIND_PROBE_FAILED -4 
+#define LOG_FAILURE -5
+
+/* Max lenght of the execution path of the process to be whitelisted.
+ * Must be less or equal to MAX_ABSOLUTE_EXEC_PATH, defined in the
+ * whitelist.h header file.
  */
 
 #define MAX_EXEC_PATH 64

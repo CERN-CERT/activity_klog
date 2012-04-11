@@ -1,3 +1,7 @@
+#include <linux/ipv6.h>
+#include <net/ip.h>
+#include <linux/socket.h>
+#include <linux/version.h>
 #include "iputils.h"
 
 /* Needed in order to convert binary network address to readable.

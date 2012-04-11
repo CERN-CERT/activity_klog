@@ -1,7 +1,20 @@
+#include <linux/socket.h>
+#include <linux/un.h>
+#include <linux/file.h>
+#include <linux/unistd.h>
+#include <linux/syscalls.h>
+#include <linux/net.h>
+#include <linux/time.h>
+#include <linux/rtc.h>
+#include <linux/utsname.h>
+#include <linux/param.h>
+#include <linux/version.h>
+#include <net/sock.h>
 #include "logger.h"
 
 #define MAX_MODULE_NAME 64
 
+struct sockaddr_un log_file;
 struct socket *log_socket = NULL;
 char from_module[MAX_MODULE_NAME] = {'\0'};
 char buffer[MAX_MESSAGE_SIZE] = {'\0'};
@@ -10,7 +23,6 @@ int init_logger(const char *module_name)
 {
 	if(log_socket == NULL)
 	{
-		struct sockaddr_un log_file;
 		
 		if(sock_create_kern(PF_UNIX, SOCK_DGRAM, 0, &log_socket) < 0)
 		{
@@ -18,16 +30,14 @@ int init_logger(const char *module_name)
 			return LOG_FAIL;
 		}		
 
+		/*Initialize socket address to*/
+	
 		memset((void *) &log_file, 0, sizeof(log_file));
 		log_file.sun_family = PF_UNIX;
 		strncpy(log_file.sun_path, LOG_PATH, UNIX_PATH_MAX);
 
-		if(log_socket->ops->connect(log_socket, (struct sockaddr *) &log_file, sizeof(struct sockaddr_un) - 1, 0) < 0)
-		{
-			log_socket = NULL;
-			return LOG_FAIL;
-		}
-		
+		/*Keep module's name to print it in logs*/
+
 		strncpy(from_module, module_name, MAX_MODULE_NAME);
 	}
 	
@@ -57,10 +67,10 @@ int log_message(const char *format, ...)
 	vsnprintf(buffer + message_start, MAX_MESSAGE_SIZE - message_start, format, arguments);
 	va_end(arguments);
 
-	/*Send buffer*/
+	/*Prepare message header and send the buffer*/
 
-	msg.msg_name = 0;
-	msg.msg_namelen = 0;
+	msg.msg_name = (struct sockaddr *) &log_file;
+	msg.msg_namelen = sizeof(struct sockaddr_un);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 	msg.msg_control = NULL;
