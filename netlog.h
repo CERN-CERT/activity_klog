@@ -11,13 +11,7 @@
  * the close system call for the sockets.
  */
 
-#define PROBE_CONNECTION_CLOSE 1
-
-/* This symbolic constant defines the maximum of kretprobe 
- * instances that can run simultaneously.
- */
-
-#define MAX_ACTIVE 100
+#define PROBE_CONNECTION_CLOSE 0
 
 /* Set to non-zero value in order to compile the whitelisting code*/
 

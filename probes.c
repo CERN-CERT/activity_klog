@@ -294,7 +294,7 @@ static struct jprobe connect_jprobe =
 static struct kretprobe connect_kretprobe = 
 {
         .handler = post_connect,
-        .maxactive = MAX_ACTIVE,
+        .maxactive = NR_CPUS,
         .kp = 
         {
         	.symbol_name = "inet_stream_connect"
@@ -304,7 +304,7 @@ static struct kretprobe connect_kretprobe =
 static struct kretprobe accept_kretprobe = 
 {
 	.handler = post_accept,
-	.maxactive = MAX_ACTIVE,
+	.maxactive = NR_CPUS,
         .kp = 
         {
         	.symbol_name = "sys_accept"
