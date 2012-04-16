@@ -38,16 +38,19 @@
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 25)
-#define SADDR saddr
+	#define SADDR saddr
 #else
-#define SADDR inet_saddr
+	#define SADDR inet_saddr
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 25)
-#define DADDR daddr
+	#define DADDR daddr
 #else
-#define DADDR inet_daddr
+	#define DADDR inet_daddr
 #endif
+
+static char ipv4[INET_ADDRSTRLEN];
+static char ipv6[INET6_ADDRSTRLEN + 2];
 
 char *get_local_ip_sk(const struct sock *sk)
 {
@@ -56,52 +59,48 @@ char *get_local_ip_sk(const struct sock *sk)
 		return NULL;
 	}
 	
-	if(sk->sk_family == AF_INET)
+	switch(sk->sk_family)
 	{
-		static char ipv4[INET_ADDRSTRLEN];
-			
-	        snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sk)->SADDR));
-		return ipv4;
-	}
-	else if(sk->sk_family == AF_INET6)
-	{
-		static char ipv6[INET6_ADDRSTRLEN + 2];
-		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
-							NIP6(inet6_sk(sk)->saddr));
+		case AF_INET:
+		        snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sk)->SADDR));
 
-		return ipv6;
-	}
-	else
-	{
-		return NULL;
+			return ipv4;
+			break;
+		case AF_INET6:
+			snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
+								NIP6(inet6_sk(sk)->saddr));
+
+			return ipv6;
+			break;
+		default:
+			return NULL;
+			break;
 	}
 }
 
 char *get_local_ip(const struct socket *sock)
 {
-	if(sock == NULL || sock->sk == NULL ||sock->ops == NULL)
+	if(sock == NULL || sock->sk == NULL)
 	{
 		return NULL;
 	}
 
-	if(sock->ops->family == AF_INET)
+	switch(sock->sk->sk_family)
 	{
-		static char ipv4[INET_ADDRSTRLEN];
-			
-	        snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sock->sk)->SADDR));
-		return ipv4;
-	}
-	else if(sock->ops->family == AF_INET6)
-	{
-		static char ipv6[INET6_ADDRSTRLEN + 2];
-		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
-							NIP6(inet6_sk(sock->sk)->saddr));
+		case AF_INET:
+			snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sock->sk)->SADDR));
 
-		return ipv6;
-	}
-	else
-	{
-		return NULL;
+			return ipv4;			
+			break;
+		case AF_INET6:
+			snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
+								NIP6(inet6_sk(sock->sk)->saddr));
+
+			return ipv6;
+			break;
+		default:
+			return NULL;
+			break;
 	}
 }
 
@@ -112,55 +111,46 @@ char *get_remote_ip_sk(const struct sock *sk)
 		return NULL;
 	}
 	
-	if(sk->sk_family == AF_INET)
+	switch(sk->sk_family)
 	{
-		static char ipv4[INET_ADDRSTRLEN];
-		
-		snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sk)->DADDR));
-		return ipv4;
-	}
-	else if(sk->sk_family == AF_INET6)
-	{
-		static char ipv6[INET6_ADDRSTRLEN + 2];
-                
-		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
-							NIP6(inet6_sk(sk)->daddr));
-                return ipv6;
+		case AF_INET:
+			snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sk)->DADDR));
 
+			return ipv4;
+			break;
+		case AF_INET6:
+			snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
+								NIP6(inet6_sk(sk)->daddr));
+		        return ipv6;		
+			break;
+		default:
+			return NULL;
+			break;
 	}
-	else
-	{
-		return NULL;
-	}
-
 }
 
 char *get_remote_ip(const struct socket *sock)
 {
-	if(sock == NULL || sock->sk == NULL ||sock->ops == NULL)
+	if(sock == NULL || sock->sk == NULL)
 	{
 		return NULL;
 	}
 
-	if(sock->ops->family == AF_INET)
+	switch(sock->sk->sk_family)
 	{
-		static char ipv4[INET_ADDRSTRLEN];
-		
-		snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sock->sk)->DADDR));
-		return ipv4;
-	}
-	else if(sock->ops->family == AF_INET6)
-	{
-		static char ipv6[INET6_ADDRSTRLEN + 2];
-                
-		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
-							NIP6(inet6_sk(sock->sk)->daddr));
-                return ipv6;
+		case AF_INET:
+			snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sock->sk)->DADDR));
 
-	}
-	else
-	{
-		return NULL;
+			return ipv4;
+			break;	
+		case AF_INET6:
+			snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
+								NIP6(inet6_sk(sock->sk)->daddr));
+		        return ipv6;
+			break;			
+		default:
+			return NULL;
+			break;
 	}
 }
 
@@ -171,26 +161,27 @@ char *get_ip(const struct sockaddr *addr)
 		return NULL;
 	}
 	
-	if(addr->sa_family == AF_INET)
+	switch(addr->sa_family)
 	{
-		static char ipv4[INET_ADDRSTRLEN];
-		struct sockaddr_in *addrin = (struct sockaddr_in *) addr;
-
-		snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(addrin->sin_addr.s_addr));
-		return ipv4;
-	}
-	else if(addr->sa_family == AF_INET6)
-	{
-		static char ipv6[INET6_ADDRSTRLEN + 2];
-		struct sockaddr_in6 *addrin6 = (struct sockaddr_in6 *) addr;
-		snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]",
-								NIP6(addrin6->sin6_addr));	
-									 
-		return ipv6;							 
-	}
-	else
-	{
-		return NULL;
+		struct sockaddr_in *addrin;
+		struct sockaddr_in6 *addrin6;
+	
+		case AF_INET:
+			addrin = (struct sockaddr_in *) addr;
+			snprintf(ipv4, sizeof(ipv4), "%u.%u.%u.%u", NIPQUAD(addrin->sin_addr.s_addr));
+			
+			return ipv4;
+			break;
+		case AF_INET6:
+			addrin6 = (struct sockaddr_in6 *) addr;
+			snprintf(ipv6, sizeof(ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]",
+									NIP6(addrin6->sin6_addr));	
+										 
+			return ipv6;							 
+			break;
+		default:
+			return NULL;
+			break;				
 	}
 }
 
