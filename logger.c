@@ -23,14 +23,13 @@ int init_logger(const char *module_name)
 {
 	if(log_socket == NULL)
 	{
-		
 		if(sock_create_kern(PF_UNIX, SOCK_DGRAM, 0, &log_socket) < 0)
 		{
 			log_socket = NULL;
 			return LOG_FAIL;
 		}		
 
-		/*Initialize socket address to*/
+		/*Initialize socket address to LOG_PATH*/
 	
 		memset((void *) &log_file, 0, sizeof(log_file));
 		log_file.sun_family = PF_UNIX;
@@ -78,12 +77,12 @@ int log_message(const char *format, ...)
 	msg.msg_flags = MSG_NOSIGNAL;
 
 	iov.iov_base = (char *) buffer;
-	iov.iov_len = (__kernel_size_t) strlen(buffer) + 1;
+	iov.iov_len = (__kernel_size_t) strnlen(buffer, MAX_MESSAGE_SIZE);
 
 	oldfs = get_fs(); 
 	set_fs(KERNEL_DS);
 
-	sock_sendmsg(log_socket, &msg, (size_t) strlen(buffer) + 1);
+	sock_sendmsg(log_socket, &msg, strnlen(buffer, MAX_MESSAGE_SIZE));
 
 	set_fs(oldfs);
 	memset(buffer, '\0', sizeof(buffer));

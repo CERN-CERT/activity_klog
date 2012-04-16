@@ -41,9 +41,9 @@ int whitelist(const char *process_name)
 	return WHITELISTED;
 }
 
-char *exe_from_mm(const struct mm_struct *mm, char *buf, int len);
+char *exe_from_mm(struct mm_struct *mm, char *buf, int len);
 
-int is_whitelisted(const struct task_struct *task)
+int is_whitelisted(struct task_struct *task)
 {
 	int i;
 	unsigned int path_length;
@@ -87,7 +87,7 @@ int is_whitelisted(const struct task_struct *task)
 	return NOT_WHITELISTED;
 }
 
-char *exe_from_mm(const struct mm_struct *mm, char *buffer, int length)
+char *exe_from_mm(struct mm_struct *mm, char *buffer, int length)
 {
 	char *p = NULL;
 	struct vm_area_struct *vma;
@@ -96,6 +96,8 @@ char *exe_from_mm(const struct mm_struct *mm, char *buffer, int length)
 	{
 		return NULL;
 	}
+
+	down_read(&mm->mmap_sem);
 
 	vma = mm->mmap;
 
@@ -115,10 +117,11 @@ char *exe_from_mm(const struct mm_struct *mm, char *buffer, int length)
 		
 		if(IS_ERR(p))
 		{
-			return NULL;
+			p = NULL;
 		}
 	}
 
+	up_read(&mm->mmap_sem);
 	return p;
 }
 

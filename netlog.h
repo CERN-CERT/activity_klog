@@ -11,7 +11,7 @@
  * the close system call for the sockets.
  */
 
-#define PROBE_CONNECTION_CLOSE 0
+#define PROBE_CONNECTION_CLOSE 1
 
 /* Set to non-zero value in order to compile the whitelisting code*/
 
