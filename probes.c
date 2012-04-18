@@ -10,6 +10,7 @@
 #include <linux/unistd.h>
 #include <linux/syscalls.h>
 #include <linux/kallsyms.h>
+#include <linux/preempt.h>
 #include "iputils.h"
 #include "whitelist.h"
 #include "logger.h"
@@ -288,11 +289,32 @@ exit:
 
 #endif
 
+int signal_that_will_cause_exit(int trap_number)
+{
+	switch(trap_number)
+	{
+		case SIGABRT:
+		case SIGSEGV:
+		case SIGQUIT:
+			return 1;
+			break;
+		default:
+			return 0;
+			break;
+	}
+}
+
 int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap)
 {
-	/*In case of an interrupt that will cause the process to quit,
-	 * check if the preeemp_count is greater than 0 and decrease it
+	/* In case of an interrupt that will cause the process to terminate,
+	 * check if the preeemp_count is greater than 0 and decrease it by one,
+	 * because it will not be decreased by kprobes.
 	 */
+
+	if(preempt_count() > 0  && signal_that_will_cause_exit(trap))
+	{
+		dec_preempt_count();
+	}
 
 	return 0;
 }
