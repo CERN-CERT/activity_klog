@@ -56,7 +56,9 @@ static int netlog_inet_stream_connect(struct socket *sock, struct sockaddr *addr
 static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	int log_status;
-	struct socket *sock = match_socket[current->pid];
+	struct socket *sock;
+
+	sock = match_socket[current->pid];
 	
 	if(sock == NULL || sock->sk == NULL)
 	{
@@ -76,7 +78,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	}
 
 	#endif
-	
+
 	log_status = log_message("%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 						get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
 						get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
@@ -100,27 +102,26 @@ exit:
 
 static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
+	struct socket *sock;
 	int err = 0, log_status;
-	struct socket *sock = sockfd_lookup(regs_return_value(regs), &err);
-		
-	if(sock == NULL || sock->sk == NULL || err < 0)
+
+	sock = sockfd_lookup(regs_return_value(regs), &err);
+
+	if(sock == NULL ||sock->sk == NULL || err < 0)
 	{
-		return 0;
+		goto exit;
 	}
 
-	sockfd_put(sock);
-	
-	if((sock->sk->sk_family != AF_INET && sock->sk->sk_family != AF_INET6)
-					|| sock->sk->sk_protocol != IPPROTO_TCP)
+	if((sock->sk->sk_family != AF_INET && sock->sk->sk_family != AF_INET6) || sock->sk->sk_protocol != IPPROTO_TCP)
 	{
-		return 0;
+		goto exit;
 	}
-	
+
 	#if WHITELISTING
 
 	if(is_whitelisted(current))
 	{
-		return 0;
+		goto exit;
 	}
 
 	#endif
@@ -135,36 +136,38 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 		printk(KERN_ERR MODULE_NAME "Failed to log message\n");		
 	}
 
-        return 0;
+exit:
+	if(sock != NULL)
+	{
+		sockfd_put(sock);
+	}
+
+	return 0;
 }
 
-/* Probe for inet_shutdown kernel call. This kernel call is called
- * When close system call is called.
- */
- 
 #if PROBE_CONNECTION_CLOSE
 
 static void netlog_tcp_close(struct sock *sk)
 {
-	int log_status = 0;
+	int log_status;
 
 	if(sk == NULL || ntohs(inet_sk(sk)->DPORT) == 0)
 	{
-		jprobe_return();
+		goto exit;
 	}
 
 	if((sk->sk_family != AF_INET && sk->sk_family != AF_INET6) || sk->sk_protocol != IPPROTO_TCP)
 	{
-		jprobe_return();
-	}	
-	
+		goto exit;
+	}
+
 	#if WHITELISTING
-	
+
 	if(is_whitelisted(current))
 	{
-		jprobe_return();
+		goto exit;
 	}
-	
+
 	#endif
 
 	log_status = log_message("%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
@@ -177,6 +180,7 @@ static void netlog_tcp_close(struct sock *sk)
 		printk(KERN_ERR MODULE_NAME "Failed to log message\n");		
 	}
 
+exit:
 	jprobe_return();
 }
 
@@ -186,23 +190,23 @@ static void netlog_tcp_close(struct sock *sk)
 
 static void netlog_udp_close(struct sock *sk, long timeout)
 {
-	int log_status = 0;
+	int log_status;
 
 	if(sk == NULL || ntohs(inet_sk(sk)->DPORT) == 0)
 	{
-		jprobe_return();
+		goto exit;
 	}
-	
+
 	if((sk->sk_family != AF_INET && sk->sk_family != AF_INET6) || sk->sk_protocol != IPPROTO_UDP)
 	{
-		jprobe_return();
-	}	
+		goto exit;
+	}
 
 	#if WHITELISTING
 
 	if(is_whitelisted(current))
 	{
-		jprobe_return();
+		goto exit;
 	}
 
 	#endif
@@ -217,6 +221,7 @@ static void netlog_udp_close(struct sock *sk, long timeout)
 		printk(KERN_ERR MODULE_NAME "Failed to log message\n");
 	}
 
+exit:
 	jprobe_return();
 }
 
@@ -236,38 +241,34 @@ static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 
 	if(sock == NULL || sock->sk == NULL || err < 0)
 	{
-		jprobe_return();
+		goto exit;
 	}
-
-	sockfd_put(sock);
 
 	if((sock->sk->sk_family != AF_INET && sock->sk->sk_family != AF_INET6) || sock->sk->sk_protocol != IPPROTO_UDP)
 	{
-		jprobe_return();	
+		goto exit;
 	}
-	
+
 	#if WHITELISTING
-	
+
 	if(is_whitelisted(current))
 	{
-		jprobe_return();
+		goto exit;
 	}
-	
+
 	#endif
 
 	ip = get_ip(addr);
-		
+
 	if(any_ip_address(ip))
 	{
-		log_status = log_message("%s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
-					current->comm, current->pid, ntohs(((struct sockaddr_in *)addr)->sin_port), 
-					CURRENT_UID);
+		log_status = log_message("%s[%d] UDP bind (any IP address):%d (uid=%d)\n", current->comm, 
+					current->pid, ntohs(((struct sockaddr_in *)addr)->sin_port), CURRENT_UID);
 	}
 	else
 	{
 		log_status = log_message("%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm,
-					current->pid, ip, ntohs(((struct sockaddr_in6 *)addr)->sin6_port),	
-					CURRENT_UID);
+					current->pid, ip, ntohs(((struct sockaddr_in6 *)addr)->sin6_port), CURRENT_UID);
 	}
 
 	if(LOG_FAILED(log_status))
@@ -275,11 +276,27 @@ static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 		printk(KERN_ERR MODULE_NAME "Failed to log message\n");	
 	}
 
+exit:
+	if(sock != NULL)
+	{
+		sockfd_put(sock);
+	}
+
 	jprobe_return();
 	return 0;
 }
 
 #endif
+
+int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap)
+{
+	/*In case of an interrupt that will cause the process to quit,
+	 * check if the preeemp_count is greater than 0 and decrease it
+	 */
+
+	return 0;
+}
+
 
 /*************************************/
 /*         probe definitions        */
@@ -291,30 +308,33 @@ static struct jprobe connect_jprobe =
 	.kp = 
 	{
 		.symbol_name = "inet_stream_connect",
+		.fault_handler = handler_fault,
 	},
 };
 
 static struct kretprobe connect_kretprobe = 
 {
         .handler = post_connect,
-        .maxactive = NR_CPUS,
+        .maxactive = 0,
         .kp = 
         {
-        	.symbol_name = "inet_stream_connect"
+        	.symbol_name = "inet_stream_connect",
+		.fault_handler = handler_fault,
         },
 };
 
 static struct kretprobe accept_kretprobe = 
 {
 	.handler = post_accept,
-	.maxactive = NR_CPUS,
+	.maxactive = 0,
         .kp = 
         {
 		#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
-        	.symbol_name = "sys_accept"
+        	.symbol_name = "sys_accept",
         	#else
-        	.symbol_name = "sys_accept4"
+        	.symbol_name = "sys_accept4",
 		#endif
+		.fault_handler = handler_fault,
         },
 };
 
@@ -325,6 +345,10 @@ extern struct proto tcp_prot;
 static struct jprobe tcp_close_jprobe = 
 {	
 	.entry = (kprobe_opcode_t *) netlog_tcp_close,
+	.kp = 
+	{
+		.fault_handler = handler_fault,
+	}
 };
 
 #endif
@@ -336,6 +360,10 @@ extern struct proto udp_prot;
 static struct jprobe udp_close_jprobe = 
 {	
 	.entry = (kprobe_opcode_t *) netlog_udp_close,
+	.kp = 
+	{
+		.fault_handler = handler_fault,
+	}
 };
 
 #endif
@@ -348,6 +376,7 @@ static struct jprobe bind_jprobe =
 	.kp = 
 	{
 		.symbol_name = "sys_bind",
+		.fault_handler = handler_fault,
 	},
 };
 
@@ -382,13 +411,13 @@ int __init plant_probes(void)
 	}
 
 	register_status = register_kretprobe(&connect_kretprobe);
-        
+
 	if(register_status < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant post connect probe\n");
 		return CONNECT_PROBE_FAILED;
 	}
-	
+
 	register_status = register_kretprobe(&accept_kretprobe);
 
 	if(register_status < 0)
@@ -404,7 +433,7 @@ int __init plant_probes(void)
 
 	if(register_status < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant tcp_destroy probe\n");
+		printk(KERN_ERR MODULE_NAME "Failed to plant tcp_close probe\n");
 		return CLOSE_PROBE_FAILED;
 	}
 
@@ -420,9 +449,9 @@ int __init plant_probes(void)
 		printk(KERN_ERR MODULE_NAME "Failed to plant udp_close probe\n");
 		return CLOSE_PROBE_FAILED;
 	}
-	
+
 	#endif	
-	
+
 	#if PROBE_UDP
 
 	register_status = register_jprobe(&bind_jprobe);
@@ -433,7 +462,7 @@ int __init plant_probes(void)
 		return BIND_PROBE_FAILED;
 	}
 
-	#endif	
+	#endif
 
 	printk(KERN_INFO MODULE_NAME "Planted\n");
 
@@ -456,7 +485,7 @@ int __init plant_probes(void)
 			printk(KERN_INFO MODULE_NAME "Whitelisted %s\n", procs_to_whitelist[i]);
 		}
 	}
-	
+
 	#endif
 
 	return 0;
@@ -473,7 +502,7 @@ void __exit unplant_probes(void)
 	unregister_kretprobe(&accept_kretprobe);
 
 	#if PROBE_CONNECTION_CLOSE
-	
+
 	unregister_jprobe(&tcp_close_jprobe);
 
 	#endif

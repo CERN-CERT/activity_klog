@@ -21,7 +21,7 @@ struct task_struct;
 
 int whitelist(const char *process_name);
 
-int is_whitelisted(struct task_struct *task);
+int is_whitelisted(const struct task_struct *task);
 
 #endif
 

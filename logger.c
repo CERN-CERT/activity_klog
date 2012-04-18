@@ -50,18 +50,18 @@ int log_message(const char *format, ...)
 	mm_segment_t oldfs;
 	va_list arguments;
 	unsigned int message_start;
-	
+
 	if(log_socket == NULL || format == NULL)
 	{
 		return LOG_FAIL;
 	}
-	
+
 	message_start = 0;
 
 	/*Add "kernel: <module name>" at the start of the buffer*/
 
 	message_start += snprintf(buffer, MAX_MODULE_NAME, "kernel: %s", from_module);
-	
+
 	va_start(arguments, format);
 	vsnprintf(buffer + message_start, MAX_MESSAGE_SIZE - message_start, format, arguments);
 	va_end(arguments);
