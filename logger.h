@@ -7,7 +7,7 @@
  */
 
 #define LOG_FAILED(A) A < 0
-#define MAX_MESSAGE_SIZE 512
+#define MAX_MESSAGE_SIZE 1000
 
 #define LOG_OK 1
 #define LOG_FAIL -1
