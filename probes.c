@@ -70,7 +70,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	{
 		goto exit;
 	}
-	
+
 	#if WHITELISTING
 
 	if(is_whitelisted(current))
@@ -152,6 +152,10 @@ static void netlog_tcp_close(struct sock *sk)
 {
 	int log_status;
 
+	/*Get rid of the "scheduling while atomic" bug thrown from scheduler*/
+	
+	preempt_disable();
+
 	if(sk == NULL || ntohs(inet_sk(sk)->DPORT) == 0)
 	{
 		goto exit;
@@ -182,6 +186,7 @@ static void netlog_tcp_close(struct sock *sk)
 	}
 
 exit:
+	preempt_enable();
 	jprobe_return();
 }
 
@@ -192,6 +197,10 @@ exit:
 static void netlog_udp_close(struct sock *sk, long timeout)
 {
 	int log_status;
+
+	/*Get rid of the "scheduling while atomic" bug thrown from scheduler*/
+
+	preempt_disable();
 
 	if(sk == NULL || ntohs(inet_sk(sk)->DPORT) == 0)
 	{
@@ -223,6 +232,7 @@ static void netlog_udp_close(struct sock *sk, long timeout)
 	}
 
 exit:
+	preempt_enable();
 	jprobe_return();
 }
 
@@ -291,11 +301,13 @@ exit:
 
 int signal_that_will_cause_exit(int trap_number)
 {
+	printk(KERN_DEBUG "netlog: int%d\n", trap_number);
 	switch(trap_number)
 	{
 		case SIGABRT:
 		case SIGSEGV:
 		case SIGQUIT:
+		//TODO Other signals that we need to handle?
 			return 1;
 			break;
 		default:
@@ -304,14 +316,14 @@ int signal_that_will_cause_exit(int trap_number)
 	}
 }
 
-int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap)
+int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
 {
 	/* In case of an interrupt that will cause the process to terminate,
 	 * check if the preeemp_count is greater than 0 and decrease it by one,
 	 * because it will not be decreased by kprobes.
 	 */
 
-	if(preempt_count() > 0  && signal_that_will_cause_exit(trap))
+	if(preempt_count() > 0  && signal_that_will_cause_exit(trap_number))
 	{
 		dec_preempt_count();
 	}
