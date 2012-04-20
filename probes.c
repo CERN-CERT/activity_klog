@@ -401,6 +401,7 @@ void unplant_all(void)
 
 	#endif
 
+	printk(KERN_INFO MODULE_NAME "Probes unplanted\n");
 }
 
 /************************************/
@@ -413,7 +414,7 @@ int __init plant_probes(void)
 
 	if(LOG_FAILED(init_logger(MODULE_NAME)))
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to init logging facility\n");
+		printk(KERN_ERR MODULE_NAME "Failed to initialize logging facility\n");
 		return LOG_FAILURE;
 	}
 	else
@@ -425,8 +426,9 @@ int __init plant_probes(void)
 
 	if(register_status < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant pre connect probe\n");
+		printk(KERN_ERR MODULE_NAME "Failed to plant connect pre handler\n");
 		unplant_all();
+		destroy_logger();
 		return CONNECT_PROBE_FAILED;
 	}
 
@@ -434,8 +436,9 @@ int __init plant_probes(void)
 
 	if(register_status < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant post connect probe\n");
+		printk(KERN_ERR MODULE_NAME "Failed to plant connect post handler\n");
 		unplant_all();
+		destroy_logger();
 		return CONNECT_PROBE_FAILED;
 	}
 
@@ -443,8 +446,9 @@ int __init plant_probes(void)
 
 	if(register_status < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant accept probe\n");
+		printk(KERN_ERR MODULE_NAME "Failed to plant accept post handler\n");
 		unplant_all();
+		destroy_logger();
 		return ACCEPT_PROBE_FAILED;
 	}
 
@@ -455,8 +459,9 @@ int __init plant_probes(void)
 
 	if(register_status < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant tcp_close probe\n");
+		printk(KERN_ERR MODULE_NAME "Failed to plant tcp_close pre handler\n");
 		unplant_all();
+		destroy_logger();
 		return CLOSE_PROBE_FAILED;
 	}
 
@@ -469,8 +474,9 @@ int __init plant_probes(void)
 
 	if(register_status < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant udp_close probe\n");
+		printk(KERN_ERR MODULE_NAME "Failed to plant udp_close pre handler\n");
 		unplant_all();
+		destroy_logger();
 		return CLOSE_PROBE_FAILED;
 	}
 
@@ -482,14 +488,15 @@ int __init plant_probes(void)
 
 	if(register_status < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant bind probe\n");
+		printk(KERN_ERR MODULE_NAME "Failed to plant bind pre handler\n");
 		unplant_all();
+		destroy_logger();
 		return BIND_PROBE_FAILED;
 	}
 
 	#endif
 
-	printk(KERN_INFO MODULE_NAME "Planted\n");
+	printk(KERN_INFO MODULE_NAME "All probes planted\n");
 
 	#if WHITELISTING
 
@@ -519,8 +526,8 @@ int __init plant_probes(void)
 void __exit unplant_probes(void)
 {
 	unplant_all();
-	destroy_logger();
 
-	printk(KERN_INFO MODULE_NAME "Unplanted\n");
+	destroy_logger();
+	printk(KERN_INFO MODULE_NAME "Logging facility destroyed\n");
 }
 
