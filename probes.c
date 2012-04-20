@@ -377,7 +377,31 @@ static struct jprobe bind_jprobe =
 
 #endif
 
+void unplant_all(void)
+{
+  	unregister_jprobe(&connect_jprobe);
+	unregister_kretprobe(&connect_kretprobe);
+	unregister_kretprobe(&accept_kretprobe);
 
+	#if PROBE_CONNECTION_CLOSE
+
+	unregister_jprobe(&tcp_close_jprobe);
+
+	#endif
+
+	#if PROBE_UDP && PROBE_CONNECTION_CLOSE
+
+	unregister_jprobe(&udp_close_jprobe);	
+
+	#endif
+
+	#if PROBE_UDP
+
+  	unregister_jprobe(&bind_jprobe);
+
+	#endif
+
+}
 
 /************************************/
 /*             INIT MODULE          */
@@ -402,6 +426,7 @@ int __init plant_probes(void)
 	if(register_status < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant pre connect probe\n");
+		unplant_all();
 		return CONNECT_PROBE_FAILED;
 	}
 
@@ -410,6 +435,7 @@ int __init plant_probes(void)
 	if(register_status < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant post connect probe\n");
+		unplant_all();
 		return CONNECT_PROBE_FAILED;
 	}
 
@@ -418,6 +444,7 @@ int __init plant_probes(void)
 	if(register_status < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant accept probe\n");
+		unplant_all();
 		return ACCEPT_PROBE_FAILED;
 	}
 
@@ -429,6 +456,7 @@ int __init plant_probes(void)
 	if(register_status < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant tcp_close probe\n");
+		unplant_all();
 		return CLOSE_PROBE_FAILED;
 	}
 
@@ -442,6 +470,7 @@ int __init plant_probes(void)
 	if(register_status < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant udp_close probe\n");
+		unplant_all();
 		return CLOSE_PROBE_FAILED;
 	}
 
@@ -454,6 +483,7 @@ int __init plant_probes(void)
 	if(register_status < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant bind probe\n");
+		unplant_all();
 		return BIND_PROBE_FAILED;
 	}
 
@@ -488,28 +518,7 @@ int __init plant_probes(void)
 
 void __exit unplant_probes(void)
 {
-  	unregister_jprobe(&connect_jprobe);
-	unregister_kretprobe(&connect_kretprobe);
-	unregister_kretprobe(&accept_kretprobe);
-
-	#if PROBE_CONNECTION_CLOSE
-
-	unregister_jprobe(&tcp_close_jprobe);
-
-	#endif
-
-	#if PROBE_UDP && PROBE_CONNECTION_CLOSE
-
-	unregister_jprobe(&udp_close_jprobe);	
-
-	#endif
-
-	#if PROBE_UDP
-
-  	unregister_jprobe(&bind_jprobe);
-
-	#endif
-
+	unplant_all();
 	destroy_logger();
 
 	printk(KERN_INFO MODULE_NAME "Unplanted\n");
