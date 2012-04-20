@@ -10,6 +10,7 @@
 #include <linux/param.h>
 #include <linux/version.h>
 #include <net/sock.h>
+#include <linux/preempt.h>
 #include "logger.h"
 
 #define MAX_MODULE_NAME 64
@@ -23,7 +24,7 @@ int init_logger(const char *module_name)
 {
 	if(log_socket == NULL)
 	{
-		if(sock_create_kern(PF_UNIX, SOCK_DGRAM, 0, &log_socket) < 0)
+		if(sock_create(PF_UNIX, SOCK_DGRAM, 0, &log_socket) < 0)
 		{
 			log_socket = NULL;
 			return LOG_FAIL;
@@ -40,6 +41,7 @@ int init_logger(const char *module_name)
 		strncpy(from_module, module_name, MAX_MODULE_NAME);
 	}
 	
+	sock_release(log_socket);
 	return LOG_OK;
 }
 
@@ -53,11 +55,12 @@ int log_message(const char *format, ...)
 
 	if(log_socket == NULL || format == NULL)
 	{
-		return LOG_FAIL;
+		goto out_fail;
 	}
 
 	message_start = 0;
-
+	lock_sock(log_socket->sk);	
+	
 	/*Add "kernel: <module name>" at the start of the buffer*/
 
 	message_start += snprintf(buffer, MAX_MODULE_NAME, "kernel: %s", from_module);
@@ -87,14 +90,17 @@ int log_message(const char *format, ...)
 	set_fs(oldfs);
 	memset(buffer, '\0', sizeof(buffer));
 
+	release_sock(log_socket->sk);
 	return LOG_OK;
+out_fail:
+	return LOG_FAIL;
 }
 
 void destroy_logger(void)
 {
-	if(log_socket != NULL)
+	if(log_socket != NULL && log_socket->ops != NULL)
 	{
-		sock_release(log_socket);
+		log_socket->ops->release(log_socket);
 		log_socket = NULL;
 	}
 }

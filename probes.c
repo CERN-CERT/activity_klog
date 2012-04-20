@@ -10,7 +10,6 @@
 #include <linux/unistd.h>
 #include <linux/syscalls.h>
 #include <linux/kallsyms.h>
-#include <linux/preempt.h>
 #include "iputils.h"
 #include "whitelist.h"
 #include "logger.h"
@@ -152,10 +151,6 @@ static void netlog_tcp_close(struct sock *sk)
 {
 	int log_status;
 
-	/*Get rid of the "scheduling while atomic" bug thrown from scheduler*/
-	
-	preempt_disable();
-
 	if(sk == NULL || ntohs(inet_sk(sk)->DPORT) == 0)
 	{
 		goto exit;
@@ -186,7 +181,6 @@ static void netlog_tcp_close(struct sock *sk)
 	}
 
 exit:
-	preempt_enable();
 	jprobe_return();
 }
 
@@ -197,10 +191,6 @@ exit:
 static void netlog_udp_close(struct sock *sk, long timeout)
 {
 	int log_status;
-
-	/*Get rid of the "scheduling while atomic" bug thrown from scheduler*/
-
-	preempt_disable();
 
 	if(sk == NULL || ntohs(inet_sk(sk)->DPORT) == 0)
 	{
@@ -232,7 +222,6 @@ static void netlog_udp_close(struct sock *sk, long timeout)
 	}
 
 exit:
-	preempt_enable();
 	jprobe_return();
 }
 
@@ -316,22 +305,6 @@ int signal_that_will_cause_exit(int trap_number)
 	}
 }
 
-int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
-{
-	/* In case of an interrupt that will cause the process to terminate,
-	 * check if the preeemp_count is greater than 0 and decrease it by one,
-	 * because it will not be decreased by kprobes.
-	 */
-
-	if(preempt_count() > 0  && signal_that_will_cause_exit(trap_number))
-	{
-		dec_preempt_count();
-	}
-
-	return 0;
-}
-
-
 /*************************************/
 /*         probe definitions        */
 /*************************************/
@@ -342,7 +315,6 @@ static struct jprobe connect_jprobe =
 	.kp = 
 	{
 		.symbol_name = "inet_stream_connect",
-		.fault_handler = handler_fault,
 	},
 };
 
@@ -353,7 +325,6 @@ static struct kretprobe connect_kretprobe =
         .kp = 
         {
         	.symbol_name = "inet_stream_connect",
-		.fault_handler = handler_fault,
         },
 };
 
@@ -368,7 +339,6 @@ static struct kretprobe accept_kretprobe =
         	#else
         	.symbol_name = "sys_accept4",
 		#endif
-		.fault_handler = handler_fault,
         },
 };
 
@@ -379,10 +349,6 @@ extern struct proto tcp_prot;
 static struct jprobe tcp_close_jprobe = 
 {	
 	.entry = (kprobe_opcode_t *) netlog_tcp_close,
-	.kp = 
-	{
-		.fault_handler = handler_fault,
-	}
 };
 
 #endif
@@ -394,10 +360,6 @@ extern struct proto udp_prot;
 static struct jprobe udp_close_jprobe = 
 {	
 	.entry = (kprobe_opcode_t *) netlog_udp_close,
-	.kp = 
-	{
-		.fault_handler = handler_fault,
-	}
 };
 
 #endif
@@ -410,7 +372,6 @@ static struct jprobe bind_jprobe =
 	.kp = 
 	{
 		.symbol_name = "sys_bind",
-		.fault_handler = handler_fault,
 	},
 };
 
@@ -506,11 +467,7 @@ int __init plant_probes(void)
 
 	for(i = 0; i < NO_WHITELISTS; ++i)
 	{
-		int whitelist_status;
-
-		whitelist_status = whitelist(procs_to_whitelist[i]);
-
-		if(WHITELIST_FAILED(whitelist_status))
+		if(WHITELIST_FAILED(whitelist(procs_to_whitelist[i])))
 		{
 			printk(KERN_ERR MODULE_NAME "Failed to whitelist %s\n", procs_to_whitelist[i]);
 		}
