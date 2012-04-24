@@ -89,7 +89,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	sock = sockfd_lookup(regs_return_value(regs), &err);
 
-	if(sock == NULL ||sock->sk == NULL || err < 0)
+	if(sock == NULL || sock->sk == NULL || err < 0)
 	{
 		goto out;
 	}
@@ -131,7 +131,7 @@ asmlinkage long netlog_sys_close(unsigned int fd)
 
 	sock = sockfd_lookup(fd, &err);
 
-	if(sock == NULL || sock->sk == NULL || err < 0)
+	if(sock == NULL || sock->sk == NULL || err < 0 || !is_inet(sock))
 	{
 		goto out;
 	}
@@ -153,7 +153,7 @@ asmlinkage long netlog_sys_close(unsigned int fd)
 							get_current_uid());
 	}
 	#if PROBE_UDP
-	if(is_udp(sock) && get_destination_port(sock) != 0)
+	else if(is_udp(sock) && get_destination_port(sock) != 0)
 	{
 		#if WHITELISTING
 
@@ -168,18 +168,15 @@ asmlinkage long netlog_sys_close(unsigned int fd)
 							get_source_ip(sock), get_source_port(sock),
 							get_destination_ip(sock), get_destination_port(sock), 
 							get_current_uid());
-	}	
-	#endif
-	else
-	{
-		goto out;
 	}
+	#endif
+
 out:
 	if(sock != NULL)
 	{
 		sockfd_put(sock);
 	}
-	
+
 	jprobe_return();
 	return 0;
 }
@@ -244,14 +241,12 @@ out:
 
 int signal_that_will_cause_exit(int trap_number)
 {
-	printk(KERN_DEBUG "netlog: interrupt %d\n", trap_number);
-
 	switch(trap_number)
 	{
 		case SIGABRT:
 		case SIGSEGV:
 		case SIGQUIT:
-		//TODO Other signals that we need to handle?
+		//TODO Other signals that we need to notify about them?
 			return 1;
 			break;
 		default:
