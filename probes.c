@@ -62,19 +62,19 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	
 	if(sock == NULL || sock->sk == NULL)
 	{
-		goto exit;
+		goto out;
 	}
 
 	if((sock->sk->sk_family != AF_INET && sock->sk->sk_family != AF_INET6) || sock->sk->sk_protocol != IPPROTO_TCP)
 	{
-		goto exit;
+		goto out;
 	}
 
 	#if WHITELISTING
 
 	if(is_whitelisted(current))
 	{
-		goto exit;
+		goto out;
 	}
 
 	#endif
@@ -89,7 +89,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 		printk(KERN_ERR MODULE_NAME "Failed to log message\n");		
 	}
 
-exit:
+out:
 	match_socket[current->pid] = NULL;
 	return 0;
 }
@@ -109,19 +109,19 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	if(sock == NULL ||sock->sk == NULL || err < 0)
 	{
-		goto exit;
+		goto out;
 	}
 
 	if((sock->sk->sk_family != AF_INET && sock->sk->sk_family != AF_INET6) || sock->sk->sk_protocol != IPPROTO_TCP)
 	{
-		goto exit;
+		goto out;
 	}
 
 	#if WHITELISTING
 
 	if(is_whitelisted(current))
 	{
-		goto exit;
+		goto out;
 	}
 
 	#endif
@@ -130,13 +130,12 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 						get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
 						get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
 						CURRENT_UID);
-
 	if(LOG_FAILED(log_status))
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to log message\n");		
+		printk(KERN_ERR MODULE_NAME "Failed to log message\n");	
 	}
 
-exit:
+out:
 	if(sock != NULL)
 	{
 		sockfd_put(sock);
@@ -147,82 +146,74 @@ exit:
 
 #if PROBE_CONNECTION_CLOSE
 
-static void netlog_tcp_close(struct sock *sk)
+asmlinkage long netlog_sys_close(unsigned int fd)
 {
-	int log_status;
+	struct socket * sock;
+	int log_status, err = 0;
 
-	if(sk == NULL || ntohs(inet_sk(sk)->DPORT) == 0)
+	sock = sockfd_lookup(fd, &err);
+
+	if(sock == NULL || sock->sk == NULL || err < 0)
 	{
-		goto exit;
+		goto out;
 	}
 
-	if((sk->sk_family != AF_INET && sk->sk_family != AF_INET6) || sk->sk_protocol != IPPROTO_TCP)
+	if(sock->sk->sk_protocol == IPPROTO_TCP && ntohs(inet_sk(sock->sk)->DPORT) != 0)
 	{
-		goto exit;
+		#if WHITELISTING
+
+		if(is_whitelisted(current))
+		{
+			goto out;
+		}
+
+		#endif
+
+		log_status = log_message("%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+							get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
+							get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
+							CURRENT_UID);
+
+		if(LOG_FAILED(log_status))
+		{
+			printk(KERN_ERR MODULE_NAME "Failed to log message\n");	
+		}
 	}
-
-	#if WHITELISTING
-
-	if(is_whitelisted(current))
+	#if PROBE_UDP
+	if(sock->sk->sk_protocol == IPPROTO_UDP && ntohs(inet_sk(sock->sk)->DPORT) != 0)
 	{
-		goto exit;
-	}
+		#if WHITELISTING
 
+		if(is_whitelisted(current))
+		{
+			goto out;
+		}
+
+		#endif
+
+		log_status = log_message("%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+							get_local_ip(sock), ntohs(inet_sk(sock->sk)->SPORT),
+							get_remote_ip(sock), ntohs(inet_sk(sock->sk)->DPORT), 
+							CURRENT_UID);
+
+		if(LOG_FAILED(log_status))
+		{
+			printk(KERN_ERR MODULE_NAME "Failed to log message\n");		
+		}
+	}	
 	#endif
-
-	log_status = log_message("%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-						get_local_ip_sk(sk), ntohs(inet_sk(sk)->SPORT),
-						get_remote_ip_sk(sk), ntohs(inet_sk(sk)->DPORT), 
-						CURRENT_UID);
-
-	if(LOG_FAILED(log_status))
+	else
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to log message\n");		
+		goto out;
 	}
-
-exit:
+out:
+	if(sock != NULL)
+	{
+		sockfd_put(sock);
+	}
+	
 	jprobe_return();
-}
-
-#endif
-
-#if PROBE_UDP && PROBE_CONNECTION_CLOSE
-
-static void netlog_udp_close(struct sock *sk, long timeout)
-{
-	int log_status;
-
-	if(sk == NULL || ntohs(inet_sk(sk)->DPORT) == 0)
-	{
-		goto exit;
-	}
-
-	if((sk->sk_family != AF_INET && sk->sk_family != AF_INET6) || sk->sk_protocol != IPPROTO_UDP)
-	{
-		goto exit;
-	}
-
-	#if WHITELISTING
-
-	if(is_whitelisted(current))
-	{
-		goto exit;
-	}
-
-	#endif
-
-	log_status = log_message("%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-						get_local_ip_sk(sk), ntohs(inet_sk(sk)->SPORT),
-						get_remote_ip_sk(sk), ntohs(inet_sk(sk)->DPORT), 
-						CURRENT_UID);			
-
-	if(LOG_FAILED(log_status))
-	{
-		printk(KERN_ERR MODULE_NAME "Failed to log message\n");
-	}
-
-exit:
-	jprobe_return();
+	return 0;
 }
 
 #endif
@@ -241,19 +232,19 @@ static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 
 	if(sock == NULL || sock->sk == NULL || err < 0)
 	{
-		goto exit;
+		goto out;
 	}
 
 	if((sock->sk->sk_family != AF_INET && sock->sk->sk_family != AF_INET6) || sock->sk->sk_protocol != IPPROTO_UDP)
 	{
-		goto exit;
+		goto out;
 	}
 
 	#if WHITELISTING
 
 	if(is_whitelisted(current))
 	{
-		goto exit;
+		goto out;
 	}
 
 	#endif
@@ -276,7 +267,7 @@ static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 		printk(KERN_ERR MODULE_NAME "Failed to log message\n");	
 	}
 
-exit:
+out:
 	if(sock != NULL)
 	{
 		sockfd_put(sock);
@@ -288,9 +279,10 @@ exit:
 
 #endif
 
-int signal_that_will_cause_exit(int trap_number)
+int signal_that_will_cause_exit_with_preempt(int trap_number)
 {
-	printk(KERN_DEBUG "netlog: int%d\n", trap_number);
+	printk(KERN_DEBUG "netlog: interrupt %d\n", trap_number);
+
 	switch(trap_number)
 	{
 		case SIGABRT:
@@ -305,6 +297,24 @@ int signal_that_will_cause_exit(int trap_number)
 	}
 }
 
+int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
+{
+	/* In case of an interrupt that will cause the process to terminate,
+	 * check if the preeemp_count is greater than 0 and decrease it by one,
+	 * because it will not be decreased by kprobes.
+	 */
+
+	printk(KERN_DEBUG MODULE_NAME "fault handler: trap %d\n", trap_number);
+
+	if(preempt_count() > 0  && signal_that_will_cause_exit_with_preempt(trap_number))
+	{
+		printk(KERN_DEBUG MODULE_NAME "fault handler: detected trap that will force the process to quit. Decreasing preempt_count\n");
+		dec_preempt_count();
+	}
+
+	return 0;
+}
+
 /*************************************/
 /*         probe definitions        */
 /*************************************/
@@ -315,6 +325,7 @@ static struct jprobe connect_jprobe =
 	.kp = 
 	{
 		.symbol_name = "inet_stream_connect",
+		.fault_handler = handler_fault,
 	},
 };
 
@@ -325,6 +336,7 @@ static struct kretprobe connect_kretprobe =
         .kp = 
         {
         	.symbol_name = "inet_stream_connect",
+		.fault_handler = handler_fault,
         },
 };
 
@@ -339,27 +351,20 @@ static struct kretprobe accept_kretprobe =
         	#else
         	.symbol_name = "sys_accept4",
 		#endif
+		.fault_handler = handler_fault,
         },
 };
 
 #if PROBE_CONNECTION_CLOSE
 
-extern struct proto tcp_prot;
-
 static struct jprobe tcp_close_jprobe = 
 {	
-	.entry = (kprobe_opcode_t *) netlog_tcp_close,
-};
-
-#endif
-
-#if PROBE_UDP && PROBE_CONNECTION_CLOSE
-
-extern struct proto udp_prot;
-
-static struct jprobe udp_close_jprobe = 
-{	
-	.entry = (kprobe_opcode_t *) netlog_udp_close,
+	.entry = (kprobe_opcode_t *) netlog_sys_close,
+	.kp = 
+	{
+		.symbol_name = "sys_close",
+		.fault_handler = handler_fault,
+	}
 };
 
 #endif
@@ -372,6 +377,7 @@ static struct jprobe bind_jprobe =
 	.kp = 
 	{
 		.symbol_name = "sys_bind",
+		.fault_handler = handler_fault,
 	},
 };
 
@@ -380,28 +386,34 @@ static struct jprobe bind_jprobe =
 void unplant_all(void)
 {
   	unregister_jprobe(&connect_jprobe);
+	printk(KERN_INFO MODULE_NAME "connect pre probe unplanted\n");
 	unregister_kretprobe(&connect_kretprobe);
+	printk(KERN_INFO MODULE_NAME "connect post probe unplanted\n");
 	unregister_kretprobe(&accept_kretprobe);
+	printk(KERN_INFO MODULE_NAME "accept probe unplanted\n");
 
 	#if PROBE_CONNECTION_CLOSE
 
 	unregister_jprobe(&tcp_close_jprobe);
-
-	#endif
-
-	#if PROBE_UDP && PROBE_CONNECTION_CLOSE
-
-	unregister_jprobe(&udp_close_jprobe);	
+	printk(KERN_INFO MODULE_NAME "inet_shutdown probe unplanted\n");
 
 	#endif
 
 	#if PROBE_UDP
 
   	unregister_jprobe(&bind_jprobe);
+	printk(KERN_INFO MODULE_NAME "bind probe unplanted\n");
 
 	#endif
 
 	printk(KERN_INFO MODULE_NAME "Probes unplanted\n");
+}
+
+void netlog_exit(void)
+{
+	unplant_all();
+	destroy_logger();
+	printk(KERN_INFO MODULE_NAME "Logging facility destroyed\n");
 }
 
 /************************************/
@@ -410,7 +422,10 @@ void unplant_all(void)
 
 int __init plant_probes(void)
 {
-	int register_status, i;
+	int register_status;
+	#if WHITELISTING
+	int i;
+	#endif	
 
 	if(LOG_FAILED(init_logger(MODULE_NAME)))
 	{
@@ -427,8 +442,7 @@ int __init plant_probes(void)
 	if(register_status < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant connect pre handler\n");
-		unplant_all();
-		destroy_logger();
+		netlog_exit();
 		return CONNECT_PROBE_FAILED;
 	}
 
@@ -437,8 +451,7 @@ int __init plant_probes(void)
 	if(register_status < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant connect post handler\n");
-		unplant_all();
-		destroy_logger();
+		netlog_exit();
 		return CONNECT_PROBE_FAILED;
 	}
 
@@ -447,41 +460,23 @@ int __init plant_probes(void)
 	if(register_status < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant accept post handler\n");
-		unplant_all();
-		destroy_logger();
+		netlog_exit();
 		return ACCEPT_PROBE_FAILED;
 	}
 
 	#if PROBE_CONNECTION_CLOSE
 
-	tcp_close_jprobe.kp.addr = (kprobe_opcode_t *) tcp_prot.close;
 	register_status = register_jprobe(&tcp_close_jprobe);
 
 	if(register_status < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant tcp_close pre handler\n");
-		unplant_all();
-		destroy_logger();
+		printk(KERN_ERR MODULE_NAME "Failed to plant close pre handler\n");
+		netlog_exit();
 		return CLOSE_PROBE_FAILED;
 	}
 
 	#endif
 	
-	#if PROBE_UDP && PROBE_CONNECTION_CLOSE
-
-	udp_close_jprobe.kp.addr = (kprobe_opcode_t *) udp_prot.close;
-	register_status = register_jprobe(&udp_close_jprobe);
-
-	if(register_status < 0)
-	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant udp_close pre handler\n");
-		unplant_all();
-		destroy_logger();
-		return CLOSE_PROBE_FAILED;
-	}
-
-	#endif	
-
 	#if PROBE_UDP
 
 	register_status = register_jprobe(&bind_jprobe);
@@ -489,8 +484,7 @@ int __init plant_probes(void)
 	if(register_status < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant bind pre handler\n");
-		unplant_all();
-		destroy_logger();
+		netlog_exit();
 		return BIND_PROBE_FAILED;
 	}
 
@@ -525,9 +519,6 @@ int __init plant_probes(void)
 
 void __exit unplant_probes(void)
 {
-	unplant_all();
-
-	destroy_logger();
-	printk(KERN_INFO MODULE_NAME "Logging facility destroyed\n");
+	netlog_exit();
 }
 

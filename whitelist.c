@@ -12,7 +12,7 @@
 #endif
 
 int size = 0;
-char white_list[MAX_WHITELIST_SIZE][MAX_ABSOLUTE_EXEC_PATH];
+char white_list[MAX_WHITELIST_SIZE][MAX_ABSOLUTE_EXEC_PATH + 1];
 
 int whitelist(const char *process_name)
 {
@@ -47,7 +47,7 @@ int is_whitelisted(const struct task_struct *task)
 {
 	int i;
 	unsigned int path_length;
-	char *path, buffer[MAX_ABSOLUTE_EXEC_PATH] = {'\0'};
+	char *path, buffer[MAX_ABSOLUTE_EXEC_PATH + 1] = {'\0'};
 
 	if(task == NULL || task->mm == NULL)
 	{

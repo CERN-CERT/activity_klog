@@ -10,21 +10,21 @@
 #include <linux/param.h>
 #include <linux/version.h>
 #include <net/sock.h>
-#include <linux/preempt.h>
 #include "logger.h"
 
 #define MAX_TAG_SIZE 64
 
 struct sockaddr_un log_file;
 struct socket *log_socket = NULL;
+
 char tag[MAX_TAG_SIZE + 1] = {'\0'};
-char buffer[MAX_MESSAGE_SIZE + 1] = {'\0'};
+char buffer[MAX_TAG_SIZE + MAX_MESSAGE_SIZE + 1] = {'\0'};
 
 int init_logger(const char *module_name)
 {
 	if(log_socket == NULL)
 	{
-		if(sock_create(PF_UNIX, SOCK_DGRAM, 0, &log_socket) != 0)
+		if(sock_create_kern(PF_UNIX, SOCK_DGRAM, 0, &log_socket) != 0)
 		{
 			log_socket = NULL;
 			return LOG_FAIL;
@@ -34,7 +34,7 @@ int init_logger(const char *module_name)
 	
 		memset((void *) &log_file, 0, sizeof(log_file));
 		log_file.sun_family = PF_UNIX;
-		strncpy(log_file.sun_path, LOG_PATH, sizeof(log_file.sun_path) - 1);
+		strncpy(log_file.sun_path, LOG_PATH, sizeof(log_file.sun_path));
 
 		/*Keep module's name to print it in logs*/
 
@@ -58,17 +58,18 @@ int log_message(const char *format, ...)
 		goto out_fail;
 	}
 
-	message_length = 0;
-	
 	/*Add "kernel: <module name>" at the start of the buffer*/
 
-	message_length += snprintf(buffer, MAX_TAG_SIZE, "%s", tag);
+	message_length = snprintf(buffer, MAX_TAG_SIZE, "%s", tag);
+
+	if(message_length < 0)
+	{
+		goto out_fail;
+	}
 
 	va_start(arguments, format);
-	message_length += vsnprintf(buffer + message_length, MAX_MESSAGE_SIZE - message_length, format, arguments);
+	message_length += vsnprintf(buffer + message_length, MAX_MESSAGE_SIZE, format, arguments);
 	va_end(arguments);
-
-	buffer[message_length++] = '\0';
 
 	/*Prepare message header and send the buffer*/
 
@@ -86,16 +87,15 @@ int log_message(const char *format, ...)
 	oldfs = get_fs(); 
 	set_fs(KERNEL_DS);
 
-	err = sock_sendmsg(log_socket, &msg, strnlen(buffer, MAX_MESSAGE_SIZE));
-
-	set_fs(oldfs);
+	err = sock_sendmsg(log_socket, &msg, message_length);
 
 	if(err < 0)
 	{
 		goto out_fail;
 	}
-
-	buffer[0] = '\0';
+	
+	set_fs(oldfs);
+	memset(buffer, '\0', sizeof(buffer));
 
 	return LOG_OK;
 out_fail:
@@ -110,4 +110,5 @@ void destroy_logger(void)
 		log_socket = NULL;
 	}
 }
+
 

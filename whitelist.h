@@ -11,7 +11,7 @@
  *with lenght greater than this, cannot be whitelisted.
  */
 
-#define MAX_ABSOLUTE_EXEC_PATH 1020
+#define MAX_ABSOLUTE_EXEC_PATH 1019
 
 /*The number of maximum whitelisted processes*/
 
