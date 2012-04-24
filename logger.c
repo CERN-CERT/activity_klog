@@ -13,12 +13,13 @@
 #include "logger.h"
 
 #define MAX_TAG_SIZE 64
+#define BUFFER_LEN MAX_TAG_SIZE + MAX_MESSAGE_SIZE + 1
 
 struct sockaddr_un log_file;
 struct socket *log_socket = NULL;
 
 char tag[MAX_TAG_SIZE + 1] = {'\0'};
-char buffer[MAX_TAG_SIZE + MAX_MESSAGE_SIZE + 1] = {'\0'};
+char buffer[BUFFER_LEN] = {'\0'};
 
 int init_logger(const char *module_name)
 {
@@ -95,11 +96,13 @@ int log_message(const char *format, ...)
 	}
 	
 	set_fs(oldfs);
-	memset(buffer, '\0', sizeof(buffer));
+
+	memset(buffer, '\0', BUFFER_LEN);
 
 	return LOG_OK;
 out_fail:
 	printk(KERN_ERR "%sFailed to log message\n", tag);
+	memset(buffer, '\0', BUFFER_LEN);
 
 	return LOG_FAIL;
 }

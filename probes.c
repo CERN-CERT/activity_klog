@@ -344,8 +344,10 @@ void unplant_all(void)
 {
   	unregister_jprobe(&connect_jprobe);
 	printk(KERN_INFO MODULE_NAME "Unplanted connect pre handler probe\n");
+	
 	unregister_kretprobe(&connect_kretprobe);
 	printk(KERN_INFO MODULE_NAME "Unplanted connect post handler probe\n");
+
 	unregister_kretprobe(&accept_kretprobe);
 	printk(KERN_INFO MODULE_NAME "Unplanted accept post handler probe\n");
 
@@ -455,13 +457,15 @@ int plant_all(void)
 
 void do_whitelist(void)
 {
-	int i;
+	int i, err;
 
 	/*Deal with the whitelisting*/
 
 	for(i = 0; i < NO_WHITELISTS; ++i)
 	{
-		if(WHITELIST_FAILED(whitelist(procs_to_whitelist[i])))
+		err = whitelist(procs_to_whitelist[i]);
+
+		if(err < 0)
 		{
 			printk(KERN_ERR MODULE_NAME "Failed to whitelist %s\n", procs_to_whitelist[i]);
 		}
