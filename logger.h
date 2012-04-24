@@ -6,7 +6,6 @@
  * Use instead of printk when ou want to log sensitive data.
  */
 
-#define LOG_FAILED(A) A < 0
 #define MAX_MESSAGE_SIZE 512
 
 #define LOG_OK 1

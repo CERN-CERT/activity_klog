@@ -99,6 +99,8 @@ int log_message(const char *format, ...)
 
 	return LOG_OK;
 out_fail:
+	printk(KERN_ERR "%sFailed to log message\n", tag);
+
 	return LOG_FAIL;
 }
 
