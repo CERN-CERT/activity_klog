@@ -82,28 +82,12 @@ char *get_local_ip_sk(const struct sock *sk)
 
 char *get_local_ip(const struct socket *sock)
 {
-	if(sock == NULL || sock->sk == NULL)
+	if(sock == NULL)
 	{
 		return NULL;
 	}
 
-	switch(sock->sk->sk_family)
-	{
-		case AF_INET:
-			snprintf(local_ipv4, sizeof(local_ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sock->sk)->SADDR));
-
-			return local_ipv4;			
-			break;
-		case AF_INET6:
-			snprintf(local_ipv6, sizeof(local_ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
-								NIP6(inet6_sk(sock->sk)->saddr));
-
-			return local_ipv6;
-			break;
-		default:
-			return NULL;
-			break;
-	}
+	return get_local_ip_sk(sock->sk);
 }
 
 char *get_remote_ip_sk(const struct sock *sk)
@@ -133,27 +117,12 @@ char *get_remote_ip_sk(const struct sock *sk)
 
 char *get_remote_ip(const struct socket *sock)
 {
-	if(sock == NULL || sock->sk == NULL)
+	if(sock == NULL)
 	{
 		return NULL;
 	}
 
-	switch(sock->sk->sk_family)
-	{
-		case AF_INET:
-			snprintf(remote_ipv4, sizeof(remote_ipv4), "%u.%u.%u.%u", NIPQUAD(inet_sk(sock->sk)->DADDR));
-
-			return remote_ipv4;
-			break;	
-		case AF_INET6:
-			snprintf(remote_ipv6, sizeof(remote_ipv6), "[%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]", 
-								NIP6(inet6_sk(sock->sk)->daddr));
-		        return remote_ipv6;
-			break;			
-		default:
-			return NULL;
-			break;
-	}
+	return get_remote_ip_sk(sock->sk);
 }
 
 char *get_ip(const struct sockaddr *addr)
