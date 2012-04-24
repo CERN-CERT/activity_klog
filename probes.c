@@ -47,12 +47,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	sock = match_socket[current->pid];
 
-	if(sock == NULL || sock->sk == NULL)
-	{
-		goto out;
-	}
-
-	if(!is_inet(sock) || !is_tcp(sock))
+	if(!is_tcp(sock) || !is_inet(sock))
 	{
 		goto out;
 	}
@@ -84,17 +79,12 @@ out:
 
 static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	int err = 0;
+	int err;
 	struct socket *sock;
 
 	sock = sockfd_lookup(regs_return_value(regs), &err);
 
-	if(sock == NULL || sock->sk == NULL || err < 0)
-	{
-		goto out;
-	}
-
-	if(!is_inet(sock) || !is_tcp(sock))
+	if(!is_tcp(sock) || !is_inet(sock))
 	{
 		goto out;
 	}
@@ -126,12 +116,12 @@ out:
 
 asmlinkage long netlog_sys_close(unsigned int fd)
 {
-	int err = 0;
+	int err;
 	struct socket * sock;
 
 	sock = sockfd_lookup(fd, &err);
 
-	if(sock == NULL || sock->sk == NULL || err < 0 || !is_inet(sock))
+	if(!is_inet(sock))
 	{
 		goto out;
 	}
@@ -153,7 +143,7 @@ asmlinkage long netlog_sys_close(unsigned int fd)
 							get_current_uid());
 	}
 	#if PROBE_UDP
-	else if(is_udp(sock) && get_destination_port(sock) != 0)
+	else if(is_udp(sock))
 	{
 		#if WHITELISTING
 
@@ -190,15 +180,10 @@ out:
 static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 {
 	char *ip;
-	int err = 0;
+	int err;
 	struct socket * sock;
 
 	sock = sockfd_lookup(sockfd, &err);
-
-	if(sock == NULL || sock->sk == NULL || err < 0)
-	{
-		goto out;
-	}
 
 	if(!is_inet(sock) || !is_udp(sock))
 	{

@@ -69,7 +69,7 @@ static char destination_ipv6[INET6_ADDRSTRLEN + 2];
 
 int is_inet(struct socket *sock)
 {
-	if(sock == NULL)
+	if(sock == NULL || sock->sk == NULL)
 	{
 		return 0;
 	}
@@ -81,7 +81,7 @@ int is_inet(struct socket *sock)
 
 int is_tcp(struct socket *sock)
 {
-	if(sock == NULL)
+	if(sock == NULL || sock->sk == NULL)
 	{
 		return 0;
 	}
@@ -93,7 +93,7 @@ int is_tcp(struct socket *sock)
 
 int is_udp(struct socket *sock)
 {
-	if(sock == NULL)
+	if(sock == NULL || sock->sk == NULL)
 	{
 		return 0;
 	}
@@ -105,7 +105,7 @@ int is_udp(struct socket *sock)
 
 int get_source_port(struct socket *sock)
 {
-	if(sock == NULL)
+	if(sock == NULL || sock->sk == NULL)
 	{
 		return 0;
 	}
@@ -117,7 +117,7 @@ int get_source_port(struct socket *sock)
 
 int get_destination_port(struct socket *sock)
 {
-	if(sock == NULL)
+	if(sock == NULL || sock->sk == NULL)
 	{
 		return 0;
 	}
