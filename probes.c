@@ -267,7 +267,7 @@ out:
 
 #endif
 
-int signal_that_will_cause_exit_with_preempt(int trap_number)
+int signal_that_will_cause_exit(int trap_number)
 {
 	printk(KERN_DEBUG "netlog: interrupt %d\n", trap_number);
 
@@ -287,11 +287,11 @@ int signal_that_will_cause_exit_with_preempt(int trap_number)
 
 int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
 {
-	if(signal_that_will_cause_exit_with_preempt(trap_number) && preempt_count() == 1)
+	if(signal_that_will_cause_exit(trap_number) && preempt_count() > 0)
 	{
-		printk(KERN_CRIT MODULE_NAME "fault handler: detected trap [%d] that will force "
-		 	"the process to quit. The machine will probably crash\n", trap_number);
-		dec_preempt_count();
+		printk(KERN_CRIT MODULE_NAME "fault handler: Detected trap [%d] that will force "
+		 			"the process to quit. In case that this process exits"
+		 			" with preempt_count != 0, it will cause the machine to crash\n", trap_number);
 	}
 
 	return 0;
