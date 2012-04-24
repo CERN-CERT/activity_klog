@@ -108,6 +108,8 @@ void destroy_logger(void)
 	{
 		sock_release(log_socket);
 		log_socket = NULL;
+		
+		printk(KERN_INFO "%sLogging facility destroyed\n", tag);		
 	}
 }
 
