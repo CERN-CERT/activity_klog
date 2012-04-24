@@ -2,10 +2,9 @@
 #define __WHITELIST__
 
 #define WHITELIST_FAIL -1
+
 #define WHITELISTED 1
 #define NOT_WHITELISTED 0
-
-#define WHITELIST_FAILED(status) status < 0
 
 /*The maximum lenght of the whitelisted paths. Any path
  *with lenght greater than this, cannot be whitelisted.
