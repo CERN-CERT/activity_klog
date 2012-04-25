@@ -15,7 +15,7 @@
 
 /*Initiliaze logger facility */
 
-int init_logger(const char *module_name);
+void init_logger(const char *module_name);
 
 /*Log a message*/
 
