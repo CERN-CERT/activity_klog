@@ -1,5 +1,5 @@
 %define kmod_name		netlog
-%define kmod_driver_version	2.1
+%define kmod_driver_version	2.2
 %define kmod_rpm_release	1
 %define kmod_kernel_version	2.6.18-308.1.1.el5
 
