@@ -239,7 +239,7 @@ int any_ip_address(const char *ip)
 		return 0;
 	}
 
-	return (!strncmp(ip, "0.0.0.0", sizeof(ip)) ||
-		!strncmp(ip, "[0000:0000:0000:0000:0000:0000:0000:0000]", sizeof(ip)));
+	return (!strncmp(ip, "0.0.0.0", INET_ADDRSTRLEN) ||
+		!strncmp(ip, "[0000:0000:0000:0000:0000:0000:0000:0000]", INET6_ADDRSTRLEN + 2));
 }
 

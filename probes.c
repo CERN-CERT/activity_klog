@@ -12,7 +12,6 @@
 #include <linux/kallsyms.h>
 #include "inet_utils.h"
 #include "whitelist.h"
-#include "logger.h"
 #include "netlog.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
@@ -31,12 +30,17 @@
  * because when a system call is called, the process is suspended untill its end of execution.
  */
 
-static struct socket *match_socket[PID_MAX_LIMIT] = {NULL};
+struct socket *match_socket[PID_MAX_LIMIT] = {NULL};
 
 static int netlog_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
 {	
-	match_socket[current->pid] = sock;
+	if(!current)
+	{
+		goto out;
+	}
 
+	match_socket[current->pid] = sock;
+out:
 	jprobe_return();
 	return 0;
 }
@@ -52,6 +56,11 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 		goto out;
 	}
 
+	if(!current)
+	{
+		goto out;
+	}	
+
 	#if WHITELISTING
 
 	if(is_whitelisted(current))
@@ -61,7 +70,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	#endif
 
-	log_message("%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
+	printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 						get_source_ip(sock), get_source_port(sock),
 						get_destination_ip(sock), get_destination_port(sock), 
 						get_current_uid());
@@ -89,6 +98,11 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 		goto out;
 	}
 
+	if(!current)
+	{
+		goto out;
+	}
+
 	#if WHITELISTING
 
 	if(is_whitelisted(current))
@@ -98,7 +112,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	#endif
 
-	log_message("%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
+	printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
 						get_source_ip(sock), get_source_port(sock),
 						get_destination_ip(sock), get_destination_port(sock), 
 						get_current_uid());
@@ -114,10 +128,10 @@ out:
 
 #if PROBE_CONNECTION_CLOSE
 
-asmlinkage long netlog_sys_close(unsigned int fd)
+asmlinkage static long netlog_sys_close(unsigned int fd)
 {
 	int err;
-	struct socket * sock;
+	struct socket *sock;
 
 	sock = sockfd_lookup(fd, &err);
 
@@ -126,18 +140,24 @@ asmlinkage long netlog_sys_close(unsigned int fd)
 		goto out;
 	}
 
+	if(!current)
+	{
+		goto out;
+	}
+
+	#if WHITELISTING
+
+	if(is_whitelisted(current))
+	{
+		goto out;
+	}
+
+	#endif
+
+
 	if(is_tcp(sock) && get_destination_port(sock) != 0)
 	{
-		#if WHITELISTING
-
-		if(is_whitelisted(current))
-		{
-			goto out;
-		}
-
-		#endif
-
-		log_message("%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 							get_source_ip(sock), get_source_port(sock),
 							get_destination_ip(sock), get_destination_port(sock), 
 							get_current_uid());
@@ -145,16 +165,7 @@ asmlinkage long netlog_sys_close(unsigned int fd)
 	#if PROBE_UDP
 	else if(is_udp(sock))
 	{
-		#if WHITELISTING
-
-		if(is_whitelisted(current))
-		{
-			goto out;
-		}
-
-		#endif
-
-		log_message("%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		printk(KERN_INFO MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 							get_source_ip(sock), get_source_port(sock),
 							get_destination_ip(sock), get_destination_port(sock), 
 							get_current_uid());
@@ -177,7 +188,7 @@ out:
 
 /* UDP protocol is connectionless protocol, so we probe the bind system call */
 
-static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
+asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 {
 	char *ip;
 	int err;
@@ -186,6 +197,11 @@ static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 	sock = sockfd_lookup(sockfd, &err);
 
 	if(!is_inet(sock) || !is_udp(sock))
+	{
+		goto out;
+	}
+
+	if(!current)
 	{
 		goto out;
 	}
@@ -203,12 +219,12 @@ static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 
 	if(any_ip_address(ip))
 	{
-		log_message("%s[%d] UDP bind (any IP address):%d (uid=%d)\n", current->comm, current->pid,
+		printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", current->comm, current->pid,
 				 ntohs(((struct sockaddr_in *)addr)->sin_port), get_current_uid());
 	}
 	else
 	{
-		log_message("%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
+		printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
 				ntohs(((struct sockaddr_in6 *)addr)->sin6_port), get_current_uid());
 	}
 
@@ -224,34 +240,6 @@ out:
 
 #endif
 
-int signal_that_will_cause_exit(int trap_number)
-{
-	switch(trap_number)
-	{
-		case SIGABRT:
-		case SIGSEGV:
-		case SIGQUIT:
-		//TODO Other signals that we need to notify about them?
-			return 1;
-			break;
-		default:
-			return 0;
-			break;
-	}
-}
-
-int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
-{
-	if(signal_that_will_cause_exit(trap_number) && preempt_count() > 0)
-	{
-		printk(KERN_CRIT MODULE_NAME "fault handler: Detected trap [%d] that will force "
-		 			"the process to quit. In case that this process exits"
-		 			" with preempt_count != 0, it will cause the machine to crash\n", trap_number);
-	}
-
-	return 0;
-}
-
 /*************************************/
 /*         probe definitions        */
 /*************************************/
@@ -262,25 +250,23 @@ static struct jprobe connect_jprobe =
 	.kp = 
 	{
 		.symbol_name = "inet_stream_connect",
-		.fault_handler = handler_fault,
 	},
 };
 
 static struct kretprobe connect_kretprobe = 
 {
         .handler = post_connect,
-        .maxactive = 0,
+        .maxactive = 16 * NR_CPUS,
         .kp = 
         {
         	.symbol_name = "inet_stream_connect",
-		.fault_handler = handler_fault,
         },
 };
 
 static struct kretprobe accept_kretprobe = 
 {
 	.handler = post_accept,
-	.maxactive = 0,
+	.maxactive = 16 * NR_CPUS,
         .kp = 
         {
 		#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
@@ -288,7 +274,6 @@ static struct kretprobe accept_kretprobe =
         	#else
         	.symbol_name = "sys_accept4",
 		#endif
-		.fault_handler = handler_fault,
         },
 };
 
@@ -300,7 +285,6 @@ static struct jprobe tcp_close_jprobe =
 	.kp = 
 	{
 		.symbol_name = "sys_close",
-		.fault_handler = handler_fault,
 	}
 };
 
@@ -314,7 +298,6 @@ static struct jprobe bind_jprobe =
 	.kp = 
 	{
 		.symbol_name = "sys_bind",
-		.fault_handler = handler_fault,
 	},
 };
 
@@ -348,32 +331,16 @@ void unplant_all(void)
 	printk(KERN_INFO MODULE_NAME "All probes unplanted\n");
 }
 
-void netlog_cleanup(void)
-{
-	unplant_all();
-	destroy_logger();
-}
-
 int plant_all(void)
 {
 	int err;
-
-	err = init_logger(MODULE_NAME);
-
-	if(err < 0)
-	{
-		printk(KERN_ERR MODULE_NAME "Failed to initialize logging facility\n");
-		return LOG_FAILURE;
-	}
-
-	printk(KERN_INFO MODULE_NAME "Initialized logging facility\n");
 
 	err = register_jprobe(&connect_jprobe);
 
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant connect pre handler\n");
-		netlog_cleanup();
+		unplant_all();
 		return CONNECT_PROBE_FAILED;
 	}
 
@@ -384,7 +351,7 @@ int plant_all(void)
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant connect post handler\n");
-		netlog_cleanup();
+		unplant_all();
 		return CONNECT_PROBE_FAILED;
 	}
 
@@ -395,7 +362,7 @@ int plant_all(void)
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant accept post handler\n");
-		netlog_cleanup();
+		unplant_all();
 		return ACCEPT_PROBE_FAILED;
 	}
 
@@ -408,7 +375,7 @@ int plant_all(void)
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant close pre handler\n");
-		netlog_cleanup();
+		unplant_all();
 		return CLOSE_PROBE_FAILED;
 	}
 
@@ -423,7 +390,7 @@ int plant_all(void)
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant bind pre handler\n");
-		netlog_cleanup();
+		unplant_all();
 		return BIND_PROBE_FAILED;
 	}
 
@@ -485,6 +452,6 @@ int __init plant_probes(void)
 
 void __exit unplant_probes(void)
 {
-	netlog_cleanup();
+	unplant_all();
 }
 
