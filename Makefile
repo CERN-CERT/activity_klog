@@ -77,7 +77,7 @@ release:    _increment_release _update_spec _git_commit_tag
 srcrpm: $(DISTS:=.srcrpm) $(DISTS:=.clean)
 
 %.srcrpm: dist.%/$(name).spec dist.%/$(name).tgz
-	@$(RPMBUILD) --define "_sourcedir ${PWD}/dist.$*" --define "_srcrpmdir ${PWD}" -bs $<
+	@$(RPMBUILD) --define "_sourcedir ${PWD}/dist.$*" --define "_srcrpmdir ${PWD}" --define "dist .$*" -bs $<
 
 %.tgz:
 	@version=`cat VERSION`; \
