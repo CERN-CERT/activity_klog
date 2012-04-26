@@ -49,6 +49,11 @@ to 0 or 1, if you want to compile or not the whitelisting code accordingly. Then
 path of the executables that you are interested in wtelisting at the netlog.h header.
 
 					+--------------------------+
+					|Supported kernel versions |
+					+--------------------------+
+2.6.12 up to 3.3.0
+
+					+--------------------------+
 					|Format of the log messages|
 					+--------------------------+
 

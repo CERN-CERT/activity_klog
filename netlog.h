@@ -61,7 +61,7 @@ MODULE_AUTHOR("Panos Sakkos <panos.sakkos@cern.ch>");
 MODULE_DESCRIPTION("netlog logs information about every internet connection\
 		 from and to the machine that is installed. This information\
 		  is source/destination ips and ports, process name and pid, \
-		  uid and the protocaol (TCP/UDP).");
+		  uid and the protocol (TCP/UDP).");
 
 int __init plant_probes(void);
 void __exit unplant_probes(void);
