@@ -58,9 +58,10 @@ const char procs_to_whitelist[NO_WHITELISTS][MAX_EXEC_PATH] =
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Panos Sakkos <panos.sakkos@cern.ch>");
-MODULE_DESCRIPTION("Logs process name, pid, uid, source ip, source port,\
-		    destination ip and destination port for every TCP connection.\
-		    Also logs connection close and UDP binds");
+MODULE_DESCRIPTION("netlog logs information about every internet connection\
+		 from and to the machine that is installed. This information\
+		  is source/destination ips and ports, process name and pid, \
+		  uid and the protocaol (TCP/UDP).");
 
 int __init plant_probes(void);
 void __exit unplant_probes(void);
