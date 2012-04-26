@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+
+    <title>Netlog by CERN-CERT</title>
+  </head>
+
+  <body>
+
+    <header>
+      <div class="container">
+        <h1>Netlog</h1>
+        <h2>Netlog is a Loadable Kernel Module that logs information for every connection. With the help of kprobes API, it tracks the connect and accept system calls and  in case that the connection for TCP, it logs the process name and Process ID,  the User ID that owns this process, the protocol (TCP/UDP), the local IP address and port as well as the remote IP address and port.</h2>
+
+        <section id="downloads">
+          <a href="" class="btn">Download source rpm</a>
+          <a href="https://github.com/CERN-CERT/netlog/zipball/master" class="btn">Download as .zip</a>
+          <a href="https://github.com/CERN-CERT/netlog/tarball/master" class="btn">Download as .tar.gz</a>  
+        </section>
+        </br>
+        <section id="downloads">
+          <a href="https://github.com/CERN-CERT/netlog" class="btn btn-github"><span class="icon"></span>View on GitHub</a>
+        </section>
+
+</div>
+    </header>
+
+    <div class="container">
+      <section id="main_content">
+<h3>Description</h3>
+
+<p>Netlog is a Loadable Kernel Module that logs information for every connection on the hosted machine.
+By utilizing the kprobes API, it probes the connect and accept system calls ,for TCP connections,
+as well as the bind system call, for UDP connections, and the socket destruction. 
+While probing, it logs the process name and process id, the user id that owns this process, the protocol
+(TCP/UDP), the local IP address and port as well as the remote IP address and port.</p>
+
+<p>For UDP, it tracks only the bind system call, because UDP is a connectionless protocol,
+so the other approach was to track the packet communication, something that would
+add a lot of overhead. In order to compile the code that tracks UDP, you 
+have to change the symbolic constant (PROBE_UDP) that it's defined in the netlog header (netlog.h) from
+zero (0) to a non-zero value (i.e. 1).</p>
+
+<p>Netlog also tracks the destruction of the sockets. This is done by probing the 
+inet_shutdown kernel call, which is called after the close system call is called.
+In order to compile the code that tracks the connection close, you need to change the value of the
+symbolic constant (PROBE_CONNECTION_CLOSE) that is defined in the netlog header file (netlog.h) from 
+zero (0) to a non-zero value (i.e. 1).</p>
+
+<p>Whitelisting:</p>
+
+<p>netlog offers whitelisting of executables. Change the symbolic constant WHITELISTING in netlog.h header
+to 0 or 1, if you want to compile or not the whitelisting code accordingly. Then, add the full execution
+path of the executables that you are interested in wtelisting at the netlog.h header.</p>
+
+<h3>Format of the log messages</h3>
+
+<p>TCP connect:
+Dec 19 14:03:17 hostname kernel: netlog: http[3206] TCP 123.456.789.012:52507 -&gt; 123.456.789.013:80 (uid=0)</p>
+
+<p>TCP accept:
+Dec 19 14:18:37 hostname kernel: netlog: sshd[827] TCP 123.456.789.012:22 &lt;- 123.456.789.013:49904 (uid=0)</p>
+
+<p>UDP binds:
+Dec 19 14:22:50 hostname kernel: netlog: skype[4261] UDP bind 123.456.789.012:0 (uid=1000)
+Dec 19 14:22:50 hostname kernel: netlog: skype[4261] UDP bind (any IP address):2752 (uid=1000)</p>
+
+<p>Connection close:
+Dec 19 14:19:07 hostname kernel: netlog: sshd[3755] TCP 123.456.789.012:22 &lt;-&gt; 123.456.789.013:49904 (uid=0)</p>
+
+<h3>How to compile</h3>
+
+<p>In the source directory run:</p>
+
+<pre><code>make -C /lib/modules/$(uname -r)/build M=$PWD
+</code></pre>
+
+<p>Then run:</p>
+
+<pre><code>insmod netlog.ko
+</code></pre>
+
+<p>in order to insert the module in the kernel.
+And in order to remove it, run:</p>
+
+<pre><code>rmmod netlog
+</code></pre>
+
+<h3>Support or Contact</h3>
+
+<p><a href="mailto:cert@cern.ch?Subject=netlog%20support/contact">
+CERN CERT</a></p>
+      </section>
+    </div>
+
+    
+  </body>
+</html>
