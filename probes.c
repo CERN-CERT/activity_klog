@@ -70,7 +70,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	#endif
 
-	printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
+	printk(KERN_DEBUG MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 						get_source_ip(sock), get_source_port(sock),
 						get_destination_ip(sock), get_destination_port(sock), 
 						get_current_uid());
@@ -112,7 +112,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	#endif
 
-	printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
+	printk(KERN_DEBUG MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
 						get_source_ip(sock), get_source_port(sock),
 						get_destination_ip(sock), get_destination_port(sock), 
 						get_current_uid());
@@ -157,7 +157,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 
 	if(is_tcp(sock) && get_destination_port(sock) != 0)
 	{
-		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		printk(KERN_DEBUG MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 							get_source_ip(sock), get_source_port(sock),
 							get_destination_ip(sock), get_destination_port(sock), 
 							get_current_uid());
@@ -165,7 +165,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 	#if PROBE_UDP
 	else if(is_udp(sock))
 	{
-		printk(KERN_INFO MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		printk(KERN_DEBUG MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 							get_source_ip(sock), get_source_port(sock),
 							get_destination_ip(sock), get_destination_port(sock), 
 							get_current_uid());
@@ -219,12 +219,12 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 
 	if(any_ip_address(ip))
 	{
-		printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", current->comm, current->pid,
+		printk(KERN_DEBUG MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", current->comm, current->pid,
 				 ntohs(((struct sockaddr_in *)addr)->sin_port), get_current_uid());
 	}
 	else
 	{
-		printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
+		printk(KERN_DEBUG MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
 				ntohs(((struct sockaddr_in6 *)addr)->sin6_port), get_current_uid());
 	}
 
@@ -240,6 +240,34 @@ out:
 
 #endif
 
+int signal_that_will_cause_exit(int trap_number)
+{
+	switch(trap_number)
+	{
+		case SIGABRT:
+		case SIGSEGV:
+		case SIGQUIT:
+		//TODO Other signals that we need to handle?
+			return 1;
+			break;
+		default:
+			return 0;
+			break;
+	}
+}
+
+int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
+{
+	if(signal_that_will_cause_exit(trap_number) && preempt_count() > 0)
+	{
+		printk(KERN_ERR MODULE_NAME "fault handler: Detected trap [%d] that will force "
+		 			"the process to quit. In case that this process exits"
+		 			" with preempt_count != 0, it will cause the machine to crash\n", trap_number);
+	}
+
+	return 0;
+}
+
 /*************************************/
 /*         probe definitions        */
 /*************************************/
@@ -250,6 +278,7 @@ static struct jprobe connect_jprobe =
 	.kp = 
 	{
 		.symbol_name = "inet_stream_connect",
+		.fault_handler = handler_fault,
 	},
 };
 
@@ -260,6 +289,7 @@ static struct kretprobe connect_kretprobe =
         .kp = 
         {
         	.symbol_name = "inet_stream_connect",
+		.fault_handler = handler_fault,
         },
 };
 
@@ -274,6 +304,7 @@ static struct kretprobe accept_kretprobe =
         	#else
         	.symbol_name = "sys_accept4",
 		#endif
+		.fault_handler = handler_fault,
         },
 };
 
@@ -285,6 +316,7 @@ static struct jprobe tcp_close_jprobe =
 	.kp = 
 	{
 		.symbol_name = "sys_close",
+		.fault_handler = handler_fault,
 	}
 };
 
@@ -298,6 +330,7 @@ static struct jprobe bind_jprobe =
 	.kp = 
 	{
 		.symbol_name = "sys_bind",
+		.fault_handler = handler_fault,
 	},
 };
 
