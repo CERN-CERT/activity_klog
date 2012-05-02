@@ -30,11 +30,11 @@
  * because when a system call is called, the process is suspended untill its end of execution.
  */
 
-struct socket *match_socket[PID_MAX_LIMIT] = {NULL};
+static struct socket *match_socket[PID_MAX_LIMIT] = {NULL};
 
 static int netlog_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
 {	
-	if(!current)
+	if(unlikely(current == NULL))
 	{
 		goto out;
 	}
@@ -51,12 +51,12 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	sock = match_socket[current->pid];
 
-	if(!is_tcp(sock) || !is_inet(sock))
+	if(unlikely(!is_tcp(sock)) || unlikely(!is_inet(sock)))
 	{
 		goto out;
 	}
 
-	if(!current)
+	if(unlikely(current == NULL))
 	{
 		goto out;
 	}	
@@ -70,7 +70,8 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	#endif
 
-	printk(KERN_DEBUG MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
+
+	printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 						get_source_ip(sock), get_source_port(sock),
 						get_destination_ip(sock), get_destination_port(sock), 
 						get_current_uid());
@@ -93,12 +94,12 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	sock = sockfd_lookup(regs_return_value(regs), &err);
 
-	if(!is_tcp(sock) || !is_inet(sock))
+	if(unlikely(!is_tcp(sock)) || unlikely(!is_inet(sock)))
 	{
 		goto out;
 	}
 
-	if(!current)
+	if(unlikely(current == NULL))
 	{
 		goto out;
 	}
@@ -112,13 +113,13 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	#endif
 
-	printk(KERN_DEBUG MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
+	printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
 						get_source_ip(sock), get_source_port(sock),
 						get_destination_ip(sock), get_destination_port(sock), 
-						get_current_uid());
+						get_current_uid()); 
 
 out:
-	if(sock != NULL)
+	if(likely(sock != NULL))
 	{
 		sockfd_put(sock);
 	}
@@ -135,12 +136,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 
 	sock = sockfd_lookup(fd, &err);
 
-	if(!is_inet(sock))
-	{
-		goto out;
-	}
-
-	if(!current)
+	if(!is_inet(sock) || unlikely(current == NULL))
 	{
 		goto out;
 	}
@@ -155,17 +151,17 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 	#endif
 
 
-	if(is_tcp(sock) && get_destination_port(sock) != 0)
+	if(is_tcp(sock) && likely(get_destination_port(sock) != 0))
 	{
-		printk(KERN_DEBUG MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 							get_source_ip(sock), get_source_port(sock),
 							get_destination_ip(sock), get_destination_port(sock), 
 							get_current_uid());
 	}
 	#if PROBE_UDP
-	else if(is_udp(sock))
+	else if(is_udp(sock) && is_inet(sock))
 	{
-		printk(KERN_DEBUG MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		printk(KERN_INFO MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 							get_source_ip(sock), get_source_port(sock),
 							get_destination_ip(sock), get_destination_port(sock), 
 							get_current_uid());
@@ -173,7 +169,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 	#endif
 
 out:
-	if(sock != NULL)
+	if(likely(sock != NULL))
 	{
 		sockfd_put(sock);
 	}
@@ -201,7 +197,7 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 		goto out;
 	}
 
-	if(!current)
+	if(unlikely(current == NULL))
 	{
 		goto out;
 	}
@@ -219,17 +215,17 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 
 	if(any_ip_address(ip))
 	{
-		printk(KERN_DEBUG MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", current->comm, current->pid,
+		printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", current->comm, current->pid,
 				 ntohs(((struct sockaddr_in *)addr)->sin_port), get_current_uid());
 	}
 	else
 	{
-		printk(KERN_DEBUG MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
+		printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
 				ntohs(((struct sockaddr_in6 *)addr)->sin6_port), get_current_uid());
 	}
 
 out:
-	if(sock != NULL)
+	if(likely(sock != NULL))
 	{
 		sockfd_put(sock);
 	}
@@ -258,11 +254,10 @@ int signal_that_will_cause_exit(int trap_number)
 
 int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
 {
-	if(signal_that_will_cause_exit(trap_number) && preempt_count() > 0)
+	if(signal_that_will_cause_exit(trap_number))
 	{
-		printk(KERN_ERR MODULE_NAME "fault handler: Detected trap [%d] that will force "
-		 			"the process to quit. In case that this process exits"
-		 			" with preempt_count != 0, it will cause the machine to crash\n", trap_number);
+		printk(KERN_ERR MODULE_NAME "fault handler: Detected fault %d from inside probes.", trap_number);
+		return 1;
 	}
 
 	return 0;
@@ -464,7 +459,7 @@ void do_whitelist(void)
 int __init plant_probes(void)
 {
 	int err;
-	
+
 	err = plant_all();
 
 	if(err < 0)

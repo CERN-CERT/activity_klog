@@ -49,7 +49,7 @@ int is_whitelisted(const struct task_struct *task)
 	unsigned int path_length;
 	char *path, buffer[MAX_ABSOLUTE_EXEC_PATH + 1] = {'\0'};
 
-	if(task == NULL || task->mm == NULL)
+	if(unlikely(task == NULL) || unlikely(task->mm == NULL))
 	{
 		return WHITELIST_FAIL;
 	}
@@ -58,14 +58,14 @@ int is_whitelisted(const struct task_struct *task)
 
 	path = exe_from_mm(task->mm, buffer, MAX_ABSOLUTE_EXEC_PATH);
 
-	if(path == NULL)
+	if(unlikely(path == NULL))
 	{
 		return NOT_WHITELISTED;
 	}
 
 	path_length = strnlen(path, MAX_ABSOLUTE_EXEC_PATH);
 
-	if(path_length == 0 || path_length == MAX_ABSOLUTE_EXEC_PATH)
+	if(unlikely(path_length == 0) || unlikely(path_length == MAX_ABSOLUTE_EXEC_PATH))
 	{
 		/*Empty or paths greater than our limit are not whitelisted*/
 
@@ -92,7 +92,7 @@ char *exe_from_mm(const struct mm_struct *mm, char *buffer, int length)
 	char *p = NULL;
 	struct vm_area_struct *vma;
 
-	if(mm == NULL)
+	if(unlikely(mm == NULL))
 	{
 		return NULL;
 	}

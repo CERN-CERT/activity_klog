@@ -69,7 +69,7 @@ static char destination_ipv6[INET6_ADDRSTRLEN + 2];
 
 int is_inet(struct socket *sock)
 {
-	if(sock == NULL || sock->sk == NULL)
+	if(unlikely(sock == NULL) || unlikely(sock->sk == NULL))
 	{
 		return 0;
 	}
@@ -81,7 +81,7 @@ int is_inet(struct socket *sock)
 
 int is_tcp(struct socket *sock)
 {
-	if(sock == NULL || sock->sk == NULL)
+	if(unlikely(sock == NULL) || unlikely(sock->sk == NULL))
 	{
 		return 0;
 	}
@@ -93,7 +93,7 @@ int is_tcp(struct socket *sock)
 
 int is_udp(struct socket *sock)
 {
-	if(sock == NULL || sock->sk == NULL)
+	if(unlikely(sock == NULL) || unlikely(sock->sk == NULL))
 	{
 		return 0;
 	}
@@ -105,7 +105,7 @@ int is_udp(struct socket *sock)
 
 int get_source_port(struct socket *sock)
 {
-	if(sock == NULL || sock->sk == NULL)
+	if(unlikely(sock == NULL) || unlikely(sock->sk == NULL))
 	{
 		return 0;
 	}
@@ -117,7 +117,7 @@ int get_source_port(struct socket *sock)
 
 int get_destination_port(struct socket *sock)
 {
-	if(sock == NULL || sock->sk == NULL)
+	if(unlikely(sock == NULL) || unlikely(sock->sk == NULL))
 	{
 		return 0;
 	}
@@ -130,7 +130,7 @@ int get_destination_port(struct socket *sock)
 
 char *get_source_ip_sk(const struct sock *sk)
 {
-	if(sk == NULL)
+	if(unlikely(sk == NULL))
 	{
 		return NULL;
 	}
@@ -156,7 +156,7 @@ char *get_source_ip_sk(const struct sock *sk)
 
 char *get_source_ip(const struct socket *sock)
 {
-	if(sock == NULL)
+	if(unlikely(sock == NULL))
 	{
 		return NULL;
 	}
@@ -166,7 +166,7 @@ char *get_source_ip(const struct socket *sock)
 
 char *get_destination_ip_sk(const struct sock *sk)
 {
-	if(sk == NULL)
+	if(unlikely(sk == NULL))
 	{
 		return NULL;
 	}
@@ -191,7 +191,7 @@ char *get_destination_ip_sk(const struct sock *sk)
 
 char *get_destination_ip(const struct socket *sock)
 {
-	if(sock == NULL)
+	if(unlikely(sock == NULL))
 	{
 		return NULL;
 	}
@@ -201,7 +201,7 @@ char *get_destination_ip(const struct socket *sock)
 
 char *get_ip(const struct sockaddr *addr)
 {
-	if(addr == NULL)
+	if(unlikely(addr == NULL))
 	{
 		return NULL;
 	}
@@ -234,7 +234,7 @@ char *get_ip(const struct sockaddr *addr)
 
 int any_ip_address(const char *ip)
 {
-	if (ip == NULL)
+	if(unlikely(ip == NULL))
 	{
 		return 0;
 	}
