@@ -13,6 +13,7 @@
 #include "inet_utils.h"
 #include "whitelist.h"
 #include "netlog.h"
+#include "logger.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 	#define get_current_uid() current->uid
@@ -70,11 +71,14 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	#endif
 
+//preempt_disable ();
 
-	printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
+	log_message("%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 						get_source_ip(sock), get_source_port(sock),
 						get_destination_ip(sock), get_destination_port(sock), 
 						get_current_uid());
+
+//preempt_enable_no_resched ();
 
 out:
 	match_socket[current->pid] = NULL;
@@ -113,10 +117,13 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	#endif
 
-	printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
+//preempt_disable ();
+
+	log_message("%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
 						get_source_ip(sock), get_source_port(sock),
 						get_destination_ip(sock), get_destination_port(sock), 
 						get_current_uid()); 
+//preempt_enable_no_resched ();
 
 out:
 	if(likely(sock != NULL))
@@ -152,19 +159,24 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 
 
 	if(is_tcp(sock) && likely(get_destination_port(sock) != 0))
-	{
-		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+	{	
+//preempt_disable ();
+		log_message("%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 							get_source_ip(sock), get_source_port(sock),
 							get_destination_ip(sock), get_destination_port(sock), 
 							get_current_uid());
+//preempt_enable_no_resched ();
 	}
+
 	#if PROBE_UDP
 	else if(is_udp(sock) && is_inet(sock))
 	{
-		printk(KERN_INFO MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+//preempt_disable ();
+		log_message("%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 							get_source_ip(sock), get_source_port(sock),
 							get_destination_ip(sock), get_destination_port(sock), 
 							get_current_uid());
+//preempt_enable_no_resched ();
 	}
 	#endif
 
@@ -215,13 +227,17 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 
 	if(any_ip_address(ip))
 	{
-		printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", current->comm, current->pid,
+//preempt_disable ();
+		log_message("%s[%d] UDP bind (any IP address):%d (uid=%d)\n", current->comm, current->pid,
 				 ntohs(((struct sockaddr_in *)addr)->sin_port), get_current_uid());
+//preempt_enable_no_resched ();
 	}
 	else
 	{
-		printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
+//preempt_disable ();
+		log_message("%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
 				ntohs(((struct sockaddr_in6 *)addr)->sin6_port), get_current_uid());
+//preempt_enable_no_resched ();
 	}
 
 out:
@@ -460,6 +476,8 @@ int __init plant_probes(void)
 {
 	int err;
 
+	init_logger(MODULE_NAME);
+
 	err = plant_all();
 
 	if(err < 0)
@@ -470,7 +488,6 @@ int __init plant_probes(void)
 	#if WHITELISTING
 	do_whitelist();
 	#endif
-	
 	return 0;
 }
 
@@ -481,5 +498,6 @@ int __init plant_probes(void)
 void __exit unplant_probes(void)
 {
 	unplant_all();
+	destroy_logger();
 }
 

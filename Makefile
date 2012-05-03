@@ -2,7 +2,7 @@
 # Variables needed to build the kernel module
 #
 name      = netlog
-src_files = inet_utils.c probes.c whitelist.c
+src_files = inet_utils.c probes.c whitelist.c logger.c
 
 obj-m += $(name).o
 $(name)-objs := $(src_files:.c=.o)
