@@ -143,7 +143,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 
 	sock = sockfd_lookup(fd, &err);
 
-	if(!is_inet(sock) || unlikely(current == NULL))
+	if(likely(!is_inet(sock)) || unlikely(current == NULL))
 	{
 		goto out;
 	}
