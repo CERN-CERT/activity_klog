@@ -76,6 +76,9 @@ release:    _increment_release _update_spec _git_commit_tag
 
 srcrpm: $(DISTS:=.srcrpm) $(DISTS:=.clean)
 
+slc5.srcrpm: dist.slc5/$(name).spec dist.slc5/$(name).tgz
+	@$(RPMBUILD) --define "_sourcedir ${PWD}/dist.slc5" --define "_srcrpmdir ${PWD}" --define "dist .slc5" --define '_source_filedigest_algorithm 1' --define '_binary_filedigest_algorithm 1' --define '_binary_payload w9.gzdio' -bs $<
+
 %.srcrpm: dist.%/$(name).spec dist.%/$(name).tgz
 	@$(RPMBUILD) --define "_sourcedir ${PWD}/dist.$*" --define "_srcrpmdir ${PWD}" --define "dist .$*" -bs $<
 
