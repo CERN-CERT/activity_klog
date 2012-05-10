@@ -64,7 +64,8 @@ int log_message(const char *format, ...)
 	mm_segment_t oldfs;
 	va_list arguments;
 	unsigned int message_length;
-	static char buffer[BUFFER_LEN + 1] = {'\0'};
+//	static char buffer[BUFFER_LEN + 1] = {'\0'};
+	char buffer[BUFFER_LEN + 1] = {'\0'};
 
 	if(unlikely(log_socket == NULL) || unlikely(format == NULL))
 	{

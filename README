@@ -51,7 +51,7 @@ path of the executables that you are interested in wtelisting at the netlog.h he
 					+--------------------------+
 					|Supported kernel versions |
 					+--------------------------+
-2.6.12 up to 3.3.0
+2.6.12 up to 3.3.2
 
 					+--------------------------+
 					|Format of the log messages|
