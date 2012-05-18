@@ -13,7 +13,6 @@
 #include "inet_utils.h"
 #include "whitelist.h"
 #include "netlog.h"
-#include "logger.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 	#define get_current_uid() current->uid
@@ -71,7 +70,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	#endif
 
-	log_message("%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
+	printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 						get_source_ip(sock), get_source_port(sock),
 						get_destination_ip(sock), get_destination_port(sock), 
 						get_current_uid());
@@ -113,7 +112,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	#endif
 
-	log_message("%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
+	printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
 						get_source_ip(sock), get_source_port(sock),
 						get_destination_ip(sock), get_destination_port(sock), 
 						get_current_uid()); 
@@ -152,7 +151,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 
 	if(is_tcp(sock) && likely(get_destination_port(sock) != 0))
 	{	
-		log_message("%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 							get_source_ip(sock), get_source_port(sock),
 							get_destination_ip(sock), get_destination_port(sock), 
 							get_current_uid());
@@ -162,7 +161,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 
 	else if(is_udp(sock) && is_inet(sock))
 	{
-		log_message("%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		printk(KERN_INFO MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 							get_source_ip(sock), get_source_port(sock),
 							get_destination_ip(sock), get_destination_port(sock), 
 							get_current_uid());
@@ -217,12 +216,12 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 
 	if(any_ip_address(ip))
 	{
-		log_message("%s[%d] UDP bind (any IP address):%d (uid=%d)\n", current->comm, current->pid,
+		printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", current->comm, current->pid,
 				 ntohs(((struct sockaddr_in *)addr)->sin_port), get_current_uid());
 	}
 	else
 	{
-		log_message("%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
+		printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
 				ntohs(((struct sockaddr_in6 *)addr)->sin6_port), get_current_uid());
 	}
 
@@ -462,8 +461,6 @@ int __init plant_probes(void)
 {
 	int err;
 
-	init_logger(MODULE_NAME);
-
 	err = plant_all();
 
 	if(err < 0)
@@ -487,6 +484,5 @@ int __init plant_probes(void)
 void __exit unplant_probes(void)
 {
 	unplant_all();
-	destroy_logger();
 }
 
