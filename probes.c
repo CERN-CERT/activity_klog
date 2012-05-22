@@ -217,12 +217,12 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 	if(any_ip_address(ip))
 	{
 		printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", current->comm, current->pid,
-				 ntohs(((struct sockaddr_in *)addr)->sin_port), get_current_uid());
+							 ntohs(((struct sockaddr_in *)addr)->sin_port), get_current_uid());
 	}
 	else
 	{
 		printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
-				ntohs(((struct sockaddr_in6 *)addr)->sin6_port), get_current_uid());
+						ntohs(((struct sockaddr_in6 *)addr)->sin6_port), get_current_uid());
 	}
 
 out:
