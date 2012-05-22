@@ -7,14 +7,14 @@
 
 %{!?dist: %define dist .slc5}
 
-Source0: %{kmod_name}-%{kmod_driver_version}.tgz
-Source1: kmodtool-%{kmod_name}
-Source2: %{kmod_name}.modules
+Source0:	%{kmod_name}-%{kmod_driver_version}.tgz
+Source1:	kmodtool-%{kmod_name}
+Source2:	%{kmod_name}.modules
 
-%define kmodtool bash %{SOURCE1}
+%define kmodtool	bash %{SOURCE1}
 #define __find_requires %_sourcedir/find-requires.ksyms
 
-%define kverrel %(%{kmodtool} verrel %kmod_kernel_version 2>/dev/null)
+%define kverrel		%(%{kmodtool} verrel %kmod_kernel_version 2>/dev/null)
 
 # does not build for xen or PAE kernels:
 # probes.c:81: error: implicit declaration of function 'regs_return_value'
@@ -26,17 +26,17 @@ Source2: %{kmod_name}.modules
 #define paevar PAE
 #endif
 
-%define upvar ""
+%define upvar	""
 %{!?kvariants: %define kvariants %{?upvar} %{?xenvar} %{?paevar}}
 
-Name: %{kmod_name}
-Version: %{kmod_driver_version}
-Release: %{kmod_rpm_release}%{?dist}
-Summary: %{kmod_name} kernel module       
-Group:   System Environment/Kernel
-License: GPL
-URL:     http://www.cern.ch/
-Vendor: CERN, http://cern.ch/linux
+Name:		%{kmod_name}
+Version:	%{kmod_driver_version}
+Release:	%{kmod_rpm_release}%{?dist}
+Summary:	Kernel module for logging network connections details
+Group:		System Environment/Kernel
+License:	GPL
+URL:		http://www.cern.ch/
+Vendor:		CERN, http://cern.ch/linux
 BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildRequires:  sed
 BuildRequires:	%kernel_module_package_buildreqs
@@ -86,6 +86,7 @@ if [ -d firmware ]; then
 fi
 
 %install
+rm -rf $RPM_BUILD_ROOT
 export INSTALL_MOD_PATH=$RPM_BUILD_ROOT
 export INSTALL_MOD_DIR=extra/%{kmod_name}
 for kvariant in %{kvariants}
