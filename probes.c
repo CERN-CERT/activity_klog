@@ -447,7 +447,7 @@ void do_whitelist(void)
 
 	if(whitelist_length > MAX_WHITELIST_SIZE)
 	{
-		printk(KERN_ERR MODULE_NAME "Cannot whitelist more than %d paths. %d last parameters paths will be ignored. \
+		printk(KERN_ERR MODULE_NAME "Cannot whitelist more than %d paths. The %d last parameters paths will be ignored. \
 					Please change MAX_WHITELIST_SIZE definition in netlog.h and recompile, or contact \
 					CERN-CERT <cert@cern.ch>\n", MAX_WHITELIST_SIZE, whitelist_length - MAX_WHITELIST_SIZE);
 					
