@@ -205,6 +205,7 @@ if [ "" == "$override_filelist" ];
 then
     echo "%defattr(644,root,root,755)"
     echo "/lib/modules/${verrel}${dotvariant}"
+    echo "%config(noreplace) /etc/sysconfig/modules/${kmod_name}.modules"
 else
     cat "$override_filelist" | get_filelist
 fi
