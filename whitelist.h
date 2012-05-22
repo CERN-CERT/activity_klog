@@ -14,7 +14,7 @@
 
 /*The number of maximum whitelisted processes*/
 
-#define MAX_WHITELIST_SIZE 16
+#define MAX_WHITELIST_SIZE 32
 
 struct task_struct;
 

@@ -6,9 +6,9 @@
 #include "whitelist.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 25)
-#define call_d_path(file, buffer, length) d_path(file->f_dentry, file->f_vfsmnt, buffer, length);
+	#define call_d_path(file, buffer, length) d_path(file->f_dentry, file->f_vfsmnt, buffer, length);
 #else
-#define call_d_path(file, buffer, length) d_path(&file->f_path, buffer, length);
+	#define call_d_path(file, buffer, length) d_path(&file->f_path, buffer, length);
 #endif
 
 int size = 0;
