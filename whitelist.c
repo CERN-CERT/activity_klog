@@ -16,6 +16,7 @@ char white_list[MAX_WHITELIST_SIZE][MAX_ABSOLUTE_EXEC_PATH + 1];
 
 int whitelist(const char *process_name)
 {
+	int i;
 	unsigned int name_length;
 
 	if(size == MAX_WHITELIST_SIZE)
@@ -32,6 +33,18 @@ int whitelist(const char *process_name)
 		/*Fail to whitelist empty input or input greater than our limit*/
 
 		return WHITELIST_FAIL;
+	}
+
+	/*Check if it's already whitelisted*/
+	
+	for(i = 0; i < size; ++i)
+	{
+		if(strncmp(white_list[i], process_name, MAX_ABSOLUTE_EXEC_PATH) == 0)
+		{
+			/*Already whitelisted*/
+			
+			return WHITELIST_FAIL;
+		}
 	}
 
 	memset(white_list[size], '\0', MAX_ABSOLUTE_EXEC_PATH);
