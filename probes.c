@@ -431,13 +431,32 @@ int plant_all(void)
 	return 0;
 }
 
+#if WHITELISTING
+
+static int whitelist_length = 0;
+static char *procs_to_whitelist[MAX_WHITELIST_SIZE] = {'\0'};
+
+module_param_array(procs_to_whitelist, charp, &whitelist_length, 0000);
+MODULE_PARM_DESC(procs_to_whitelist, "An array of strings that contains the executable paths that will be whitelisted");
+
 void do_whitelist(void)
 {
 	int i, err;
 
 	/*Deal with the whitelisting*/
 
-	for(i = 0; i < NO_WHITELISTS; ++i)
+	if(whitelist_length > MAX_WHITELIST_SIZE)
+	{
+		printk(KERN_ERR MODULE_NAME "Cannot whitelist more than %d paths. %d last parameters paths will be ignored. \
+					Please change MAX_WHITELIST_SIZE definition in netlog.h and recompile, or contact \
+					CERN-CERT <cert@cern.ch>\n", MAX_WHITELIST_SIZE, whitelist_length - MAX_WHITELIST_SIZE);
+					
+		whitelist_length = MAX_WHITELIST_SIZE;
+	}
+
+	/*Will not check if the paths are valid, because in case that they are, they will be ignored*/
+
+	for(i = 0; i < whitelist_length; ++i)
 	{
 		err = whitelist(procs_to_whitelist[i]);
 
@@ -452,6 +471,7 @@ void do_whitelist(void)
 	}
 }
 
+#endif
 
 /************************************/
 /*             INIT MODULE          */

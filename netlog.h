@@ -32,30 +32,6 @@
 
 #define MAX_EXEC_PATH 64
 
-/*Process names to be whitelisted */
-
-#define NO_WHITELISTS 16
-
-const char procs_to_whitelist[NO_WHITELISTS][MAX_EXEC_PATH] =
-{
-		"/usr/bin/nsls",
-		"/usr/bin/rfstat",
-		"/usr/bin/rfcp",
-		"/usr/bin/rfdir",
-		"/usr/bin/bjobs",
-		"/usr/bin/bsub",
-		"/usr/bin/rfcat",
-		"/usr/bin/rfchmod",
-		"/usr/bin/rfmkdir",
-		"/usr/bin/rfrename",
-		"/usr/bin/rfrm",
-		"/usr/bin/showqueues",
-		"/usr/sbin/lemon-agent",
-		"/usr/sbin/ccm-fetch",
-		"/usr/sbin/ncm-ncd",
-		"/opt/splunkforwarder/bin/splunkd"
-};
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Panos Sakkos <panos.sakkos@cern.ch>");
 MODULE_DESCRIPTION("netlog logs information about every internet connection\
