@@ -9,7 +9,7 @@
 
 Source0: %{kmod_name}-%{kmod_driver_version}.tgz
 Source1: kmodtool-%{kmod_name}
-#Source3: find-requires.ksyms
+Source2: %{kmod_name}.modules
 
 %define kmodtool bash %{SOURCE1}
 #define __find_requires %_sourcedir/find-requires.ksyms
@@ -109,7 +109,7 @@ fi
 #Load at boot time
 
 mkdir -p ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
-install -m 0755 %{kmod_name}.modules ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
+install -m0755 %{SOURCE2} ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
 
 %clean
 rm -rf $RPM_BUILD_ROOT

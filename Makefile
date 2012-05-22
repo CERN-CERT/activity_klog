@@ -85,7 +85,7 @@ slc5.srcrpm: dist.slc5/$(name).spec dist.slc5/$(name).tgz
 %.tgz:
 	@version=`cat VERSION`; \
 	mkdir $(name)-$$version; \
-	rsync -a --exclude $(name)-$$version --exclude ".git*" --exclude "*.rpm" --exclude "*.tgz" --exclude "dist.*" . $(name)-$$version/; \
+	rsync -a --exclude $(name)-$$version --exclude ".git*" --exclude "*.rpm" --exclude "*.tgz" --exclude "dist.*" --exclude webpage . $(name)-$$version/; \
 	tar -zchf $*-$$version.tgz $(name)-$$version/; \
 	rm -rf $(name)-$$version/
 

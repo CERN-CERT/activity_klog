@@ -10,6 +10,7 @@
 Source0: %{kmod_name}-%{kmod_driver_version}.tgz
 Source1: %{kmod_name}.files
 Source2: %{kmod_name}.conf
+Source3: %{kmod_name}.modules
 Source4: kmodtool-%{kmod_name}
 
 Name: %{kmod_name}
@@ -70,7 +71,7 @@ install -m644 -D %{SOURCE2} $RPM_BUILD_ROOT/etc/depmod.d/%{kmod_name}.conf
 #Load at boot time
 
 mkdir -p ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
-install -m 0755 %{kmod_name}.modules ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
+install -m0755 %{SOURCE3} ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
 
 %clean
 rm -rf $RPM_BUILD_ROOT
