@@ -18,13 +18,13 @@ Version:	%{kmod_driver_version}
 Release:	%{kmod_rpm_release}%{?dist}
 Summary:	Kernel module for logging network connections details
 Group:		System Environment/Kernel
-License: 	GPL
+License:	GPLv2+
 URL:		http://www.cern.ch/
 Vendor:		CERN, http://cern.ch/linux
 BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
-BuildRequires:  sed
+BuildRequires:	sed
 BuildRequires:	%kernel_module_package_buildreqs
-ExclusiveArch:  i686 x86_64
+ExclusiveArch:	i686 x86_64
 
 # Uncomment to build "debug" packages
 #kernel_module_package -f %{SOURCE1} default debug
@@ -44,8 +44,8 @@ mkdir obj
 
 %build
 for flavor in %flavors_to_build ; do
-  rm -rf obj/$flavor
-  cp -r source obj/$flavor
+	rm -rf obj/$flavor
+	cp -r source obj/$flavor
 
 	# update symvers file if existing
 	symvers=source/Module.symvers-%{_target_cpu}
@@ -53,7 +53,7 @@ for flavor in %flavors_to_build ; do
 		cp $symvers obj/$flavor/Module.symvers
 	fi
 
-   make -C %{kernel_source $flavor} M=$PWD/obj/$flavor
+	 make -C %{kernel_source $flavor} M=$PWD/obj/$flavor
 done
 
 %install
@@ -61,9 +61,9 @@ rm -rf $RPM_BUILD_ROOT
 export INSTALL_MOD_PATH=$RPM_BUILD_ROOT
 export INSTALL_MOD_DIR=extra/%{kmod_name}
 for flavor in %flavors_to_build ; do 
-   make -C %{kernel_source $flavor} modules_install \
-     M=$PWD/obj/$flavor
-  # Cleanup unnecessary kernel-generated module dependency files.
+	 make -C %{kernel_source $flavor} modules_install \
+	 M=$PWD/obj/$flavor
+	# Cleanup unnecessary kernel-generated module dependency files.
 	find $INSTALL_MOD_PATH/lib/modules -iname 'modules.*' -exec rm {} \;
 done
 
