@@ -108,11 +108,7 @@ fi
 
 #Load at boot time
 
-touch /etc/sysconfig/modules/netlog.module
-chmod 0755 /etc/sysconfig/modules/netlog.module
-echo modprobe netlog procs_to_whitelist="/usr/bin/nsls","/usr/bin/rfstat","/usr/bin/rfcp","/usr/bin/rfdir","/usr/bin/bjobs","/usr/bin/bsub","/usr/bin/rfcat","/usr/bin/rfchmod","/usr/bin/rfmkdir","/usr/bin/rfrename","/usr/bin/rfrm","/usr/bin/showqueues","/usr/sbin/lemon-agent","/usr/sbin/ccm-fetch","/usr/sbin/ncm-ncd","/opt/splunkforwarder/bin/splunkd","/usr/sbin/puppetd","/usr/bin/ruby","/usr/sbin/lemon-agent"
-
-#TODO mark this file as configuration file
+install -m 0755 %{kmod_name}.modules ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
 
 %clean
 rm -rf $RPM_BUILD_ROOT
