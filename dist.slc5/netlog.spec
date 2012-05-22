@@ -108,6 +108,7 @@ fi
 
 #Load at boot time
 
+mkdir -p ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
 install -m 0755 %{kmod_name}.modules ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
 
 %clean
