@@ -8,7 +8,7 @@
     <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
     <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
 
-    <title>Netlog by CERN-CERT</title>
+    <title>Netlog by CERN Security Team</title>
   </head>
 
   <body>
@@ -16,81 +16,95 @@
     <header>
       <div class="container">
         <h1>Netlog</h1>
-        <h2>Netlog is a Loadable Kernel Module that logs information for every connection. With the help of kprobes API, it tracks the connect and accept system calls and  in case that the connection for TCP, it logs the process name and Process ID,  the User ID that owns this process, the protocol (TCP/UDP), the local IP address and port as well as the remote IP address and port.</h2>
+        <h2>Netlog is a Loadable Kernel Module that logs information for every connection. With the help of kprobes API, it tracks the connect and accept system calls and  in case that the connection for TCP, it logs the process name and Process ID,  the User ID that owns this process, the protocol (TCP/UDP), the local IP address and port as well as the remote IP address and port. </h2>
 
         <section id="downloads">
-          <a href="" class="btn">Download source rpm</a>
-          <a href="https://github.com/CERN-CERT/netlog/zipball/master" class="btn">Download as .zip</a>
-          <a href="https://github.com/CERN-CERT/netlog/tarball/master" class="btn">Download as .tar.gz</a>  
-        </section>
+          <a href="./netlog-1.12-1.slc5.src.rpm" class="btn">Download SLC 5 source rpm</a>
+          <a href="./netlog-1.12-1.slc6.src.rpm" class="btn">Download SLC 6 source rpm</a>
+          </section>
         </br>
-        <section id="downloads">
-          <a href="https://github.com/CERN-CERT/netlog" class="btn btn-github"><span class="icon"></span>View on GitHub</a>
+        <section id="downloads">          
+          <a href="https://github.com/cern-cert/netlog" class="btn btn-github"><span class="icon"></span>View on GitHub</a>
         </section>
-
-</div>
+      </div>
     </header>
 
     <div class="container">
       <section id="main_content">
-<h3>Description</h3>
+        <h3>Description</h3>
 
-<p>Netlog is a Loadable Kernel Module that logs information for every connection on the hosted machine.
-By utilizing the kprobes API, it probes the connect and accept system calls ,for TCP connections,
-as well as the bind system call, for UDP connections, and the socket destruction. 
-While probing, it logs the process name and process id, the user id that owns this process, the protocol
-(TCP/UDP), the local IP address and port as well as the remote IP address and port.</p>
+<p>Netlog is a Loadable Kernel Module that logs information about every internet connection
+from and to the machine that is installed. This information is source/destination ips and ports,
+process name and pid, uid and the protocol (TCP/UDP).</p>
 
-<p>For UDP, it tracks only the bind system call, because UDP is a connectionless protocol,
+<p>For UDP, it tracks the bind system call, because UDP is a connectionless protocol,
 so the other approach was to track the packet communication, something that would
-add a lot of overhead. In order to compile the code that tracks UDP, you 
+add a lot of overhead. The data that is logged, is the process name and Process ID,
+the User ID of the process owner, the protocol (UDP) and the information about the IP address
+and port that bind holds at its parameters. In order to compile the code that tracks UDP, you 
 have to change the symbolic constant (PROBE_UDP) that it's defined in the netlog header (netlog.h) from
 zero (0) to a non-zero value (i.e. 1).</p>
 
 <p>Netlog also tracks the destruction of the sockets. This is done by probing the 
 inet_shutdown kernel call, which is called after the close system call is called.
-In order to compile the code that tracks the connection close, you need to change the value of the
+If the socket is created for a TCP protocol or a UDP (if UDP probing is true) it
+logs the process name and Process ID that created it, as well as the Used ID that owns this
+process, the protocol (TCP or UDP), the local IP address and port and the remote IP address and port.
+in order to compile the code that tracks the connection close, you need to change the value of the
 symbolic constant (PROBE_CONNECTION_CLOSE) that is defined in the netlog header file (netlog.h) from 
 zero (0) to a non-zero value (i.e. 1).</p>
 
-<p>Whitelisting:</p>
+<h3>Whitelisting:</h3>
 
-<p>netlog offers whitelisting of executables. Change the symbolic constant WHITELISTING in netlog.h header
-to 0 or 1, if you want to compile or not the whitelisting code accordingly. Then, add the full execution
-path of the executables that you are interested in wtelisting at the netlog.h header.</p>
+<p>
+netlog offers whitelisting of executables. In order to whitelist an executable you have to 
+give as parameters the desired paths. Edit the file /etc/sysconfig/module/netlog.modules.
+By default the content of this file is:
+
+<pre><code>modprobe netlog procs_to_whitelist="/absolute/path/1","/absolute/path/2","/etc"</code></pre>
+
+Replace the dummy placeholders with the executable paths that you want to exlcude from netlog's probing.
+You can add up to 30 paths.
+</p>
+
+<h3>How to deploy</h3>
+
+<p>
+<pre><code>sudo yum install rpm-build redhat-rpm-config kernel-devel gcc</code></pre>
+<pre><code>cd /tmp/</code></pre>
+<pre><code>git init</code></pre>
+<pre><code>git pull https://github.com/CERN-CERT/netlog</code></pre>
+<pre><code>rpmbuild --rebuild netlog-*.slc6.src.rpm</code></pre>
+<pre><code>sudo rpm -i ~/rpmbuild/RPMS/x86_64/kmod-netlog-*.rpm</code></pre>
+<pre><code>sudo depmod -a</code></pre>
+<pre><code>sudo modprobe netlog</code></pre>
+</p>
+
+<h3>Supported kernel versions</h3>
+
+<p>2.6.12 up to 3.3.0</p>
 
 <h3>Format of the log messages</h3>
 
 <p>TCP connect:
-Dec 19 14:03:17 hostname kernel: netlog: http[3206] TCP 123.456.789.012:52507 -&gt; 123.456.789.013:80 (uid=0)</p>
+Dec 19 14:03:17 panos-PC kernel: [ 1341.648413] netlog: http[3206] TCP 137.138.191.167:52507 -&gt; 130.59.10.36:80 (uid=0)</p>
 
 <p>TCP accept:
-Dec 19 14:18:37 hostname kernel: netlog: sshd[827] TCP 123.456.789.012:22 &lt;- 123.456.789.013:49904 (uid=0)</p>
+Dec 19 14:18:37 panos-PC kernel: [ 2262.125936] netlog: sshd[827] TCP 137.138.191.167:22 &lt;- 137.138.32.18:49904 (uid=0)</p>
 
 <p>UDP binds:
-Dec 19 14:22:50 hostname kernel: netlog: skype[4261] UDP bind 123.456.789.012:0 (uid=1000)
-Dec 19 14:22:50 hostname kernel: netlog: skype[4261] UDP bind (any IP address):2752 (uid=1000)</p>
+Dec 19 14:22:50 panos-PC kernel: [ 2515.081074] netlog: skype[4261] UDP bind 127.0.0.1:0 (uid=1000)
+Dec 19 14:22:50 panos-PC kernel: [ 2515.271375] netlog: skype[4261] UDP bind (any IP address):2752 (uid=1000)</p>
 
 <p>Connection close:
-Dec 19 14:19:07 hostname kernel: netlog: sshd[3755] TCP 123.456.789.012:22 &lt;-&gt; 123.456.789.013:49904 (uid=0)</p>
+Dec 19 14:19:07 panos-PC kernel: [ 2292.580879] netlog: sshd[3755] TCP 137.138.191.167:22 &lt;-&gt; 137.138.32.18:49904 (uid=0)</p>
 
-<h3>How to compile</h3>
+<h3>Before reading the source code</h3>
 
-<p>In the source directory run:</p>
-
-<pre><code>make -C /lib/modules/$(uname -r)/build M=$PWD
-</code></pre>
-
-<p>Then run:</p>
-
-<pre><code>insmod netlog.ko
-</code></pre>
-
-<p>in order to insert the module in the kernel.
-And in order to remove it, run:</p>
-
-<pre><code>rmmod netlog
-</code></pre>
+<p>First of all you have to be experienced with the C language and by experienced I mean at least to
+be familiar with pointers. Also you need to know how the system calls are handled from the Linux Kernel
+and to be familiar with the inet level of the kernel source code. For the last thing, grep is your friend.
+Furthermore you have to know how kprobes works (or at least its API).</p>
 
 <h3>Support or Contact</h3>
 
@@ -98,7 +112,6 @@ And in order to remove it, run:</p>
 CERN CERT</a></p>
       </section>
     </div>
-
     
   </body>
 </html>
