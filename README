@@ -4,7 +4,7 @@
 
 Product name: 			netlog
 Date:				Apr 5 2012
-Version:			1.10
+Version:			1.12
 Vendor:				CERN
 Author:				Panos Sakkos while at Computer Security Team 
 CST Email:			cert-sec@cern.ch
@@ -44,14 +44,13 @@ zero (0) to a non-zero value (i.e. 1).
 
 Whitelisting:
 
-netlog offers whitelisting of executables. Change the symbolic constant WHITELISTING in netlog.h header
-to 0 or 1, if you want to compile or not the whitelisting code accordingly. Then, add the full execution
-path of the executables that you are interested in wtelisting at the netlog.h header.
+netlog offers whitelisting of executables. In order to whitelist an executable you have to 
+give as parameters the desired paths. Edit the file /etc/sysconfig/module/netlog.modules.
 
 					+--------------------------+
 					|Supported kernel versions |
 					+--------------------------+
-2.6.12 up to 3.3.2
+2.6.12 up to 3.3.3
 
 					+--------------------------+
 					|Format of the log messages|
