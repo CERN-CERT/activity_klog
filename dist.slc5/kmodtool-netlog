@@ -171,7 +171,7 @@ then
     echo "/lib/modules/${verrel}${variant}/"
     echo "/lib/firmware/"
     echo "/etc/depmod.d/${kmod_name}${variant}.conf"
-    echo "%config(noreplace) /etc/sysconfig/modules/${kmod_name}.modules"
+    echo "%config(noreplace) %attr(755, root, root) /etc/sysconfig/modules/${kmod_name}.modules"
 else
     cat "$kmp_override_filelist"
 fi
