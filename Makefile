@@ -23,6 +23,8 @@ PERL     = perl
 RPMBUILD = rpmbuild
 SED      = sed
 
+all: srcrpm
+
 #+++############################################################################
 #                                                                              #
 # version management                                                           #
