@@ -53,7 +53,7 @@ for flavor in %flavors_to_build ; do
 		cp $symvers obj/$flavor/Module.symvers
 	fi
 
-	 make -C %{kernel_source $flavor} M=$PWD/obj/$flavor
+	make -C %{kernel_source $flavor} M=$PWD/obj/$flavor
 done
 
 %install
