@@ -13,6 +13,7 @@
 #include "inet_utils.h"
 #include "whitelist.h"
 #include "netlog.h"
+#include "connection.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 	#define get_current_uid() current->uid
@@ -48,6 +49,8 @@ out:
 static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct socket *sock;
+	int destination_port;
+	char *destination_ip;
 
 	sock = match_socket[current->pid];
 
@@ -61,9 +64,12 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 		goto out;
 	}	
 
+	destination_ip = get_destination_ip(sock);
+	destination_port = get_destination_port(sock);
+
 	#if WHITELISTING
 
-	if(is_whitelisted(current))
+	if(is_whitelisted(current, destination_ip, destination_port))
 	{
 		goto out;
 	}
@@ -72,7 +78,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 						get_source_ip(sock), get_source_port(sock),
-						get_destination_ip(sock), get_destination_port(sock), 
+						destination_ip, destination_port, 
 						get_current_uid());
 
 out:
@@ -90,6 +96,8 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	int err;
 	struct socket *sock;
+	int destination_port;
+	char *destination_ip;
 
 	sock = sockfd_lookup(regs_return_value(regs), &err);
 
@@ -103,9 +111,12 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 		goto out;
 	}
 
+	destination_ip = get_destination_ip(sock);
+	destination_port = get_destination_port(sock);
+
 	#if WHITELISTING
 
-	if(is_whitelisted(current))
+	if(is_whitelisted(current, destination_ip, destination_port))
 	{
 		goto out;
 	}
@@ -114,7 +125,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
 						get_source_ip(sock), get_source_port(sock),
-						get_destination_ip(sock), get_destination_port(sock), 
+						destination_ip, destination_port, 
 						get_current_uid()); 
 
 out:
@@ -132,6 +143,8 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 {
 	int err;
 	struct socket *sock;
+	int destination_port;
+	char *destination_ip;
 
 	sock = sockfd_lookup(fd, &err);
 
@@ -140,9 +153,12 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 		goto out;
 	}
 
+	destination_ip = get_destination_ip(sock);
+	destination_port = get_destination_port(sock);
+
 	#if WHITELISTING
 
-	if(is_whitelisted(current))
+	if(is_whitelisted(current, destination_ip, destination_port))
 	{
 		goto out;
 	}
@@ -153,7 +169,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 	{	
 		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 							get_source_ip(sock), get_source_port(sock),
-							get_destination_ip(sock), get_destination_port(sock), 
+							destination_ip, destination_port, 
 							get_current_uid());
 	}
 
@@ -163,7 +179,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 	{
 		printk(KERN_INFO MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 							get_source_ip(sock), get_source_port(sock),
-							get_destination_ip(sock), get_destination_port(sock), 
+							destination_ip, destination_port, 
 							get_current_uid());
 	}
 
@@ -190,6 +206,8 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 	char *ip;
 	int err;
 	struct socket * sock;
+	int destination_port;
+	char *destination_ip;
 
 	sock = sockfd_lookup(sockfd, &err);
 
@@ -203,16 +221,22 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 		goto out;
 	}
 
+	destination_ip = get_destination_ip(sock);
+	destination_port = get_destination_port(sock);
+
+
+	ip = get_ip(addr);
+
 	#if WHITELISTING
 
-	if(is_whitelisted(current))
+//TODO review this shit
+
+	if(is_whitelisted(current, ip, NO_PORT))
 	{
 		goto out;
 	}
 
 	#endif
-
-	ip = get_ip(addr);
 
 	if(any_ip_address(ip))
 	{
@@ -434,10 +458,11 @@ int plant_all(void)
 #if WHITELISTING
 
 static int whitelist_length = 0;
-static char *procs_to_whitelist[MAX_WHITELIST_SIZE] = {'\0'};
+static char *connections_to_whitelist[MAX_WHITELIST_SIZE] = {'\0'};
 
-module_param_array(procs_to_whitelist, charp, &whitelist_length, 0000);
-MODULE_PARM_DESC(procs_to_whitelist, "An array of strings that contains the executable paths that will be whitelisted");
+module_param_array(connections_to_whitelist, charp, &whitelist_length, 0000);
+MODULE_PARM_DESC(connections_to_whitelist, "An array of strings that contains the connections that netlog will ignore.\
+					    The format of the string must be '/absolute/executable/path ip_address-port'");
 
 void do_whitelist(void)
 {
@@ -447,7 +472,7 @@ void do_whitelist(void)
 
 	if(whitelist_length > MAX_WHITELIST_SIZE)
 	{
-		printk(KERN_ERR MODULE_NAME "Cannot whitelist more than %d paths. The %d last parameters paths will be ignored. \
+		printk(KERN_ERR MODULE_NAME "Cannot whitelist more than %d connections. The %d last parameters paths will be ignored. \
 					Please change MAX_WHITELIST_SIZE definition in netlog.h and recompile, or contact \
 					CERN-CERT <cert@cern.ch>\n", MAX_WHITELIST_SIZE, whitelist_length - MAX_WHITELIST_SIZE);
 					
@@ -458,15 +483,15 @@ void do_whitelist(void)
 
 	for(i = 0; i < whitelist_length; ++i)
 	{
-		err = whitelist(procs_to_whitelist[i]);
+		err = whitelist(connections_to_whitelist[i]);
 
 		if(err < 0)
 		{
-			printk(KERN_ERR MODULE_NAME "Failed to whitelist %s\n", procs_to_whitelist[i]);
+			printk(KERN_ERR MODULE_NAME "Failed to whitelist %s\n", connections_to_whitelist[i]);
 		}
 		else
 		{
-			printk(KERN_INFO MODULE_NAME "Whitelisted %s\n", procs_to_whitelist[i]);
+			printk(KERN_INFO MODULE_NAME "Whitelisted %s\n", connections_to_whitelist[i]);
 		}
 	}
 }
@@ -504,5 +529,6 @@ int __init plant_probes(void)
 void __exit unplant_probes(void)
 {
 	unplant_all();
+	destroy_whitelist();
 }
 
