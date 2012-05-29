@@ -4,6 +4,7 @@
 #include <linux/version.h>
 #include <linux/err.h>
 #include "whitelist.h"
+#include "connection.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 25)
 	#define call_d_path(file, buffer, length) d_path(file->f_dentry, file->f_vfsmnt, buffer, length);
@@ -12,51 +13,51 @@
 #endif
 
 int size = 0;
-char white_list[MAX_WHITELIST_SIZE][MAX_ABSOLUTE_EXEC_PATH + 1];
+struct connection *white_list[MAX_WHITELIST_SIZE];
 
-int whitelist(const char *process_name)
+int whitelist(const char *connection_string)
 {
 	int i;
-	unsigned int name_length;
+//	unsigned int name_length;
+	struct connection *connection_to_whitelist;
 
 	if(size == MAX_WHITELIST_SIZE)
 	{
 		/*List is full, cannot whitelist more processes*/
 
-		return WHITELIST_FAIL;
+		goto out_fail;
 	}
 
-	name_length = strnlen(process_name, MAX_ABSOLUTE_EXEC_PATH);
-
-	if(name_length == 0 || name_length == MAX_ABSOLUTE_EXEC_PATH)
+	connection_to_whitelist = initialize_connection_from_string(connection_string);
+	
+	if(connection_to_whitelist == NULL)
 	{
-		/*Fail to whitelist empty input or input greater than our limit*/
-
-		return WHITELIST_FAIL;
+		goto out_fail;
 	}
 
 	/*Check if it's already whitelisted*/
 	
 	for(i = 0; i < size; ++i)
 	{
-		if(strncmp(white_list[i], process_name, MAX_ABSOLUTE_EXEC_PATH) == 0)
+		if(connections_are_equal(connection_to_whitelist, white_list[i]))
 		{
 			/*Already whitelisted*/
 			
-			return WHITELIST_FAIL;
+			goto out_fail;
 		}
 	}
 
-	memset(white_list[size], '\0', MAX_ABSOLUTE_EXEC_PATH);
-	strncpy(white_list[size], process_name, MAX_ABSOLUTE_EXEC_PATH);
+	white_list[size] = connection_to_whitelist;	
 	++size;
 
 	return WHITELISTED;
+out_fail:
+	return WHITELIST_FAIL;
 }
 
 char *exe_from_mm(const struct mm_struct *mm, char *buf, int len);
 
-int is_whitelisted(const struct task_struct *task)
+int is_whitelisted(const struct task_struct *task, const char *ip, const int port)
 {
 	int i;
 	unsigned int path_length;
@@ -64,7 +65,7 @@ int is_whitelisted(const struct task_struct *task)
 
 	if(unlikely(task == NULL) || unlikely(task->mm == NULL))
 	{
-		return WHITELIST_FAIL;
+		goto not_whitelisted;
 	}
 
 	/*Retrieve the absolute execution path of the process*/
@@ -73,7 +74,7 @@ int is_whitelisted(const struct task_struct *task)
 
 	if(unlikely(path == NULL))
 	{
-		return NOT_WHITELISTED;
+		goto not_whitelisted;
 	}
 
 	path_length = strnlen(path, MAX_ABSOLUTE_EXEC_PATH);
@@ -82,21 +83,24 @@ int is_whitelisted(const struct task_struct *task)
 	{
 		/*Empty or paths greater than our limit are not whitelisted*/
 
-		return NOT_WHITELISTED;
+		goto not_whitelisted;
 	}
 
-	/*Check if exists in the whitelist*/
+	/*Check if the execution path and the ip and port are whitelisted*/
 	
 	for(i = 0; i < size; ++i)
 	{
-		if(strncmp(white_list[i], path, MAX_ABSOLUTE_EXEC_PATH) == 0)
+		if(connection_matches_attributes(white_list[i], path, ip, port))
 		{
-			/*Process found in the whitelist*/
+			/*Connection found in the whitelist*/
 			
-			return WHITELISTED;
+			goto whitelisted;
 		}
 	}
 
+whitelisted:
+	return WHITELISTED;
+not_whitelisted:
 	return NOT_WHITELISTED;
 }
 
@@ -134,4 +138,15 @@ char *exe_from_mm(const struct mm_struct *mm, char *buffer, int length)
 
 	return p;
 }
+
+void destroy_whitelist(void)
+{
+	int i;
+	
+	for(i = 0; i < size; ++i)
+	{
+		destroy_connection(white_list[i]);
+	}
+}
+
 
