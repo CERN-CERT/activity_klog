@@ -3,28 +3,28 @@
 					+---------------------------+
 
 Product name: 			netlog
-Date:				Apr 5 2012
-Version:			1.12
+Date:				Jun 5 2012
+Version:			1.15
 Vendor:				CERN
 Author:				Panos Sakkos while at Computer Security Team 
 CST Email:			cert-sec@cern.ch
 Author Email:			<panos.sakkos@cern.ch> 
 License: 			GPLv3	
-						+-------+
-						|License|
-						+-------+
+					+-------+
+					|License|
+					+-------+
 
 Copyright 2011 CERN. This software is distributed under the terms of the GNU General Public
-Licence version 3 (GPL Version 3), copied verbatim in the file ï¿œCOPYINGï¿œ. In applying this licence,
+Licence version 3 (GPL Version 3), copied verbatim in the file COPYING. In applying this licence,
 CERN does not waive the privileges and immunities granted to it by virtue of its status as an 
 Intergovernmental Organization or submit itself to any jurisdiction.
 
 
-						+-----------+
-						|Description|
-						+-----------+
+					+-----------+
+					|Description|
+					+-----------+
 
-Netlog is a Loadable Kernel Module that logs information for every connection on the hosted machine.
+netlog is a Loadable Kernel Module that logs information for every connection on the hosted machine.
 By utilizing the kprobes API, it probes the connect and accept system calls ,for TCP connections,
 as well as the bind system call, for UDP connections, and the socket destruction. 
 While probing, it logs the process name and process id, the user id that owns this process, the protocol
@@ -34,23 +34,57 @@ For UDP, it tracks only the bind system call, because UDP is a connectionless pr
 so the other approach was to track the packet communication, something that would
 add a lot of overhead. In order to compile the code that tracks UDP, you 
 have to change the symbolic constant (PROBE_UDP) that it's defined in the netlog header (netlog.h) from
-zero (0) to a non-zero value (i.e. 1).
+zero (0) to a non-zero value (i.e. 1) and recompile netlog.
 
-Netlog also tracks the destruction of the sockets. This is done by probing the 
+netlog also tracks the destruction of the sockets. This is done by probing the 
 inet_shutdown kernel call, which is called after the close system call is called.
 In order to compile the code that tracks the connection close, you need to change the value of the
 symbolic constant (PROBE_CONNECTION_CLOSE) that is defined in the netlog header file (netlog.h) from 
-zero (0) to a non-zero value (i.e. 1).
+zero (0) to a non-zero value (i.e. 1) and recompile netlog.
 
-Whitelisting:
+					+--------------------+
+					|Dynamic Whitelisting|
+					+--------------------+
 
-netlog offers whitelisting of executables. In order to whitelist an executable you have to 
-give as parameters the desired paths. Edit the file /etc/sysconfig/module/netlog.modules.
+netlog offers whitelisting of connections at insertion time. This is done by passing parameters to the module.
+The parameter is named connections_to_whitelist and it's an array of strings with the following format:
+
+"/absolute/execution/path|i<ip address>|p<port number>"
+
+i.e.:
+	"/usr/bin/sshd|i<127.128.0.0>|p<22>"
+	"/usr/bin/sshd|i<127.128.0.0>"
+	"/usr/bin/sshd|p<22>"
+	"/usr/bin/sshd"
+
+The '<' and '>' can be ignored, they are supported just for visual reasons.
+
+Example of whitelisting multiple connections:
+
+insmod netlog.ko connections_to_whitelist="/usr/sbin/skype","/usr/bin/ssh|i<127.0.0.1>","/usr/bin/sshd|i<127.0.0.1>|p<22>"
+
+Note that you are not able to whitelist an ip address or port without specifing an absolute 
+execution path of a binary. Also, you can whitelist up to 150 connections. For more, change
+the symbolic constant MAX_WHITELIST_SIZE in whitelist.h and recompile netlog.
+Do not leave spaces between the comma separator and the strings because the parameter array will not be initialized.
+
+					+------------------+
+					|Absolute Path Mode|
+					+------------------+
+
+The absolute path mode is activated by passing a non zero value to the absolute_path_mode parameter.
+
+i.e.:
+	insmod netlog.ko absolute_path_mode=1
+
+Absolute path mode will log the absolute execution path instead of the process name.
+This will be helpfull in case that you want to see the absolute execution path of a connection that
+you want to whitelist.
 
 					+--------------------------+
 					|Supported kernel versions |
 					+--------------------------+
-2.6.12 up to 3.3.3
+2.6.12 up to 3.3.7
 
 					+--------------------------+
 					|Format of the log messages|
@@ -69,9 +103,9 @@ Dec 19 14:22:50 panos-PC kernel: netlog: skype[4261] UDP bind (any IP address):2
 Connection close:
 Dec 19 14:19:07 panos-PC kernel: netlog: sshd[3755] TCP 137.138.191.167:22 <-> 137.138.32.18:49904 (uid=0)
 
-						+--------------+
-						|How to compile|
-						+--------------+
+					+--------------+
+					|How to compile|
+					+--------------+
 
 In the source directory run:
 
@@ -95,9 +129,9 @@ be familiar with pointers. Also you need to know how the system calls are handle
 and to be familiar with the inet level of the kernel source code. For the last thing, grep is your friend.
 Furthermore you have to know how kprobes works (or at least its API).
 
-						+----------+
-						|References|
-						+----------+
+					+----------+
+					|References|
+					+----------+
 
 Linux Source Code:
 	http://www.kernel.org/
@@ -108,8 +142,3 @@ Kernel instrumentation using kprobes:
 Scientific Linux CERN
 	http://linux.web.cern.ch/linux/
 
-						+----------+
-						|   TODO   |
-						+----------+
-
-*Dynamic whitelisting support

@@ -5,7 +5,7 @@
  * the binding of UDP sockets.
  */
 
-#define PROBE_UDP 0
+#define PROBE_UDP 1
 
 /* Change to zero value (0) if you wish to not probe 
  * the close system call for the sockets.
@@ -25,19 +25,12 @@
 #define BIND_PROBE_FAILED -4 
 #define LOG_FAILURE -5
 
-/* Max lenght of the execution path of the process to be whitelisted.
- * Must be less or equal to MAX_ABSOLUTE_EXEC_PATH, defined in the
- * whitelist.h header file.
- */
-
-#define MAX_EXEC_PATH 64
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Panos Sakkos <panos.sakkos@cern.ch>");
-MODULE_DESCRIPTION("netlog logs information about every internet connection\
-		 from and to the machine that is installed. This information\
-		  is source/destination ips and ports, process name and pid, \
-		  uid and the protocol (TCP/UDP).");
+MODULE_DESCRIPTION("netlog logs information about every internet connection\n"
+		   "\t\tfrom and to the machine that is installed. This information\n"
+		   "\t\tis source/destination ips and ports, process name and pid,\n"
+		   "\t\tuid and the protocol (TCP/UDP).");
 
 int __init plant_probes(void);
 void __exit unplant_probes(void);
