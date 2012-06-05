@@ -18,7 +18,6 @@ struct connection *white_list[MAX_WHITELIST_SIZE];
 int whitelist(const char *connection_string)
 {
 	int i;
-//	unsigned int name_length;
 	struct connection *connection_to_whitelist;
 
 	if(size == MAX_WHITELIST_SIZE)
@@ -54,8 +53,6 @@ int whitelist(const char *connection_string)
 out_fail:
 	return WHITELIST_FAIL;
 }
-
-char *exe_from_mm(const struct mm_struct *mm, char *buf, int len);
 
 int is_whitelisted(const struct task_struct *task, const char *ip, const int port)
 {
@@ -98,10 +95,10 @@ int is_whitelisted(const struct task_struct *task, const char *ip, const int por
 		}
 	}
 
-whitelisted:
-	return WHITELISTED;
 not_whitelisted:
 	return NOT_WHITELISTED;
+whitelisted:
+	return WHITELISTED;
 }
 
 char *exe_from_mm(const struct mm_struct *mm, char *buffer, int length)
@@ -126,7 +123,7 @@ char *exe_from_mm(const struct mm_struct *mm, char *buffer, int length)
 		vma = vma->vm_next;
 	}
 
-	if (vma && vma->vm_file)
+	if(vma && vma->vm_file)
 	{
 		p = call_d_path(vma->vm_file, buffer, length);
 		

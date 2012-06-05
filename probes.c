@@ -23,6 +23,32 @@
 
 #define MODULE_NAME "netlog: "
 
+/**********************************/
+/*      MODULE PARAMETERS         */
+/**********************************/
+
+int absolute_path_mode = 0;
+
+module_param(absolute_path_mode, int, 0);
+MODULE_PARM_DESC(absolute_path_mode, " Boolean parameter for absolute path mode. When enabled, \n"
+				"\t\tit will log the execution path instead of the process name");
+
+
+#if WHITELISTING
+
+static int whitelist_length = 0;
+static char *connections_to_whitelist[MAX_WHITELIST_SIZE] = {'\0'};
+
+module_param_array(connections_to_whitelist, charp, &whitelist_length, 0000);
+MODULE_PARM_DESC(connections_to_whitelist, " An array of strings that contains the connections that netlog will ignore.\n"
+					    "\t\tThe format of the string must be '/absolute/executable/path ip_address-port'");
+
+#endif
+
+/**********************************/
+/*           PROBES               */
+/**********************************/
+
 /* The next two probes are for the connect system call. We need to associate the process that 
  * requested the connection with the socket file descriptor that the kernel returned.
  * The socket file descriptor is available only after the system call returns. 
@@ -76,10 +102,23 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	#endif
 
-	printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
-						get_source_ip(sock), get_source_port(sock),
-						destination_ip, destination_port, 
-						get_current_uid());
+	if(!absolute_path_mode)
+	{
+		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
+									get_source_ip(sock), get_source_port(sock),
+									destination_ip, destination_port, 
+									get_current_uid());
+	}
+	else
+	{
+		char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
+		path = exe_from_mm(current->mm, buffer, sizeof(buffer));
+
+		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", path, current->pid,
+									get_source_ip(sock), get_source_port(sock),
+									destination_ip, destination_port, 
+									get_current_uid());
+	}
 
 out:
 	match_socket[current->pid] = NULL;
@@ -94,10 +133,9 @@ out:
 
 static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	int err;
 	struct socket *sock;
-	int destination_port;
 	char *destination_ip;
+	int err, destination_port;
 
 	sock = sockfd_lookup(regs_return_value(regs), &err);
 
@@ -123,10 +161,24 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	#endif
 
-	printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
-						get_source_ip(sock), get_source_port(sock),
-						destination_ip, destination_port, 
-						get_current_uid()); 
+
+	if(!absolute_path_mode)
+	{
+		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
+									get_source_ip(sock), get_source_port(sock),
+									destination_ip, destination_port, 
+									get_current_uid()); 
+	}
+	else
+	{
+		char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
+		path = exe_from_mm(current->mm, buffer, sizeof(buffer));
+
+		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", path, current->pid, 
+									get_source_ip(sock), get_source_port(sock),
+									destination_ip, destination_port, 
+									get_current_uid()); 
+	}
 
 out:
 	if(likely(sock != NULL))
@@ -141,10 +193,9 @@ out:
 
 asmlinkage static long netlog_sys_close(unsigned int fd)
 {
-	int err;
 	struct socket *sock;
-	int destination_port;
 	char *destination_ip;
+	int err, destination_port;
 
 	sock = sockfd_lookup(fd, &err);
 
@@ -167,20 +218,48 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 
 	if(is_tcp(sock) && likely(get_destination_port(sock) != 0))
 	{	
-		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-							get_source_ip(sock), get_source_port(sock),
-							destination_ip, destination_port, 
-							get_current_uid());
+	
+		if(!absolute_path_mode)
+		{
+			printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+										get_source_ip(sock), get_source_port(sock),
+										destination_ip, destination_port, 
+										get_current_uid());
+		}
+		else
+		{
+			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
+			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
+		
+			printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", path, current->pid, 
+									get_source_ip(sock), get_source_port(sock),
+									destination_ip, destination_port, 
+									get_current_uid());
+		}
 	}
 
 	#if PROBE_UDP
 
 	else if(is_udp(sock) && is_inet(sock))
 	{
-		printk(KERN_INFO MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-							get_source_ip(sock), get_source_port(sock),
-							destination_ip, destination_port, 
-							get_current_uid());
+		if(!absolute_path_mode)
+		{
+			printk(KERN_INFO MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+										get_source_ip(sock), get_source_port(sock),
+										destination_ip, destination_port, 
+										get_current_uid());
+		}
+		else
+		{
+			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
+			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
+		
+			printk(KERN_INFO MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", 
+										path, current->pid, 
+										get_source_ip(sock), get_source_port(sock),
+										destination_ip, destination_port, 
+										get_current_uid());
+		}
 	}
 
 	#endif
@@ -203,11 +282,9 @@ out:
 
 asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 {
-	char *ip;
 	int err;
-	struct socket * sock;
-	int destination_port;
-	char *destination_ip;
+	char *ip;
+	struct socket *sock;
 
 	sock = sockfd_lookup(sockfd, &err);
 
@@ -221,15 +298,9 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 		goto out;
 	}
 
-	destination_ip = get_destination_ip(sock);
-	destination_port = get_destination_port(sock);
-
-
 	ip = get_ip(addr);
 
 	#if WHITELISTING
-
-//TODO review this shit
 
 	if(is_whitelisted(current, ip, NO_PORT))
 	{
@@ -240,13 +311,41 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 
 	if(any_ip_address(ip))
 	{
-		printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", current->comm, current->pid,
-							 ntohs(((struct sockaddr_in *)addr)->sin_port), get_current_uid());
+		if(!absolute_path_mode)
+		{
+			printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
+										current->comm, current->pid,
+										ntohs(((struct sockaddr_in *)addr)->sin_port), 
+										get_current_uid());
+		}
+		else
+		{
+			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
+			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
+
+			printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
+											path, current->pid,
+										 	ntohs(((struct sockaddr_in *)addr)->sin_port), 
+										 	get_current_uid());		
+		}
 	}
 	else
 	{
-		printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
-						ntohs(((struct sockaddr_in6 *)addr)->sin6_port), get_current_uid());
+		if(!absolute_path_mode)
+		{
+			printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
+											ntohs(((struct sockaddr_in6 *)addr)->sin6_port), 
+											get_current_uid());
+		}
+		else
+		{
+			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
+			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
+		
+			printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", path, current->pid, ip,
+											ntohs(((struct sockaddr_in6 *)addr)->sin6_port), 
+											get_current_uid());		
+		}
 	}
 
 out:
@@ -282,7 +381,6 @@ int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
 	if(signal_that_will_cause_exit(trap_number))
 	{
 		printk(KERN_ERR MODULE_NAME "fault handler: Detected fault %d from inside probes.", trap_number);
-		return 1;
 	}
 
 	return 0;
@@ -394,6 +492,7 @@ int plant_all(void)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant connect pre handler\n");
 		unplant_all();
+		
 		return CONNECT_PROBE_FAILED;
 	}
 
@@ -405,6 +504,7 @@ int plant_all(void)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant connect post handler\n");
 		unplant_all();
+		
 		return CONNECT_PROBE_FAILED;
 	}
 
@@ -416,6 +516,7 @@ int plant_all(void)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant accept post handler\n");
 		unplant_all();
+		
 		return ACCEPT_PROBE_FAILED;
 	}
 
@@ -429,6 +530,7 @@ int plant_all(void)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant close pre handler\n");
 		unplant_all();
+		
 		return CLOSE_PROBE_FAILED;
 	}
 
@@ -444,6 +546,7 @@ int plant_all(void)
 	{
 		printk(KERN_ERR MODULE_NAME "Failed to plant bind pre handler\n");
 		unplant_all();
+		
 		return BIND_PROBE_FAILED;
 	}
 
@@ -456,13 +559,6 @@ int plant_all(void)
 }
 
 #if WHITELISTING
-
-static int whitelist_length = 0;
-static char *connections_to_whitelist[MAX_WHITELIST_SIZE] = {'\0'};
-
-module_param_array(connections_to_whitelist, charp, &whitelist_length, 0000);
-MODULE_PARM_DESC(connections_to_whitelist, "An array of strings that contains the connections that netlog will ignore.\
-					    The format of the string must be '/absolute/executable/path ip_address-port'");
 
 void do_whitelist(void)
 {
@@ -518,6 +614,11 @@ int __init plant_probes(void)
 	do_whitelist();
 
 	#endif
+
+	if(absolute_path_mode)
+	{
+		printk(KERN_INFO MODULE_NAME "Absolute path mode is enabled. The logs will contain the absolute execution path isntead of the process name\n");
+	}
 
 	return 0;
 }
