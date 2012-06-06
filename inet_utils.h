@@ -37,7 +37,7 @@ int valid_port_number(const int port);
 
 /*Very dummy check. It checks only for valid characters and nothing more*/
 
-int valid_ip(const char *ip);
+int looks_like_valid_ip(const char *ip);
 
 #endif
 
