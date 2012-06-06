@@ -147,7 +147,7 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 		new_connection->ip[i] = '\0';
 		ch++;
 
-		if(!valid_ip(new_connection->ip))
+		if(!looks_like_valid_ip(new_connection->ip))
 		{
 			goto out_fail;
 		}

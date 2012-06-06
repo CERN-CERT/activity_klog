@@ -288,7 +288,7 @@ int ipv6_character(const char ch)
 		(ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z'));
 }
 
-int valid_ip(const char *ip)
+int looks_like_valid_ip(const char *ip)
 {
 	if(ip == NULL)
 	{
