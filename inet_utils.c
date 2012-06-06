@@ -243,3 +243,89 @@ int any_ip_address(const char *ip)
 		!strncmp(ip, "[0000:0000:0000:0000:0000:0000:0000:0000]", INET6_ADDRSTRLEN + 2));
 }
 
+int looks_like_ipv6(const char *ip)
+{
+	int i;
+	
+	if(ip == NULL)
+	{
+		return 0;
+	}
+	
+	for(i = 0; i < INET6_ADDRSTRLEN && ip[i] != '\0'; ++i)
+	{
+		if(ip[i] == ':')
+		{
+			return 1;
+		}
+	}
+	
+	return 0;
+}
+
+
+int valid_port_number(const int port)
+{
+	/*Port 0 useless in this case, so we consider it invalid*/
+	
+	return (port > 0 && port < 65536);
+}
+
+int ip_character(const char ch)
+{
+	/*Decimal characters and '.'*/
+
+	return (ch == '.' || (ch >= '0' && ch <= '9'));
+}
+
+int ipv6_character(const char ch)
+{
+	/*Hexadecimal characters and ':'s
+	 *Tolerate existance of '[' and ']'
+	 */
+	
+	return (ch == ':' || ch == '[' || ch == ']' ||(ch >= '0' && ch <= '9') || 
+		(ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z'));
+}
+
+int valid_ip(const char *ip)
+{
+	if(ip == NULL)
+	{
+		return 0;
+	}
+
+	if(looks_like_ipv6(ip))
+	{
+		int i;
+
+		for(i = 0; i < INET6_ADDRSTRLEN; ++i)
+		{
+			if(!ipv6_character(ip[i]))
+			{
+				return 0;
+			}
+		}
+		
+		return 1;
+	}
+	else
+	{
+		int i;
+		
+		for(i = 0; i < INET_ADDRSTRLEN; ++i)
+		{
+			if(!ip_character(ip[i]))
+			{
+				return 0;
+			}
+		}
+		
+		return 1;
+		
+	}
+	
+	return 0;
+}
+
+

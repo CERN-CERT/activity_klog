@@ -2,6 +2,7 @@
 #include <linux/slab.h>
 #include "connection.h"
 #include "whitelist.h"
+#include "inet_utils.h"
 
 #ifndef INET6_ADDRSTRLEN
 	#define INET6_ADDRSTRLEN 48
@@ -13,33 +14,6 @@ struct connection
 	char ip[INET6_ADDRSTRLEN + 2];
 	char executable[MAX_ABSOLUTE_EXEC_PATH + 1];
 };
-
-int string_contains(const char *string, char ch, int limit)
-{
-	if(string == NULL)
-	{
-		return 0;
-	}
-	
-	while(*string != '\0' && limit > 0)
-	{
-		if(*string == ch)
-		{
-			return 1;
-		}
-		string++;
-		limit--;
-	}
-	
-	return 0;
-}
-
-int valid_connection_string(const char *connection_string)
-{
-	//TODO 
-
-	return 1;
-}
 
 struct connection *initialize_connection(void)
 {
@@ -82,11 +56,6 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 	{
 		goto out_fail;
 	}
-
-	if(!valid_connection_string(connection_string))
-	{
-		goto out_fail;
-	}
 	
 	new_connection = initialize_connection();
 	
@@ -107,7 +76,7 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 		i++;
 	
 		/*Too big path, fail to whitelist*/
-	
+
 		if(i > MAX_ABSOLUTE_EXEC_PATH)
 		{
 			goto out_fail;
@@ -132,7 +101,7 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 		 *The inet_utils functions return ipv6 addresses within square brackets.
 		 */
 		
-		int ipv6 = string_contains(ch, ':', INET6_ADDRSTRLEN);
+		int ipv6 = looks_like_ipv6(ch);
 	
 		ch++;
 		
@@ -152,31 +121,37 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 			new_connection->ip[0] = '[';
 			i++;
 		}
-		
+
 		while(*ch != '>' && *ch != '\0' && *ch != FIELD_SEPARATOR)
 		{
 			new_connection->ip[i] = *ch;
 			ch++;
 			i++;
-	
+
 			/*Too big ip, fail to whitelist*/
-	
+
 			if(i > INET6_ADDRSTRLEN)
 			{
 				goto out_fail;
 			}
 		}
-	
+
 		if(ipv6)
 		{
 			/*Add closing square bracket*/
-			
+
 			new_connection->ip[i] = ']';
 			i++;
 		}
-	
+
 		new_connection->ip[i] = '\0';
-		ch++;		
+		ch++;
+
+		if(!valid_ip(new_connection->ip))
+		{
+			goto out_fail;
+		}
+
 	}
 
 	/*Skip the field separator, if any*/
@@ -218,10 +193,8 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 			base *= 10;
 			ch--;
 		}
-
-		/*Overflow check*/
 		
-		if(new_connection->port < 0)
+		if(!valid_port_number(new_connection->port))
 		{
 			goto out_fail;
 		}
