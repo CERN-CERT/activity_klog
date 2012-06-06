@@ -9,7 +9,8 @@ Vendor:				CERN
 Author:				Panos Sakkos while at Computer Security Team 
 CST Email:			cert-sec@cern.ch
 Author Email:			<panos.sakkos@cern.ch> 
-License: 			GPLv3	
+License: 			GPLv3
+
 					+-------+
 					|License|
 					+-------+
@@ -66,7 +67,11 @@ insmod netlog.ko connections_to_whitelist="/usr/sbin/skype","/usr/bin/ssh|i<127.
 Note that you are not able to whitelist an ip address or port without specifing an absolute 
 execution path of a binary. Also, you can whitelist up to 150 connections. For more, change
 the symbolic constant MAX_WHITELIST_SIZE in whitelist.h and recompile netlog.
-Do not leave spaces between the comma separator and the strings because the parameter array will not be initialized.
+Do not leave spaces between the comma separators and the strings because the parameter array will not be initialized.
+
+If you believe that you will not need whitelisting at all, we recommend you to compile netlog with disabled the whitelisting
+in order to boost even more its perfomance. In order to not compile the code of whitelisting, change the static constant
+WHITELISTING to 0 in netlog.h file and recompile netlog.
 
 					+------------------+
 					|Absolute Path Mode|
