@@ -6,6 +6,9 @@
  *the struct sockaddr. 
  */
 
+struct socket;
+struct sockaddr;
+
 int is_inet(struct socket *sock);
 
 int is_tcp(struct socket *sock);
@@ -27,6 +30,14 @@ char *get_source_ip(const struct socket *sock);
 char *get_ip(const struct sockaddr *addr);
 
 int any_ip_address(const char *ip);
+
+int looks_like_ipv6(const char *ip);
+
+int valid_port_number(const int port);
+
+/*Very dummy check. It checks only for valid characters and nothing more*/
+
+int valid_ip(const char *ip);
 
 #endif
 
