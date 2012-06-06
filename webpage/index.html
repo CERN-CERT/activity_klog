@@ -8,7 +8,7 @@
     <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
     <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
 
-    <title>Netlog by CERN Security Team</title>
+    <title>netlog by CERN Security Team</title>
   </head>
 
   <body>
@@ -68,7 +68,7 @@ zero (0) to a non-zero value (i.e. 1) and recompile netlog.
 netlog offers whitelisting of connections at insertion time. This is done by passing parameters to the module.
 The parameter is named connections_to_whitelist and it's an array of strings with the following format:
 
-<pre><code>"/absolute/execution/path|i&ltip address&gt|p&ltport number&gt"</code></pre>
+<pre><code>"/absolute/execution/path|i<ip address>|p<port number>"</code></pre>
 
 i.e.:
 
@@ -86,7 +86,7 @@ Example of whitelisting multiple connections:
 </p>
 
 <pre><code>
-modprobe netlog connections_to_whitelist="/usr/sbin/skype","/usr/bin/ssh|i&lt127.0.0.1&gt","/usr/bin/sshd|i&lt127.0.0.1&gt|p&lt22&gt"
+modprobe netlog connections_to_whitelist="/usr/sbin/skype","/usr/bin/ssh|i<127.0.0.1>","/usr/bin/sshd|i<127.0.0.1>|p<22>"
 </code></pre>
 
 <p>
@@ -98,16 +98,16 @@ the symbolic constant MAX_WHITELIST_SIZE in whitelist.h and recompile netlog.
 Do not leave spaces between the comma separator and the strings because the parameter array will not be initialized.
 </p>
 
-<h3>Debug Mode</h3>
+<h3>Absolute Path Mode</h3>
 
 <p>
-The debug mode is activated by passing a non zero value to the debug_mode parameter.
+The absolute path mode is activated by passing a non zero value to the debug_mode parameter.
 i.e.:
 
-<pre><code>modprobe netlog.ko debug_mode=1</pre></code>
+<pre><code>modprobe netlog.ko absolute_path_mode=1</pre></code>
 
 <p>
-Debug mode will log the absolute execution path instead of the process name.
+Absolute path mode will log the absolute execution path instead of the process name.
 This will be helpfull in case that you want to see the absolute execution path of a connection that
 you want to whitelist.
 </p>
@@ -122,7 +122,8 @@ git pull https://github.com/CERN-CERT/netlog
 rpmbuild --rebuild netlog-*.slc6.src.rpm
 sudo rpm -i ~/rpmbuild/RPMS/x86_64/kmod-netlog-*.rpm
 sudo depmod -a	
-sudo modprobe netlog</code></pre>
+sudo modprobe netlog
+</code></pre>
 
 <h3>Supported kernel versions</h3>
 
@@ -131,20 +132,20 @@ sudo modprobe netlog</code></pre>
 <h3>Format of the log messages</h3>
 
 <p>TCP connect:
-<pre><code>Dec 19 14:03:17 panos-PC kernel: [ 1341.648413] netlog: http[3206] TCP 137.138.191.167:52507 -&gt; 130.59.10.36:80 (uid=0)</p></pre></code>
+<pre><code>Dec 19 14:03:17 panos-PC kernel: [ 1341.648413] netlog: http[3206] TCP 137.138.191.167:52507 -> 130.59.10.36:80 (uid=0)</pre></code>
 
 <p>TCP accept:
-<pre><code>Dec 19 14:18:37 panos-PC kernel: [ 2262.125936] netlog: sshd[827] TCP 137.138.191.167:22 &lt;- 137.138.32.18:49904 (uid=0)</p></pre></code>
+<pre><code>Dec 19 14:18:37 panos-PC kernel: [ 2262.125936] netlog: sshd[827] TCP 137.138.191.167:22 <- 137.138.32.18:49904 (uid=0)</pre></code>
 
 <p>UDP binds:
+
 <pre><code>
 Dec 19 14:22:50 panos-PC kernel: [ 2515.081074] netlog: skype[4261] UDP bind 127.0.0.1:0 (uid=1000)
 Dec 19 14:22:50 panos-PC kernel: [ 2515.271375] netlog: skype[4261] UDP bind (any IP address):2752 (uid=1000)
-  
 </pre></code>
 
 <p>Connection close:
-<pre><code>Dec 19 14:19:07 panos-PC kernel: [ 2292.580879] netlog: sshd[3755] TCP 137.138.191.167:22 &lt;-&gt; 137.138.32.18:49904 (uid=0)</p></pre></code>
+<pre><code>Dec 19 14:19:07 panos-PC kernel: [ 2292.580879] netlog: sshd[3755] TCP 137.138.191.167:22 <-> 137.138.32.18:49904 (uid=0)</p></pre></code>
 
 <h3>Support or Contact</h3>
 

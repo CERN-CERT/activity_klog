@@ -21,7 +21,7 @@
 	#define get_current_uid() current_uid()
 #endif
 
-#define MODULE_NAME "netlog: "
+#define MODULE_NAME "netlog"
 
 /**********************************/
 /*      MODULE PARAMETERS         */
@@ -104,7 +104,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	if(!absolute_path_mode)
 	{
-		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 									get_source_ip(sock), get_source_port(sock),
 									destination_ip, destination_port, 
 									get_current_uid());
@@ -114,7 +114,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 		char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 		path = exe_from_mm(current->mm, buffer, sizeof(buffer));
 
-		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", path, current->pid,
+		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", path, current->pid,
 									get_source_ip(sock), get_source_port(sock),
 									destination_ip, destination_port, 
 									get_current_uid());
@@ -164,7 +164,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	if(!absolute_path_mode)
 	{
-		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
+		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
 									get_source_ip(sock), get_source_port(sock),
 									destination_ip, destination_port, 
 									get_current_uid()); 
@@ -174,7 +174,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 		char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 		path = exe_from_mm(current->mm, buffer, sizeof(buffer));
 
-		printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", path, current->pid, 
+		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", path, current->pid, 
 									get_source_ip(sock), get_source_port(sock),
 									destination_ip, destination_port, 
 									get_current_uid()); 
@@ -221,7 +221,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 	
 		if(!absolute_path_mode)
 		{
-			printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+			printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 										get_source_ip(sock), get_source_port(sock),
 										destination_ip, destination_port, 
 										get_current_uid());
@@ -231,7 +231,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
 		
-			printk(KERN_INFO MODULE_NAME "%s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", path, current->pid, 
+			printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", path, current->pid, 
 									get_source_ip(sock), get_source_port(sock),
 									destination_ip, destination_port, 
 									get_current_uid());
@@ -244,7 +244,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 	{
 		if(!absolute_path_mode)
 		{
-			printk(KERN_INFO MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 										get_source_ip(sock), get_source_port(sock),
 										destination_ip, destination_port, 
 										get_current_uid());
@@ -254,7 +254,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
 		
-			printk(KERN_INFO MODULE_NAME "%s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", 
+			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", 
 										path, current->pid, 
 										get_source_ip(sock), get_source_port(sock),
 										destination_ip, destination_port, 
@@ -313,7 +313,7 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 	{
 		if(!absolute_path_mode)
 		{
-			printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
+			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
 										current->comm, current->pid,
 										ntohs(((struct sockaddr_in *)addr)->sin_port), 
 										get_current_uid());
@@ -323,7 +323,7 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
 
-			printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
+			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
 											path, current->pid,
 										 	ntohs(((struct sockaddr_in *)addr)->sin_port), 
 										 	get_current_uid());		
@@ -333,7 +333,7 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 	{
 		if(!absolute_path_mode)
 		{
-			printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
+			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
 											ntohs(((struct sockaddr_in6 *)addr)->sin6_port), 
 											get_current_uid());
 		}
@@ -342,7 +342,7 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
 		
-			printk(KERN_INFO MODULE_NAME "%s[%d] UDP bind %s:%d (uid=%d)\n", path, current->pid, ip,
+			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind %s:%d (uid=%d)\n", path, current->pid, ip,
 											ntohs(((struct sockaddr_in6 *)addr)->sin6_port), 
 											get_current_uid());		
 		}
@@ -380,7 +380,7 @@ int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
 {
 	if(signal_that_will_cause_exit(trap_number))
 	{
-		printk(KERN_ERR MODULE_NAME "fault handler: Detected fault %d from inside probes.", trap_number);
+		printk(KERN_ERR MODULE_NAME ": fault handler: Detected fault %d from inside probes.", trap_number);
 	}
 
 	return 0;
@@ -457,29 +457,29 @@ static struct jprobe bind_jprobe =
 void unplant_all(void)
 {
   	unregister_jprobe(&connect_jprobe);
-	printk(KERN_INFO MODULE_NAME "Unplanted connect pre handler probe\n");
+	printk(KERN_INFO MODULE_NAME ": Unplanted connect pre handler probe\n");
 	
 	unregister_kretprobe(&connect_kretprobe);
-	printk(KERN_INFO MODULE_NAME "Unplanted connect post handler probe\n");
+	printk(KERN_INFO MODULE_NAME ": Unplanted connect post handler probe\n");
 
 	unregister_kretprobe(&accept_kretprobe);
-	printk(KERN_INFO MODULE_NAME "Unplanted accept post handler probe\n");
+	printk(KERN_INFO MODULE_NAME ": Unplanted accept post handler probe\n");
 
 	#if PROBE_CONNECTION_CLOSE
 
 	unregister_jprobe(&tcp_close_jprobe);
-	printk(KERN_INFO MODULE_NAME "Unplanted close pre handler probe\n");
+	printk(KERN_INFO MODULE_NAME ": Unplanted close pre handler probe\n");
 
 	#endif
 
 	#if PROBE_UDP
 
   	unregister_jprobe(&bind_jprobe);
-	printk(KERN_INFO MODULE_NAME "Unplanted bind pre handler probe\n");
+	printk(KERN_INFO MODULE_NAME ": Unplanted bind pre handler probe\n");
 
 	#endif
 
-	printk(KERN_INFO MODULE_NAME "All probes unplanted\n");
+	printk(KERN_INFO MODULE_NAME ": All probes unplanted\n");
 }
 
 int plant_all(void)
@@ -490,37 +490,37 @@ int plant_all(void)
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant connect pre handler\n");
+		printk(KERN_ERR MODULE_NAME ": Failed to plant connect pre handler\n");
 		unplant_all();
 		
 		return CONNECT_PROBE_FAILED;
 	}
 
-	printk(KERN_INFO MODULE_NAME "Planted connect pre handler\n");
+	printk(KERN_INFO MODULE_NAME ": Planted connect pre handler\n");
 
 	err = register_kretprobe(&connect_kretprobe);
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant connect post handler\n");
+		printk(KERN_ERR MODULE_NAME ": Failed to plant connect post handler\n");
 		unplant_all();
 		
 		return CONNECT_PROBE_FAILED;
 	}
 
-	printk(KERN_INFO MODULE_NAME "Planted connect post handler\n");
+	printk(KERN_INFO MODULE_NAME ": Planted connect post handler\n");
 
 	err = register_kretprobe(&accept_kretprobe);
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant accept post handler\n");
+		printk(KERN_ERR MODULE_NAME ": Failed to plant accept post handler\n");
 		unplant_all();
 		
 		return ACCEPT_PROBE_FAILED;
 	}
 
-	printk(KERN_INFO MODULE_NAME "Planted accept post handler\n");
+	printk(KERN_INFO MODULE_NAME ": Planted accept post handler\n");
 
 	#if PROBE_CONNECTION_CLOSE
 
@@ -528,13 +528,13 @@ int plant_all(void)
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant close pre handler\n");
+		printk(KERN_ERR MODULE_NAME ": Failed to plant close pre handler\n");
 		unplant_all();
 		
 		return CLOSE_PROBE_FAILED;
 	}
 
-	printk(KERN_INFO MODULE_NAME "Planted close pre handler\n");
+	printk(KERN_INFO MODULE_NAME ": Planted close pre handler\n");
 
 	#endif
 	
@@ -544,17 +544,17 @@ int plant_all(void)
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME "Failed to plant bind pre handler\n");
+		printk(KERN_ERR MODULE_NAME ": Failed to plant bind pre handler\n");
 		unplant_all();
 		
 		return BIND_PROBE_FAILED;
 	}
 
-	printk(KERN_INFO MODULE_NAME "Planted bind pre handler\n");
+	printk(KERN_INFO MODULE_NAME ": Planted bind pre handler\n");
 
 	#endif
 
-	printk(KERN_INFO MODULE_NAME "All probes planted\n");
+	printk(KERN_INFO MODULE_NAME ": All probes planted\n");
 	return 0;
 }
 
@@ -568,7 +568,7 @@ void do_whitelist(void)
 
 	if(whitelist_length > MAX_WHITELIST_SIZE)
 	{
-		printk(KERN_ERR MODULE_NAME "Cannot whitelist more than %d connections. The %d last parameters paths will be ignored. \
+		printk(KERN_ERR MODULE_NAME ": Cannot whitelist more than %d connections. The %d last parameters paths will be ignored. \
 					Please change MAX_WHITELIST_SIZE definition in netlog.h and recompile, or contact \
 					CERN-CERT <cert@cern.ch>\n", MAX_WHITELIST_SIZE, whitelist_length - MAX_WHITELIST_SIZE);
 					
@@ -583,11 +583,11 @@ void do_whitelist(void)
 
 		if(err < 0)
 		{
-			printk(KERN_ERR MODULE_NAME "Failed to whitelist %s\n", connections_to_whitelist[i]);
+			printk(KERN_ERR MODULE_NAME ": Failed to whitelist %s\n", connections_to_whitelist[i]);
 		}
 		else
 		{
-			printk(KERN_INFO MODULE_NAME "Whitelisted %s\n", connections_to_whitelist[i]);
+			printk(KERN_INFO MODULE_NAME ": Whitelisted %s\n", connections_to_whitelist[i]);
 		}
 	}
 }
@@ -617,7 +617,11 @@ int __init plant_probes(void)
 
 	if(absolute_path_mode)
 	{
-		printk(KERN_INFO MODULE_NAME "Absolute path mode is enabled. The logs will contain the absolute execution path isntead of the process name\n");
+		printk(KERN_INFO MODULE_NAME ": Absolute path mode is enabled. The logs will contain the absolute execution path\n");
+	}
+	else
+	{
+		printk(KERN_INFO MODULE_NAME ": Absolute path mode is disabled. The logs will contain the process name\n");
 	}
 
 	return 0;
