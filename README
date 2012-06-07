@@ -43,6 +43,19 @@ In order to compile the code that tracks the connection close, you need to chang
 symbolic constant (PROBE_CONNECTION_CLOSE) that is defined in the netlog header file (netlog.h) from 
 zero (0) to a non-zero value (i.e. 1) and recompile netlog.
 
+					+----------+
+					|Change Log|
+					+----------+
+
+1.12
+	*Optimizations
+	*Dynamic Whitelisting
+1.15
+	*Whitelisting of ip addresses and ports
+	*Absolute path mode
+1.16
+	*Basic checks on given ip addresses and ports
+	
 					+--------------------+
 					|Dynamic Whitelisting|
 					+--------------------+
