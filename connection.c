@@ -77,7 +77,7 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 	
 		/*Too big path, fail to whitelist*/
 
-		if(i > MAX_ABSOLUTE_EXEC_PATH)
+		if(i >= MAX_ABSOLUTE_EXEC_PATH)
 		{
 			goto out_fail;
 		}
@@ -96,9 +96,10 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 	
 	if(*ch == 'i')
 	{	
-		/*If the ip is IPv6, add square brackets in the beginning and in the end
-		 *This is done in order to make right comparison between ipv6 addresses.
-		 *The inet_utils functions return ipv6 addresses within square brackets.
+		/*If the ip is IPv6, we will add square brackets in the beginning and in
+		 *the end. This is done in order to make right comparison between ipv6 
+		 *addresses. The inet_utils functions return ipv6 addresses within square 
+		 *brackets.
 		 */
 		
 		int ipv6 = looks_like_ipv6(ch);
@@ -130,7 +131,7 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 
 			/*Too big ip, fail to whitelist*/
 
-			if(i > INET6_ADDRSTRLEN)
+			if(i >= INET6_ADDRSTRLEN + 1)
 			{
 				goto out_fail;
 			}
@@ -181,8 +182,10 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 
 		/*Go to end of number*/
 		
-		while(*ch != '>' && *ch != '\0')
+		while(*ch != '>' && *ch != '\0' && *ch != FIELD_SEPARATOR)
+		{
 			ch++;
+		}
 		ch--;
 		
 		new_connection->port = 0;
@@ -203,11 +206,7 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 	return new_connection;
 
 out_fail:
-
-	if(new_connection)
-	{
-		kfree(new_connection);
-	}
+	destroy_connection(new_connection);
 
 	return NULL;
 }
@@ -228,7 +227,7 @@ int connection_matches_attributes(const struct connection *connection, const cha
 
 	if(connection->ip[0] != '\0' && ip[0] != '\0')
 	{
-		if(strncmp(connection->ip, ip, INET6_ADDRSTRLEN) != 0)
+		if(strncmp(connection->ip, ip, INET6_ADDRSTRLEN + 2) != 0)
 		{
 			/*IPs were given and didn't match*/
 

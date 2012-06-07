@@ -1,7 +1,7 @@
 #ifndef __IPUTILS__
 #define __IPUTILS__
 
-/* API that provided destination and source ip addresses, 
+/* API that provides destination and source ip addresses, 
  * given the target struct sock, struct socket or 
  *the struct sockaddr. 
  */
@@ -34,8 +34,6 @@ int any_ip_address(const char *ip);
 int looks_like_ipv6(const char *ip);
 
 int valid_port_number(const int port);
-
-/*Very dummy check. It checks only for valid characters and nothing more*/
 
 int looks_like_valid_ip(const char *ip);
 
