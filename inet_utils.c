@@ -280,7 +280,7 @@ int ip_character(const char ch)
 
 int ipv6_character(const char ch)
 {
-	/*Hexadecimal characters and ':'s
+	/*Hexadecimal characters and ':'s.
 	 *Tolerate existance of '[' and ']'
 	 */
 	
@@ -299,21 +299,21 @@ int looks_like_valid_ip(const char *ip)
 	{
 		int i;
 
-		for(i = 0; i < INET6_ADDRSTRLEN; ++i)
+		for(i = 0; i < (INET6_ADDRSTRLEN + 2) && ip[i] != '\0'; ++i)
 		{
 			if(!ipv6_character(ip[i]))
 			{
 				return 0;
 			}
 		}
-		
+
 		return 1;
 	}
 	else
 	{
 		int i;
 		
-		for(i = 0; i < INET_ADDRSTRLEN; ++i)
+		for(i = 0; i < INET_ADDRSTRLEN && ip[i] != '\0'; ++i)
 		{
 			if(!ip_character(ip[i]))
 			{
