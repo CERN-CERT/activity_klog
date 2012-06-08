@@ -40,7 +40,7 @@ static int whitelist_length = 0;
 static char *connections_to_whitelist[MAX_WHITELIST_SIZE] = {'\0'};
 
 module_param_array(connections_to_whitelist, charp, &whitelist_length, 0000);
-MODULE_PARM_DESC(connections_to_whitelist, " An array of strings that contains the connections that netlog will ignore.\n"
+MODULE_PARM_DESC(connections_to_whitelist, " An array of strings that contains the connections that " MODULE_NAME " will ignore.\n"
 					    "\t\tThe format of the string must be '/absolute/executable/path ip_address-port'");
 
 #endif
@@ -54,7 +54,7 @@ MODULE_PARM_DESC(connections_to_whitelist, " An array of strings that contains t
  * The socket file descriptor is available only after the system call returns. 
  * Though we need to be able to get the pointer to the socket struct that was given as a parameter
  * to connect and log its contents. We cannot have a process requesting two connects in the same time,
- * because when a system call is called, the process is suspended untill its end of execution.
+ * because when a system call is called, the process is suspended until its end of execution.
  */
 
 static struct socket *match_socket[PID_MAX_LIMIT] = {NULL};
