@@ -493,7 +493,7 @@ int plant_all(void)
 		printk(KERN_ERR MODULE_NAME ": Failed to plant connect pre handler\n");
 		unplant_all();
 		
-		return CONNECT_PROBE_FAILED;
+		return -CONNECT_PROBE_FAILED;
 	}
 
 	printk(KERN_INFO MODULE_NAME ": Planted connect pre handler\n");
@@ -505,7 +505,7 @@ int plant_all(void)
 		printk(KERN_ERR MODULE_NAME ": Failed to plant connect post handler\n");
 		unplant_all();
 		
-		return CONNECT_PROBE_FAILED;
+		return -CONNECT_PROBE_FAILED;
 	}
 
 	printk(KERN_INFO MODULE_NAME ": Planted connect post handler\n");
@@ -517,7 +517,7 @@ int plant_all(void)
 		printk(KERN_ERR MODULE_NAME ": Failed to plant accept post handler\n");
 		unplant_all();
 		
-		return ACCEPT_PROBE_FAILED;
+		return -ACCEPT_PROBE_FAILED;
 	}
 
 	printk(KERN_INFO MODULE_NAME ": Planted accept post handler\n");
@@ -531,7 +531,7 @@ int plant_all(void)
 		printk(KERN_ERR MODULE_NAME ": Failed to plant close pre handler\n");
 		unplant_all();
 		
-		return CLOSE_PROBE_FAILED;
+		return -CLOSE_PROBE_FAILED;
 	}
 
 	printk(KERN_INFO MODULE_NAME ": Planted close pre handler\n");
@@ -547,7 +547,7 @@ int plant_all(void)
 		printk(KERN_ERR MODULE_NAME ": Failed to plant bind pre handler\n");
 		unplant_all();
 		
-		return BIND_PROBE_FAILED;
+		return -BIND_PROBE_FAILED;
 	}
 
 	printk(KERN_INFO MODULE_NAME ": Planted bind pre handler\n");

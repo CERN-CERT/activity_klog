@@ -19,11 +19,10 @@
 
 /* Error codes */
 
-#define CONNECT_PROBE_FAILED -1
-#define ACCEPT_PROBE_FAILED -2
-#define CLOSE_PROBE_FAILED -3
-#define BIND_PROBE_FAILED -4 
-#define LOG_FAILURE -5
+#define CONNECT_PROBE_FAILED 1
+#define ACCEPT_PROBE_FAILED 2
+#define CLOSE_PROBE_FAILED 3
+#define BIND_PROBE_FAILED 4 
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Panos Sakkos <panos.sakkos@cern.ch>");
