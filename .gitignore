@@ -5,6 +5,7 @@
 
 *.tgz
 *.tar.gz
+*.rpm
 
 .*
 !.gitignore
@@ -17,4 +18,4 @@
 Module.symvers
 Module.markers
 
-x86_84/
+x86_84
