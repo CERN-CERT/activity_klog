@@ -2,6 +2,7 @@
 # Variables needed to build the kernel module
 #
 name      = netlog
+version   = `cat VERSION`
 src_files = inet_utils.c probes.c whitelist.c connection.c
 
 obj-m += $(name).o
@@ -23,7 +24,13 @@ PERL     = perl
 RPMBUILD = rpmbuild
 SED      = sed
 
-all: srcrpm
+all: srpms
+
+build:
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+
+clean:
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 
 #+++############################################################################
 #                                                                              #
@@ -54,7 +61,7 @@ _update_spec: $(DISTS:=.spec)
 _git_commit_tag:
 	@version=`cat VERSION`; \
 	$(GIT) commit -a -m "global commit for version $$version" || exit 1; \
-	tag=`$(PERL) -pe 's/^/v/; s/\./_/g' VERSION`; \
+	tag="v$$version" ; \
 	$(GIT) tag $$tag || exit 1; \
         $(GIT) push || exit 1; \
         $(GIT) push origin $$tag || exit 1; \
@@ -76,23 +83,32 @@ release:    _increment_release _update_spec _git_commit_tag
 #---############################################################################
 
 
-srcrpm: $(DISTS:=.srcrpm) $(DISTS:=.clean)
-
-slc5.srcrpm: dist.slc5/$(name).spec dist.slc5/$(name).tgz
-	@$(RPMBUILD) --define "_sourcedir ${PWD}/dist.slc5" --define "_srcrpmdir ${PWD}" --define "dist .slc5" --define '_source_filedigest_algorithm 1' --define '_binary_filedigest_algorithm 1' --define '_binary_payload w9.gzdio' -bs $<
-
-%.srcrpm: dist.%/$(name).spec dist.%/$(name).tgz
-	@$(RPMBUILD) --define "_sourcedir ${PWD}/dist.$*" --define "_srcrpmdir ${PWD}" --define "dist .$*" -bs $<
-
-%.tgz:
+dist:
 	@version=`cat VERSION`; \
-	mkdir $(name)-$$version; \
-	rsync -a --exclude $(name)-$$version --exclude ".git*" --exclude "*.rpm" --exclude "*.tgz" --exclude "dist.*" --exclude webpage . $(name)-$$version/; \
-	tar -zchf $*-$$version.tgz $(name)-$$version/; \
-	rm -rf $(name)-$$version/
+	git archive --format=tar --prefix=$(name)-$$version/ v$$version \
+	| tar --delete "$(name)-$$version/dist.*" --delete "$(name)-$$version/webpage" --delete "$(name)-$$version/.git*" \
+	| gzip > $(name)-$$version.tgz
 
-clean: $(DISTS:=.clean)
-	@rm -f *.rpm
+srpms: dist $(DISTS:=.srpm)
 
-%.clean:
-	@rm -f dist.$*/*.tgz
+slc5.srpm: dist.slc5/$(name).spec
+	@version=`cat VERSION`; \
+	cp $(name)-$$version.tgz dist.slc5/; \
+	$(RPMBUILD) --define "_sourcedir ${PWD}/dist.slc5" --define "_srcrpmdir ${PWD}/rpms" --define "dist .slc5" --define '_source_filedigest_algorithm 1' --define '_binary_filedigest_algorithm 1' --define '_binary_payload w9.gzdio' -bs $<; \
+	rm dist.slc5/$(name)-$$version.tgz
+
+%.srpm: dist.%/$(name).spec
+	@version=`cat VERSION`; \
+	cp $(name)-$$version.tgz dist.$*/; \
+	$(RPMBUILD) --define "_sourcedir ${PWD}/dist.$*" --define "_srcrpmdir ${PWD}/rpms" --define "dist .$*" -bs $<; \
+	rm dist.$*/$(name)-$$version.tgz
+
+%.rpm: %.srpm
+	@version=`cat VERSION`; \
+	rpmbuild --rebuild --define '_rpmdir ${PWD}/rpms' --define 'dist .$*' $(name)-$$version-1.$*.src.rpm
+
+dist.clean:
+	@rm -f *tgz
+
+version:
+	@echo $(version)
