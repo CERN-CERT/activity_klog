@@ -113,7 +113,7 @@ dist: $(name)-$(version).tgz
 	| gzip > $(name)-$(version).tgz
 
 dir.%:
-	mkdir -p $*
+	@mkdir -p $*
 
 srpms: $(DISTS:=.srpm)
 
