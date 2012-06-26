@@ -34,6 +34,11 @@ all: srpms
 build:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
+install: build
+	-mkdir -p /lib/modules/`uname -r`/kernel/arch/x86/kernel/
+	cp $(name).ko /lib/modules/`uname -r`/kernel/arch/x86/kernel/
+	depmod /lib/modules/`uname -r`/kernel/arch/x86/kernel/$(name).ko
+
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 
@@ -132,6 +137,3 @@ slc5.srpm: dist.slc5/$(name).spec dist dir.rpms
 
 dist.clean:
 	@rm -f *tgz
-
-test:
-	@echo $(version)-$(release)
