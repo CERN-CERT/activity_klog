@@ -112,14 +112,17 @@ dist: $(name)-$(version).tgz
 	| tar --delete "$(name)-$(version)/dist.*" --delete "$(name)-$(version)/webpage" --delete "$(name)-$(version)/.git*" \
 	| gzip > $(name)-$(version).tgz
 
+dir.%:
+	mkdir -p $*
+
 srpms: $(DISTS:=.srpm)
 
-slc5.srpm: dist.slc5/$(name).spec dist
+slc5.srpm: dist.slc5/$(name).spec dist dir.rpms
 	@cp $(name)-$(version).tgz dist.slc5/; \
 	$(RPMBUILD) --define "_sourcedir ${PWD}/dist.slc5" --define "_srcrpmdir ${PWD}/rpms" --define "dist .slc5" --define '_source_filedigest_algorithm 1' --define '_binary_filedigest_algorithm 1' --define '_binary_payload w9.gzdio' -bs $<; \
 	rm dist.slc5/$(name)-$(version).tgz
 
-%.srpm: dist.%/$(name).spec dist
+%.srpm: dist.%/$(name).spec dist dir.rpms
 	@cp $(name)-$(version).tgz dist.$*/; \
 	$(RPMBUILD) --define "_sourcedir ${PWD}/dist.$*" --define "_srcrpmdir ${PWD}/rpms" --define "dist .$*" -bs $<; \
 	rm dist.$*/$(name)-$(version).tgz
