@@ -21,6 +21,11 @@ version   = $(shell cat VERSION | cut -d- -f1)
 release   = $(shell cat VERSION | cut -d- -f2)
 
 #
+# Get machine architecture
+#
+arch      = $(shell uname -i)
+
+#
 # variables for all external commands (we try to be verbose)
 #
 
@@ -133,7 +138,7 @@ slc5.srpm: dist.slc5/$(name).spec dist dir.rpms
 	rm dist.$*/$(name)-$(version).tgz
 
 %.rpm: %.srpm
-	@rpmbuild --rebuild --define '_rpmdir ${PWD}/rpms' --define 'dist .$*' $(name)-$(version)-$(release).$*.src.rpm
+	@rpmbuild --rebuild --define '_rpmdir ${PWD}/rpms' --define 'dist .$*' rpms/$(name)-$(version)-$(release).$*.src.rpm
 
 dist.clean:
 	@rm -f *tgz
