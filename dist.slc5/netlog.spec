@@ -38,7 +38,7 @@ License:	GPLv2+
 URL:		http://www.cern.ch/
 Vendor:		CERN, http://cern.ch/linux
 BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
-BuildRequires:	sed
+BuildRequires:	sed, redhat-rpm-config
 BuildRequires:	%kernel_module_package_buildreqs
 ExclusiveArch:	i686 x86_64
 
