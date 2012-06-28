@@ -36,6 +36,8 @@ SED       = sed
 
 all: srpms
 
+clean: build.clean dist.clean
+
 build:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
@@ -44,8 +46,9 @@ install: build
 	cp $(name).ko /lib/modules/`uname -r`/kernel/arch/x86/kernel/
 	depmod /lib/modules/`uname -r`/kernel/arch/x86/kernel/$(name).ko
 
-clean:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+build.clean:
+	[ -d /lib/modules/$(shell uname -r)/build ] && \
+	make -i -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 
 #+++############################################################################
 #                                                                              #
