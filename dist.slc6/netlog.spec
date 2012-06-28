@@ -1,6 +1,6 @@
 %define kmod_name		netlog
 %define kmod_driver_version	1.16
-%define kmod_rpm_release	1
+%define kmod_rpm_release	2
 %define kmod_kernel_version	2.6.32-220.7.1.el6
 
 # with koji ... we have to build against current (newest) kernel ...
@@ -22,7 +22,7 @@ License:	GPLv2+
 URL:		http://www.cern.ch/
 Vendor:		CERN, http://cern.ch/linux
 BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
-BuildRequires:	sed
+BuildRequires:	sed, redhat-rpm-config
 BuildRequires:	%kernel_module_package_buildreqs
 ExclusiveArch:	i686 x86_64
 
