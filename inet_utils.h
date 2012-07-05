@@ -6,6 +6,7 @@
  *the struct sockaddr. 
  */
 
+struct sock;
 struct socket;
 struct sockaddr;
 
