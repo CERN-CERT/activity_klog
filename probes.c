@@ -468,7 +468,7 @@ void unplant_all(void)
 	#if PROBE_CONNECTION_CLOSE
 
 	unregister_jprobe(&tcp_close_jprobe);
-	printk(KERN_INFO MODULE_NAME ": Unplanted close pre handler probe\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted close pre handler probe\n");
 
 	#endif
 
@@ -599,7 +599,7 @@ int __init plant_probes(void)
 {
 	int err;
 
-	printk(KERN_INFO MODULE_NAME ": Light monitoring tool for inet connections by CERN Security Team\n")
+	printk(KERN_INFO MODULE_NAME ": Light monitoring tool for inet connections by CERN Security Team\n");
 
 	err = plant_all();
 
