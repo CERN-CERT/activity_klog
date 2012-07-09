@@ -457,13 +457,13 @@ static struct jprobe bind_jprobe =
 void unplant_all(void)
 {
   	unregister_jprobe(&connect_jprobe);
-	printk(KERN_INFO MODULE_NAME ": Unplanted connect pre handler probe\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted connect pre handler probe\n");
 	
 	unregister_kretprobe(&connect_kretprobe);
-	printk(KERN_INFO MODULE_NAME ": Unplanted connect post handler probe\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted connect post handler probe\n");
 
 	unregister_kretprobe(&accept_kretprobe);
-	printk(KERN_INFO MODULE_NAME ": Unplanted accept post handler probe\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted accept post handler probe\n");
 
 	#if PROBE_CONNECTION_CLOSE
 
@@ -475,11 +475,9 @@ void unplant_all(void)
 	#if PROBE_UDP
 
   	unregister_jprobe(&bind_jprobe);
-	printk(KERN_INFO MODULE_NAME ": Unplanted bind pre handler probe\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted bind pre handler probe\n");
 
 	#endif
-
-	printk(KERN_INFO MODULE_NAME ": All probes unplanted\n");
 }
 
 int plant_all(void)
@@ -490,37 +488,37 @@ int plant_all(void)
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ": Failed to plant connect pre handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant connect pre handler\n");
 		unplant_all();
 		
 		return -CONNECT_PROBE_FAILED;
 	}
 
-	printk(KERN_INFO MODULE_NAME ": Planted connect pre handler\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted connect pre handler\n");
 
 	err = register_kretprobe(&connect_kretprobe);
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ": Failed to plant connect post handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant connect post handler\n");
 		unplant_all();
 		
 		return -CONNECT_PROBE_FAILED;
 	}
 
-	printk(KERN_INFO MODULE_NAME ": Planted connect post handler\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted connect post handler\n");
 
 	err = register_kretprobe(&accept_kretprobe);
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ": Failed to plant accept post handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant accept post handler\n");
 		unplant_all();
 		
 		return -ACCEPT_PROBE_FAILED;
 	}
 
-	printk(KERN_INFO MODULE_NAME ": Planted accept post handler\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted accept post handler\n");
 
 	#if PROBE_CONNECTION_CLOSE
 
@@ -528,13 +526,13 @@ int plant_all(void)
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ": Failed to plant close pre handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant close pre handler\n");
 		unplant_all();
 		
 		return -CLOSE_PROBE_FAILED;
 	}
 
-	printk(KERN_INFO MODULE_NAME ": Planted close pre handler\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted close pre handler\n");
 
 	#endif
 	
@@ -544,17 +542,16 @@ int plant_all(void)
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ": Failed to plant bind pre handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant bind pre handler\n");
 		unplant_all();
 		
 		return -BIND_PROBE_FAILED;
 	}
 
-	printk(KERN_INFO MODULE_NAME ": Planted bind pre handler\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted bind pre handler\n");
 
 	#endif
 
-	printk(KERN_INFO MODULE_NAME ": All probes planted\n");
 	return 0;
 }
 
@@ -568,7 +565,7 @@ void do_whitelist(void)
 
 	if(whitelist_length > MAX_WHITELIST_SIZE)
 	{
-		printk(KERN_ERR MODULE_NAME ": Cannot whitelist more than %d connections. The %d last parameters paths will be ignored. \
+		printk(KERN_ERR MODULE_NAME ":\t[-] Cannot whitelist more than %d connections. The %d last parameters paths will be ignored. \
 					Please change MAX_WHITELIST_SIZE definition in netlog.h and recompile, or contact \
 					CERN-CERT <cert@cern.ch>\n", MAX_WHITELIST_SIZE, whitelist_length - MAX_WHITELIST_SIZE);
 					
@@ -583,11 +580,11 @@ void do_whitelist(void)
 
 		if(err < 0)
 		{
-			printk(KERN_ERR MODULE_NAME ": Failed to whitelist %s\n", connections_to_whitelist[i]);
+			printk(KERN_ERR MODULE_NAME ":\t[-] Failed to whitelist %s\n", connections_to_whitelist[i]);
 		}
 		else
 		{
-			printk(KERN_INFO MODULE_NAME ": Whitelisted %s\n", connections_to_whitelist[i]);
+			printk(KERN_INFO MODULE_NAME ":\t[+] Whitelisted %s\n", connections_to_whitelist[i]);
 		}
 	}
 }
@@ -601,6 +598,8 @@ void do_whitelist(void)
 int __init plant_probes(void)
 {
 	int err;
+
+	printk(KERN_INFO MODULE_NAME ": Light monitoring tool for inet connections by CERN Security Team\n")
 
 	err = plant_all();
 
@@ -617,12 +616,14 @@ int __init plant_probes(void)
 
 	if(absolute_path_mode)
 	{
-		printk(KERN_INFO MODULE_NAME ": Absolute path mode is enabled. The logs will contain the absolute execution path\n");
+		printk(KERN_INFO MODULE_NAME ":\t[+] Absolute path mode is enabled. The logs will contain the absolute execution path\n");
 	}
 	else
 	{
-		printk(KERN_INFO MODULE_NAME ": Absolute path mode is disabled. The logs will contain the process name\n");
+		printk(KERN_INFO MODULE_NAME ":\t[-] Absolute path mode is disabled. The logs will contain the process name\n");
 	}
+
+	printk(KERN_INFO MODULE_NAME ":\t[+] Deployed\n");
 
 	return 0;
 }
@@ -636,4 +637,3 @@ void __exit unplant_probes(void)
 	unplant_all();
 	destroy_whitelist();
 }
-
