@@ -74,6 +74,10 @@ install -m644 -D %{SOURCE2} $RPM_BUILD_ROOT/etc/depmod.d/%{kmod_name}.conf
 mkdir -p ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
 install -m0755 %{SOURCE3} ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
 
+%post
+
+bash ${RPM_BUILD_ROOT}/etc/sysconfig/modules/%{kmod_name}.modules
+
 %clean
 rm -rf $RPM_BUILD_ROOT
 
