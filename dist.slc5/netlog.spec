@@ -113,6 +113,10 @@ fi
 mkdir -p ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
 install -m0755 %{SOURCE2} ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
 
+%post
+
+${RPM_BUILD_ROOT}/etc/sysconfig/modules/%{kmod_name}.modules
+
 %clean
 rm -rf $RPM_BUILD_ROOT
 
