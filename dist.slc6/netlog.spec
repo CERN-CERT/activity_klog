@@ -76,7 +76,7 @@ install -m0755 %{SOURCE3} ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
 
 %post
 
-bash ${RPM_BUILD_ROOT}/etc/sysconfig/modules/%{kmod_name}.modules
+${RPM_BUILD_ROOT}/etc/sysconfig/modules/%{kmod_name}.modules
 
 %clean
 rm -rf $RPM_BUILD_ROOT
