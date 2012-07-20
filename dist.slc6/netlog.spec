@@ -56,6 +56,9 @@ for flavor in %flavors_to_build ; do
 	make -C %{kernel_source $flavor} M=$PWD/obj/$flavor
 done
 
+%files
+%config(noreplace) %attr(0755,root,root) /etc/sysconfig/modules/%{kmod_name}.modules
+
 %install
 rm -rf $RPM_BUILD_ROOT
 export INSTALL_MOD_PATH=$RPM_BUILD_ROOT
@@ -82,6 +85,9 @@ ${RPM_BUILD_ROOT}/etc/sysconfig/modules/%{kmod_name}.modules
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Fri Jul 20 2012 Panos Sakkos <panos.sakkos@cern.ch> - 0.54
+- Fixes for the deployment
+
 * Fri Mar 23 2012 Jaroslaw Polok <jaroslaw.polok@cern.ch> - 1.5
 - updated to latest.
 

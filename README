@@ -127,7 +127,7 @@ Dec 19 14:19:07 panos-PC kernel: netlog: sshd[3755] TCP 137.138.191.167:22 <-> 1
 
 In the source directory run:
 
-	make -C /lib/modules/$(uname -r)/build M=$PWD
+	make build
 
 Then run:
 
