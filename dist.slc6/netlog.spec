@@ -87,7 +87,7 @@ ${RPM_BUILD_ROOT}/etc/sysconfig/modules/%{kmod_name}.modules
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
-* Fri Jul 20 2012 Panos Sakkos <panos.sakkos@cern.ch> - 0.54
+* Fri Jul 20 2012 Panos Sakkos <panos.sakkos@cern.ch> - 1.23
 - Fixes for the deployment
 
 * Fri Mar 23 2012 Jaroslaw Polok <jaroslaw.polok@cern.ch> - 1.5
