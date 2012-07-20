@@ -57,6 +57,8 @@ for flavor in %flavors_to_build ; do
 done
 
 %files
+%defattr(644,root,root,755)
+/etc/depmod.d/netlog.conf
 %config(noreplace) %attr(0755,root,root) /etc/sysconfig/modules/%{kmod_name}.modules
 
 %install
