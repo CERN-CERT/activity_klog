@@ -3,8 +3,10 @@
 #include <linux/mm.h>
 #include <linux/version.h>
 #include <linux/err.h>
+#include <linux/spinlock.h>
 #include "whitelist.h"
 #include "connection.h"
+#include "proc_config.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 25)
 	#define call_d_path(file, buffer, length) d_path(file->f_dentry, file->f_vfsmnt, buffer, length);
@@ -15,10 +17,15 @@
 int size = 0;
 struct connection *white_list[MAX_WHITELIST_SIZE];
 
+unsigned long flags;
+DEFINE_SPINLOCK(access_whitelist_spinlock);
+
 int whitelist(const char *connection_string)
 {
 	int i;
 	struct connection *connection_to_whitelist;
+
+	spin_lock_irqsave(&access_whitelist_spinlock, flags);
 
 	if(size == MAX_WHITELIST_SIZE)
 	{
@@ -48,6 +55,12 @@ int whitelist(const char *connection_string)
 
 	white_list[size] = connection_to_whitelist;	
 	++size;
+
+	/* Update the proc configuration buffer */
+
+	add_connection_string_to_proc_config(connection_string);
+
+	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
 
 	return WHITELISTED;
 out_fail:
@@ -84,6 +97,8 @@ int is_whitelisted(const struct task_struct *task, const char *ip, const int por
 	}
 
 	/*Check if the execution path and the ip and port are whitelisted*/
+
+	spin_lock_irqsave(&access_whitelist_spinlock, flags);
 	
 	for(i = 0; i < size; ++i)
 	{
@@ -95,10 +110,28 @@ int is_whitelisted(const struct task_struct *task, const char *ip, const int por
 		}
 	}
 
+	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
+
 not_whitelisted:
 	return NOT_WHITELISTED;
 whitelisted:
 	return WHITELISTED;
+}
+
+void destroy_whitelist(void)
+{
+	int i;
+	
+	spin_lock_irqsave(&access_whitelist_spinlock, flags);
+	
+	for(i = 0; i < size; ++i)
+	{
+		destroy_connection(white_list[i]);
+	}
+	
+	size = 0;
+	
+	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
 }
 
 char *exe_from_mm(const struct mm_struct *mm, char *buffer, int length)
@@ -136,12 +169,3 @@ char *exe_from_mm(const struct mm_struct *mm, char *buffer, int length)
 	return p;
 }
 
-void destroy_whitelist(void)
-{
-	int i;
-	
-	for(i = 0; i < size; ++i)
-	{
-		destroy_connection(white_list[i]);
-	}
-}

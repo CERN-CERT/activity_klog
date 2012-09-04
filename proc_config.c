@@ -10,51 +10,121 @@ static unsigned long procfs_buffer_size = 0;
 static char procfs_buffer[PROCFS_MAX_SIZE];
 static struct proc_dir_entry *netlog_config_proc_file = NULL;
 
-void add_connection_string_to_proc_config(char *connection_string)
+void add_connection_string_to_proc_config(const char *connection_string)
 {
 	if(connection_string == NULL)
 		return;
-		
+	
 	procfs_buffer_size += snprintf(procfs_buffer + procfs_buffer_size, PROCFS_MAX_SIZE - procfs_buffer_size, 
 											"%s\n", connection_string);
 }
 
+void initialize_procfs_buffer(void)
+{
+	memset(procfs_buffer, '\0', PROCFS_MAX_SIZE);
+	procfs_buffer_size = 0;
+}
+
+void update_whitelist(void)
+{
+	int i, connection_string_length;
+	static char temp_procfs_buffer[PROCFS_MAX_SIZE];
+	char new_connection_string[MAX_NEW_CONNECTION_SIZE], *start;
+
+	/* Copy the prc fs buffer into a temporary, because it will
+	 * be updated from the void whitelist(struct connection *connection).
+	 * 
+	 * By this way, the buffer will be consistent with the whitelist, because
+	 * some connections might not be in the right format.
+	 */
+	
+	memcpy(temp_procfs_buffer, procfs_buffer, PROCFS_MAX_SIZE);
+	initialize_procfs_buffer();
+
+	destroy_whitelist();
+	
+	/* Whitelist one by one the connections that our buffer has */
+	
+	start = temp_procfs_buffer;
+	connection_string_length = 0;
+	for(i = 0; temp_procfs_buffer[i] != '\0'; i++)
+	{			
+		/* Each connection is separated by a new line in the buffer.
+		 * Locate them and add them to the whitelist.
+		 */
+
+		if(temp_procfs_buffer[i] == '\n' && connection_string_length > 1)
+		{
+			int err;
+
+			memcpy(new_connection_string, start, connection_string_length);
+			new_connection_string[connection_string_length] = '\0';
+			
+			i++;
+			start = temp_procfs_buffer + i;
+			connection_string_length = 0;
+
+			/* Whitelist the new connection */
+
+			err = whitelist(new_connection_string);
+
+			if(err < 0)
+			{
+				printk(KERN_ERR PROC_CONFIG_NAME ":\t[-] Failed to whitelist %s\n", new_connection_string);
+			}
+			else
+			{
+				printk(KERN_INFO PROC_CONFIG_NAME ":\t[+] Whitelisted %s\n", new_connection_string);
+			}
+		}
+		
+		connection_string_length++;
+	}
+	
+	memset(temp_procfs_buffer, '\0', PROCFS_MAX_SIZE);
+}
+
 int procfile_read(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data)
 {
-	int ret;
-	
-	if (offset > 0) 
+	int written;
+
+	if(offset > 0)
 	{
-		ret  = 0;
+		written = 0;
 	}
 	else 
 	{
 		memcpy(buffer, procfs_buffer, procfs_buffer_size);
-		ret = procfs_buffer_size;
+		written = procfs_buffer_size;
 	}
 
-	return ret;
+	return written;
 }
 
 int procfile_write(struct file *file, const char *buffer, unsigned long count, void *data)
 {
 	procfs_buffer_size = count;
+
 	if(procfs_buffer_size > PROCFS_MAX_SIZE) 
 	{
 		procfs_buffer_size = PROCFS_MAX_SIZE;
 	}
-	
+
 	if(copy_from_user(procfs_buffer, buffer, procfs_buffer_size))
 	{
 		return -EFAULT;
 	}
-	
+
+	procfs_buffer[procfs_buffer_size] = '\0';
+
+	update_whitelist();
+
 	return procfs_buffer_size;
 }
 
 int create_proc_config(void)
 {
-	netlog_config_proc_file = create_proc_entry(PROC_CONFIG_NAME, 0644, NULL);
+	netlog_config_proc_file = create_proc_entry(PROC_CONFIG_NAME, 0600, NULL);
 	
 	if(netlog_config_proc_file == NULL) 
 	{
@@ -64,9 +134,11 @@ int create_proc_config(void)
 
 	netlog_config_proc_file->read_proc  = procfile_read;
 	netlog_config_proc_file->write_proc = procfile_write;
-	netlog_config_proc_file->mode = S_IFREG | S_IRUGO;
+	netlog_config_proc_file->mode = S_IFREG | S_IRUSR | S_IWUSR;
 	netlog_config_proc_file->uid = 0;
 	netlog_config_proc_file->gid = 0;
+
+	initialize_procfs_buffer();
 	
 	return 0;
 }
@@ -77,6 +149,8 @@ void destroy_proc_config(void)
 	{
 		remove_proc_entry(PROC_CONFIG_NAME, NULL);	
 		netlog_config_proc_file = NULL;
+		
+		initialize_procfs_buffer();
 	}
 }
 

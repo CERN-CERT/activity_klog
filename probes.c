@@ -586,7 +586,6 @@ void do_whitelist(void)
 		else
 		{
 			printk(KERN_INFO MODULE_NAME ":\t[+] Whitelisted %s\n", connections_to_whitelist[i]);
-			add_connection_string_to_proc_config(connections_to_whitelist[i]);
 		}
 	}
 }
@@ -612,6 +611,17 @@ int __init plant_probes(void)
 
 	#if WHITELISTING
 
+	err = create_proc_config();
+
+	if(err < 0)
+	{
+		printk(KERN_INFO MODULE_NAME ":\t[-] Creation of proc file for configuring connection whitelisting failed\n");
+	}
+	else
+	{
+		printk(KERN_INFO MODULE_NAME ":\t[+] Created %s proc file for configuring connection whitelisting\n", PROC_CONFIG_NAME);
+	}
+
 	do_whitelist();
 
 	#endif
@@ -623,17 +633,6 @@ int __init plant_probes(void)
 	else
 	{
 		printk(KERN_INFO MODULE_NAME ":\t[-] Absolute path mode is disabled. The logs will contain the process name\n");
-	}
-
-	err = create_proc_config();
-
-	if(err < 0)
-	{
-		printk(KERN_INFO MODULE_NAME ":\t[-] Creation of proc file for configuring connection whitelisting failed\n");
-	}
-	else
-	{
-		printk(KERN_INFO MODULE_NAME ":\t[+] Created %s proc file for configuring connection whitelisting\n", PROC_CONFIG_NAME);
 	}
 
 	printk(KERN_INFO MODULE_NAME ":\t[+] Deployed\n");
