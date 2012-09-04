@@ -145,5 +145,3 @@ void destroy_whitelist(void)
 		destroy_connection(white_list[i]);
 	}
 }
-
-

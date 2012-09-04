@@ -14,6 +14,7 @@
 #include "whitelist.h"
 #include "netlog.h"
 #include "connection.h"
+#include "proc_config.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 	#define get_current_uid() current->uid
@@ -585,6 +586,7 @@ void do_whitelist(void)
 		else
 		{
 			printk(KERN_INFO MODULE_NAME ":\t[+] Whitelisted %s\n", connections_to_whitelist[i]);
+			add_connection_string_to_proc_config(connections_to_whitelist[i]);
 		}
 	}
 }
@@ -623,6 +625,17 @@ int __init plant_probes(void)
 		printk(KERN_INFO MODULE_NAME ":\t[-] Absolute path mode is disabled. The logs will contain the process name\n");
 	}
 
+	err = create_proc_config();
+
+	if(err < 0)
+	{
+		printk(KERN_INFO MODULE_NAME ":\t[-] Creation of proc file for configuring connection whitelisting failed\n");
+	}
+	else
+	{
+		printk(KERN_INFO MODULE_NAME ":\t[+] Created %s proc file for configuring connection whitelisting\n", PROC_CONFIG_NAME);
+	}
+
 	printk(KERN_INFO MODULE_NAME ":\t[+] Deployed\n");
 
 	return 0;
@@ -636,4 +649,5 @@ void __exit unplant_probes(void)
 {
 	unplant_all();
 	destroy_whitelist();
+	destroy_proc_config();
 }
