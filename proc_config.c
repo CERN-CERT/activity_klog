@@ -47,19 +47,20 @@ void update_whitelist(void)
 	
 	start = temp_procfs_buffer;
 	connection_string_length = 0;
+	
 	for(i = 0; temp_procfs_buffer[i] != '\0'; i++)
 	{			
 		/* Each connection is separated by a new line in the buffer.
 		 * Locate them and add them to the whitelist.
 		 */
 
-		if(temp_procfs_buffer[i] == '\n' && connection_string_length > 1)
+		if(temp_procfs_buffer[i] == '\n' || temp_procfs_buffer[i] == '\0' && connection_string_length > 1)
 		{
 			int err;
 
 			memcpy(new_connection_string, start, connection_string_length);
 			new_connection_string[connection_string_length] = '\0';
-			
+
 			i++;
 			start = temp_procfs_buffer + i;
 			connection_string_length = 0;
@@ -77,10 +78,10 @@ void update_whitelist(void)
 				printk(KERN_INFO PROC_CONFIG_NAME ":\t[+] Whitelisted %s\n", new_connection_string);
 			}
 		}
-		
+
 		connection_string_length++;
 	}
-	
+
 	memset(temp_procfs_buffer, '\0', PROCFS_MAX_SIZE);
 }
 
@@ -125,7 +126,7 @@ int procfile_write(struct file *file, const char *buffer, unsigned long count, v
 int create_proc_config(void)
 {
 	netlog_config_proc_file = create_proc_entry(PROC_CONFIG_NAME, 0600, NULL);
-	
+
 	if(netlog_config_proc_file == NULL) 
 	{
 		remove_proc_entry(PROC_CONFIG_NAME, NULL);
