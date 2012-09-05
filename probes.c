@@ -647,6 +647,11 @@ int __init plant_probes(void)
 void __exit unplant_probes(void)
 {
 	unplant_all();
+
+	#if WHITELISTING
+
 	destroy_whitelist();
 	destroy_proc_config();
+
+	#endif
 }
