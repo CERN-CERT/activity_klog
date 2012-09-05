@@ -54,7 +54,7 @@ void update_whitelist(void)
 		 * Locate them and add them to the whitelist.
 		 */
 
-		if(temp_procfs_buffer[i] == '\n' || temp_procfs_buffer[i] == '\0' && connection_string_length > 1)
+		if((temp_procfs_buffer[i] == '\n' || temp_procfs_buffer[i] == '\0') && connection_string_length > 1)
 		{
 			int err;
 
