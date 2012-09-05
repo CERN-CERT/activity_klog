@@ -64,6 +64,8 @@ int whitelist(const char *connection_string)
 
 	return WHITELISTED;
 out_fail:
+	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
+
 	return WHITELIST_FAIL;
 }
 
@@ -115,6 +117,8 @@ int is_whitelisted(const struct task_struct *task, const char *ip, const int por
 not_whitelisted:
 	return NOT_WHITELISTED;
 whitelisted:
+	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
+
 	return WHITELISTED;
 }
 
