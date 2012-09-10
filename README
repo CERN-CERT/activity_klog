@@ -3,7 +3,7 @@
 					+---------------------------+
 
 Product name: 			netlog
-Date:				Jun 5 2012
+Date:				Sep 10 2012
 Version:			1.15
 Vendor:				CERN
 Author:				Panos Sakkos while at Computer Security Team 
@@ -46,6 +46,8 @@ zero (0) to a non-zero value (i.e. 1) and recompile netlog.
 					+----------+
 					|Change Log|
 					+----------+
+1.23
+	*On the fly configuration of the whitelist
 
 1.12
 	*Optimizations
@@ -86,6 +88,30 @@ If you believe that you will not need whitelisting at all, we recommend you to c
 in order to boost even more its perfomance. In order to not compile the code of whitelisting, change the static constant
 WHITELISTING to 0 in netlog.h file and recompile netlog.
 
+					+_________________________________________+
+					|On the fly configuration of the whitelist|
+					+-----------------------------------------+
+
+The process of whitelisting (described in "Dynamic Whitelisting" section) can be done also while netlog is planted.
+If you want to change the whitelist when netlog is planted, there is no need to remove the module and insert 
+it again with the updated whitelist information passed as insertion parameters. This can be done by editing the
+/proc/config-netlog proc file. This file contains per line the currently whitelisted connections. 
+
+i.e. if you inserted netlog like this:
+
+insmod netlog.ko connections_to_whitelist="/usr/sbin/skype","/usr/bin/ssh|i<127.0.0.1>","/usr/bin/sshd|i<127.0.0.1>|p<22>"
+
+The contents of the /proc/config-netlog will be:
+
+cat /proc/config-netlog
+/usr/sbin/skype
+/usr/bin/ssh|i<127.0.0.1>
+/usr/bin/sshd|i<127.0.0.1>|p<22>
+
+If you want to change the whitelisted connections, simply type the connections that you want to whitelist per line and 
+with the format that the section "Dynamic Whitelisting" describes and save the proc file. The changes will take place
+instantly.
+
 					+------------------+
 					|Absolute Path Mode|
 					+------------------+
@@ -102,7 +128,7 @@ you want to whitelist.
 					+--------------------------+
 					|Supported kernel versions |
 					+--------------------------+
-2.6.12 up to 3.3.8
+2.6.12 up to 3.4.9
 
 					+--------------------------+
 					|Format of the log messages|
