@@ -42,7 +42,9 @@ void update_whitelist(void)
 	initialize_procfs_buffer();
 
 	destroy_whitelist();
-	
+
+	printk(KERN_INFO PROC_CONFIG_NAME ":\t[+] Cleared whitelist\n");	
+
 	/* Whitelist one by one the connections that our buffer has */
 	
 	start = temp_procfs_buffer;
