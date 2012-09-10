@@ -7,23 +7,11 @@ src_files = inet_utils.c probes.c whitelist.c connection.c proc_config.c
 obj-m += $(name).o
 $(name)-objs := $(src_files:.c=.o)
 
-
-#
-# Distributions which src rpms are built for by default
-# The corresponding spec file is needed: DIST/$(name).spec
-#
-DISTS     = slc5 slc6
-
 #
 # Get current version number
 # 
-version   = $(shell cat VERSION | cut -d- -f1)
-release   = $(shell cat VERSION | cut -d- -f2)
-
-#
-# Get machine architecture
-#
-arch      = $(shell uname -i)
+version   = $(shell if [ -f VERSION ]; then cat VERSION | cut -d- -f1; fi)
+release   = $(shell if [ -f VERSION ]; then cat VERSION | cut -d- -f2; fi)
 
 #
 # variables for all external commands (we try to be verbose)
@@ -34,12 +22,15 @@ PERL      = perl
 RPMBUILD  = rpmbuild
 SED       = sed
 
-all: srpms
+all: srpm
 
-clean: build.clean dist.clean
+.PHONY: build install build.clean
 
-build:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+clean: dist.clean build.clean 
+
+build: hashed_symbols.h
+	./extractSymAddrs
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules CONFIG_DEBUG_SECTION_MISMATCH=y
 
 install: build
 	-mkdir -p /lib/modules/`uname -r`/kernel/arch/x86/kernel/
@@ -48,7 +39,8 @@ install: build
 
 build.clean:
 	[ -d /lib/modules/$(shell uname -r)/build ] && \
-	make -i -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+	rm -f hashed_static_symbols.h
 
 #+++############################################################################
 #                                                                              #
@@ -60,7 +52,7 @@ build.clean:
 # internal targets
 #
 
-.PHONY: _increment_version _increment_release _increment_release_build _update_spec _git_commit_tag
+.PHONY: _increment_version _increment_release _increment_release_build _git_commit_tag
 
 _increment_version:
 	@$(PERL) -pi -e 'die("invalid version: $$_\n") unless \
@@ -74,9 +66,7 @@ _increment_release_build:
 	@$(PERL) -pi -e 'die("invalid version: $$_\n") unless \
 	  s/^(\d+)\.(\d+)-(\d+)(.*?)$$/sprintf("%d.%d-%d%s", $$1, $$2, $$3+1, $$4)/e' VERSION
 
-_update_spec: $(DISTS:=.spec)
-
-%.spec: dist.%/$(name).spec
+_update_spec: $(name).spec
 	@version=`cat VERSION | cut -d- -f1`; \
 	$(SED) -i -e "s/^\(%define kmod_driver_version\s\+\)\S\+\s*$$/\1$$version/" $<
 	@release=`cat VERSION | cut -d- -f2`; \
@@ -122,26 +112,18 @@ dist: $(name)-$(version).tgz
 
 %.tgz:
 	@git archive --format=tar --prefix=$(name)-$(version)/ v$(version) \
-	| tar --delete "$(name)-$(version)/dist.*" --delete "$(name)-$(version)/webpage" --delete "$(name)-$(version)/.git*" \
+	| tar --delete "$(name)-$(version)/.git*" \
 	| gzip > $(name)-$(version).tgz
 
-dir.%:
-	@mkdir -p $*
 
-srpms: $(DISTS:=.srpm)
+srpm: dist
+	$(RPMBUILD) --define "_sourcedir ${PWD}" --define "_srcrpmdir ${PWD}" -bs $(name).spec; \
+	rm $(name)-$(version).tgz
 
-slc5.srpm: dist.slc5/$(name).spec dist dir.rpms
-	@cp $(name)-$(version).tgz dist.slc5/; \
-	$(RPMBUILD) --define "_sourcedir ${PWD}/dist.slc5" --define "_srcrpmdir ${PWD}/rpms" --define "dist .slc5" --define '_source_filedigest_algorithm 1' --define '_binary_filedigest_algorithm 1' --define '_binary_payload w9.gzdio' -bs $<; \
-	rm dist.slc5/$(name)-$(version).tgz
-
-%.srpm: dist.%/$(name).spec dist dir.rpms
-	@cp $(name)-$(version).tgz dist.$*/; \
-	$(RPMBUILD) --define "_sourcedir ${PWD}/dist.$*" --define "_srcrpmdir ${PWD}/rpms" --define "dist .$*" -bs $<; \
-	rm dist.$*/$(name)-$(version).tgz
-
-%.rpm: %.srpm
-	@rpmbuild --rebuild --define '_rpmdir ${PWD}/rpms' --define 'dist .$*' rpms/$(name)-$(version)-$(release).$*.src.rpm
+rpm: dist 
+	$(RPMBUILD) --define "_sourcedir ${PWD}" --define "_srcrpmdir ${PWD}" -ba $(name).spec; \
+        rm $(name)-$(version).tgz
 
 dist.clean:
-	@rm -f *tgz
+	@rm -f *.tgz
+	@rm -f *.rpm
