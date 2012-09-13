@@ -1,39 +1,29 @@
-%define kmod_name		netlog
-%define kmod_driver_version	1.23
-%define kmod_rpm_release	1
-%define kmod_kernel_version	2.6.32-220.7.1.el6
+Name:		netlog
+Version:	1.23
+Release:	2%{?dist}
 
-# with koji ... we have to build against current (newest) kernel ...
-
-%{!?dist: %define dist .slc6}
-
-Source0:	%{kmod_name}-%{kmod_driver_version}.tgz
-Source1:	%{kmod_name}.files
-Source2:	%{kmod_name}.conf
-Source3:	%{kmod_name}.modules
-Source4:	kmodtool-%{kmod_name}
-
-Name:		%{kmod_name}
-Version:	%{kmod_driver_version}
-Release:	%{kmod_rpm_release}%{?dist}
 Summary:	Kernel module for logging network connections details
 Group:		System Environment/Kernel
 License:	GPLv2+
-URL:		http://www.cern.ch/
+URL:		http://github.com/CERN-CERT/netlog
 Vendor:		CERN, http://cern.ch/linux
-BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
+BuildRoot: 	%{_tmppath}/%{name}-%{version}-buildroot
 BuildRequires:	sed, redhat-rpm-config
 BuildRequires:	%kernel_module_package_buildreqs
 ExclusiveArch:	i686 x86_64
+
+Source0:	%{name}/%{name}-%{version}.tar.gz
+Source1:	%{name}.files
+Source2:	kmodtool-%{name}
 
 # Uncomment to build "debug" packages
 #kernel_module_package -f %{SOURCE1} default debug
 
 # Build only for standard kernel variant(s)
-%kernel_module_package -s %{SOURCE4} -f %{SOURCE1} default
+%kernel_module_package -s %{SOURCE2} -f %{SOURCE1} default
 
 %description
-%{kmod_name} is a Loadable Kernel Module that logs information for every connection.
+%{name} is a Loadable Kernel Module that logs information for every connection.
 
 %prep
 %setup -q
@@ -56,15 +46,20 @@ for flavor in %flavors_to_build ; do
 	make -C %{kernel_source $flavor} M=$PWD/obj/$flavor
 done
 
-%files
-%defattr(644,root,root,755)
-/etc/depmod.d/netlog.conf
-%config(noreplace) %attr(0755,root,root) /etc/sysconfig/modules/%{kmod_name}.modules
+
+# We don't need this as the config files are already provided with the kmod-%{name} 
+# package. 
+
+#%files
+#%defattr(644,root,root,755)
+#/etc/depmod.d/netlog.conf
+#%config(noreplace) %attr(0755,root,root) /etc/sysconfig/modules/%{name}.modules
+
 
 %install
 rm -rf $RPM_BUILD_ROOT
 export INSTALL_MOD_PATH=$RPM_BUILD_ROOT
-export INSTALL_MOD_DIR=extra/%{kmod_name}
+export INSTALL_MOD_DIR=extra/%{name}
 for flavor in %flavors_to_build ; do 
 	 make -C %{kernel_source $flavor} modules_install \
 	 M=$PWD/obj/$flavor
@@ -72,22 +67,25 @@ for flavor in %flavors_to_build ; do
 	find $INSTALL_MOD_PATH/lib/modules -iname 'modules.*' -exec rm {} \;
 done
 
-install -m644 -D %{SOURCE2} $RPM_BUILD_ROOT/etc/depmod.d/%{kmod_name}.conf
+install -m644 -D %{_sourcedir}/%{name}.conf $RPM_BUILD_ROOT/etc/depmod.d/%{name}.conf
 
 #Load at boot time
 
 mkdir -p ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
-install -m0755 %{SOURCE3} ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
+install -m0755 %{_sourcedir}/%{name}.modules ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
 
 %post
 
-${RPM_BUILD_ROOT}/etc/sysconfig/modules/%{kmod_name}.modules
+${RPM_BUILD_ROOT}/etc/sysconfig/modules/%{name}.modules
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
-* Fri Jul 20 2012 Panos Sakkos <panos.sakkos@cern.ch> - 1.23
+* Wed Sep 12 2012 Antonio Perez <antonio.perez.perez@cern.ch> - 1.23-2
+- Fixed and cleaned the Makefile and spec file.
+
+* Fri Jul 20 2012 Panos Sakkos <panos.sakkos@cern.ch> - 1.23-1
 - Fixes for the deployment
 
 * Fri Mar 23 2012 Jaroslaw Polok <jaroslaw.polok@cern.ch> - 1.5

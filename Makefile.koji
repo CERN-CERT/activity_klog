@@ -1,0 +1,21 @@
+TOP     := $(dir $(lastword $(MAKEFILE_LIST)))
+NAME    := $(shell basename ${TOP}/*.spec .spec)
+VERSION := $(shell egrep '^Version:' ${TOP}/${NAME}.spec | sed 's/^Version:\s*//')
+RELEASE := ${NAME}-${VERSION}
+
+PKGNAME	=  $(RELEASE) 
+
+all:
+	-rm -rf /var/tmp/${RELEASE}
+	-rm -rf /var/tmp/${RELEASE}-buildroot
+	-mkdir /var/tmp/${RELEASE}
+	cp -r * /var/tmp/${RELEASE}
+	cd /var/tmp/ ; tar  cvfz ${RELEASE}.tar.gz \
+                    --exclude-vcs --exclude='*~' --exclude='#*#' --exclude='20*' ${RELEASE}  
+	cp /var/tmp/${RELEASE}.tar.gz .
+
+clean:
+	@rm -f *.tar.gz
+	@rm -f *.tgz
+	@rm -f *.rpm
+
