@@ -1,5 +1,6 @@
 Name:		netlog
 Version:	1.23
+%{!?dist: %define dist .slc6}
 Release:	2%{?dist}
 
 Summary:	Kernel module for logging network connections details
@@ -14,13 +15,14 @@ ExclusiveArch:	i686 x86_64
 
 Source0:	%{name}/%{name}-%{version}.tar.gz
 Source1:	%{name}.files
-Source2:	kmodtool-%{name}
+Source2:	%{name}.conf
+Source3:	%{name}.modules
 
 # Uncomment to build "debug" packages
 #kernel_module_package -f %{SOURCE1} default debug
 
 # Build only for standard kernel variant(s)
-%kernel_module_package -s %{SOURCE2} -f %{SOURCE1} default
+%kernel_module_package -f %{SOURCE1} default
 
 %description
 %{name} is a Loadable Kernel Module that logs information for every connection.
@@ -67,12 +69,12 @@ for flavor in %flavors_to_build ; do
 	find $INSTALL_MOD_PATH/lib/modules -iname 'modules.*' -exec rm {} \;
 done
 
-install -m644 -D %{_sourcedir}/%{name}.conf $RPM_BUILD_ROOT/etc/depmod.d/%{name}.conf
+install -m644 -D %{SOURCE2} $RPM_BUILD_ROOT/etc/depmod.d/%{name}.conf
 
 #Load at boot time
 
 mkdir -p ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
-install -m0755 %{_sourcedir}/%{name}.modules ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
+install -m0755 %{SOURCE3} ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
 
 %post
 
