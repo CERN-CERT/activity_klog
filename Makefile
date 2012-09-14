@@ -7,6 +7,7 @@
 TOP 	  := $(dir $(lastword $(MAKEFILE_LIST)))
 NAME 	  := $(shell basename ${TOP}/*.spec .spec)
 VERSION   := $(shell egrep '^Version:' ${TOP}/${NAME}.spec | sed 's/^Version:\s*//')
+DIST	  := $(shell egrep '^%define dist' ${TOP}/${NAME}.spec | sed 's/^%define dist\s*//')
 RELEASE   := ${NAME}-${VERSION}
 
 rpmtopdir := $(shell rpm --eval %_topdir)
@@ -27,11 +28,11 @@ dist: clean
 sources: dist
 
 srpm: dist
-	$(rpmbuild)  --define "_sourcedir ${PWD}" --define "_srcrpmdir ${PWD}" -bs ${NAME}.spec; \
+	$(rpmbuild) --define "dist ${DIST}" --define "_sourcedir ${PWD}" --define "_srcrpmdir ${PWD}" -bs ${NAME}.spec; \
 	rm ${NAME}-${VERSION}.tar.gz
 
 rpm: dist 
-	$(rpmbuild) --define "_sourcedir ${PWD}" --define "_srcrpmdir ${PWD}" -ba ${NAME}.spec; \
+	$(rpmbuild) --define "dist ${DIST}" --define "_sourcedir ${PWD}" --define "_srcrpmdir ${PWD}" -ba ${NAME}.spec; \
         rm ${NAME}-${VERSION}.tar.gz
 
 clean:

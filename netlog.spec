@@ -1,6 +1,9 @@
+%define dist .ai6
+%define debug_package %{nil}
+
+
 Name:		netlog
 Version:	1.23
-%{!?dist: %define dist .slc6}
 Release:	2%{?dist}
 
 Summary:	Kernel module for logging network connections details
