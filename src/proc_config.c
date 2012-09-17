@@ -159,10 +159,6 @@ int procfile_write(struct file *file, const char *buffer, unsigned long count, v
 
 	update_whitelist();
 
-	/* Remove the last comma separator */
-
-//	procfs_buffer[procfs_buffer_size - 1] = '\0';
-
 	return count;
 }
 
