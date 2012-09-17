@@ -13,10 +13,12 @@ static struct proc_dir_entry *netlog_config_proc_file = NULL;
 void add_connection_string_to_proc_config(const char *connection_string)
 {
 	if(connection_string == NULL)
+	{
 		return;
-	
+	}
+		
 	procfs_buffer_size += snprintf(procfs_buffer + procfs_buffer_size, PROCFS_MAX_SIZE - procfs_buffer_size, 
-											"%s\n", connection_string);
+											"%s,", connection_string);
 }
 
 void initialize_procfs_buffer(void)
@@ -37,7 +39,7 @@ void update_whitelist(void)
 	 * By this way, the buffer will be consistent with the whitelist, because
 	 * some connections might not be in the right format.
 	 */
-	
+
 	memcpy(temp_procfs_buffer, procfs_buffer, PROCFS_MAX_SIZE);
 	initialize_procfs_buffer();
 
@@ -46,26 +48,24 @@ void update_whitelist(void)
 	printk(KERN_INFO PROC_CONFIG_NAME ":\t[+] Cleared whitelist\n");	
 
 	/* Whitelist one by one the connections that our buffer has */
-	
+
 	start = temp_procfs_buffer;
 	connection_string_length = 0;
-	
-	for(i = 0; temp_procfs_buffer[i] != '\0'; i++)
-	{			
-		/* Each connection is separated by a new line in the buffer.
+
+	for(i = 0; ; ++i)
+	{
+		/* Each connection is separated by a comma in the buffer,
+		 * or by a \0 if there is no comma after the last connection string.
 		 * Locate them and add them to the whitelist.
 		 */
 
-		if((temp_procfs_buffer[i] == '\n' || temp_procfs_buffer[i] == '\0') && connection_string_length > 1)
+		if(temp_procfs_buffer[i] == ',' || temp_procfs_buffer[i] == '\0')
 		{
 			int err;
 
+			connection_string_length++;
 			memcpy(new_connection_string, start, connection_string_length);
-			new_connection_string[connection_string_length] = '\0';
-
-			i++;
-			start = temp_procfs_buffer + i;
-			connection_string_length = 0;
+			new_connection_string[connection_string_length - 1] = '\0';
 
 			/* Whitelist the new connection */
 
@@ -79,9 +79,25 @@ void update_whitelist(void)
 			{
 				printk(KERN_INFO PROC_CONFIG_NAME ":\t[+] Whitelisted %s\n", new_connection_string);
 			}
-		}
 
-		connection_string_length++;
+			if(temp_procfs_buffer[i] == '\0')
+			{
+				/* End of parsing */
+
+				break;
+			}
+			else
+			{
+				/* Skip separating character */
+
+				start += connection_string_length;
+				connection_string_length = 0;
+			}
+		}
+		else
+		{
+			connection_string_length++;		
+		}
 	}
 
 	memset(temp_procfs_buffer, '\0', PROCFS_MAX_SIZE);
@@ -95,10 +111,22 @@ int procfile_read(char *buffer, char **buffer_location, off_t offset, int buffer
 	{
 		written = 0;
 	}
+	else if(buffer_length < procfs_buffer_size)
+	{
+		printk(KERN_ERR PROC_CONFIG_NAME ": Not large enought buffer to copy the procfs buffer\n");
+		written = 0;
+	}
 	else 
 	{
-		memcpy(buffer, procfs_buffer, procfs_buffer_size);
-		written = procfs_buffer_size;
+		/* Trim the last comma, if exists */
+
+		if(procfs_buffer[procfs_buffer_size - 1] == ',')
+		{		
+			procfs_buffer_size--;
+			procfs_buffer[procfs_buffer_size] = '\0';
+		}
+
+		written = snprintf(buffer, buffer_length, "%s\n", procfs_buffer);
 	}
 
 	return written;
@@ -108,9 +136,11 @@ int procfile_write(struct file *file, const char *buffer, unsigned long count, v
 {
 	procfs_buffer_size = count;
 
-	if(procfs_buffer_size > PROCFS_MAX_SIZE) 
+	if(procfs_buffer_size >= PROCFS_MAX_SIZE) 
 	{
-		procfs_buffer_size = PROCFS_MAX_SIZE;
+		printk(KERN_ERR PROC_CONFIG_NAME ": There is no enought space in the procfs buffer, changes will be ignored\n");
+
+		return -ENOSPC;
 	}
 
 	if(copy_from_user(procfs_buffer, buffer, procfs_buffer_size))
@@ -118,11 +148,22 @@ int procfile_write(struct file *file, const char *buffer, unsigned long count, v
 		return -EFAULT;
 	}
 
-	procfs_buffer[procfs_buffer_size] = '\0';
+	if(buffer[0] == '\n')
+	{
+		/* Silently skip any new line trash */
+		
+		return count;
+	}
+
+	procfs_buffer[procfs_buffer_size - 1] = '\0';
 
 	update_whitelist();
 
-	return procfs_buffer_size;
+	/* Remove the last comma separator */
+
+//	procfs_buffer[procfs_buffer_size - 1] = '\0';
+
+	return count;
 }
 
 int create_proc_config(void)
@@ -132,6 +173,7 @@ int create_proc_config(void)
 	if(netlog_config_proc_file == NULL) 
 	{
 		remove_proc_entry(PROC_CONFIG_NAME, NULL);
+
 		return -CREATE_PROC_FAILED;
 	}
 
