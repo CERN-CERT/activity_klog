@@ -148,13 +148,6 @@ int procfile_write(struct file *file, const char *buffer, unsigned long count, v
 		return -EFAULT;
 	}
 
-	if(buffer[0] == '\n')
-	{
-		/* Silently skip any new line trash */
-		
-		return count;
-	}
-
 	procfs_buffer[procfs_buffer_size - 1] = '\0';
 
 	update_whitelist();
