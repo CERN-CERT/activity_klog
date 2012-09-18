@@ -4,7 +4,7 @@
 
 Name:		netlog
 Version:	1.3
-Release:	2%{?dist}
+Release:	1%{?dist}
 
 Summary:	Kernel module for logging network connections details
 Group:		System Environment/Kernel
