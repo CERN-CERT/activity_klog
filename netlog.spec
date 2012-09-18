@@ -87,7 +87,7 @@ ${RPM_BUILD_ROOT}/etc/sysconfig/modules/%{name}.modules
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
-* Thu Sep 18 2012 Panos Sakkos <panos.sakkos@cern.ch> - 1.3
+* Tue Sep 18 2012 Panos Sakkos <panos.sakkos@cern.ch> - 1.3
 - Updated version to 1.3, which introduces the "On the fly whitelisting" feature.
 
 * Wed Sep 12 2012 Antonio Perez <antonio.perez.perez@cern.ch> - 1.23-2
