@@ -68,10 +68,10 @@ The parameter is named connections_to_whitelist and it's an array of strings wit
 "/absolute/execution/path|i<ip address>|p<port number>"
 
 i.e.:
-	"/usr/bin/sshd|i<127.128.0.0>|p<22>"
-	"/usr/bin/sshd|i<127.128.0.0>"
-	"/usr/bin/sshd|p<22>"
-	"/usr/bin/sshd"
+	"/usr/sbin/sshd|i<127.128.0.0>|p<22>"
+	"/usr/sbin/sshd|i<127.128.0.0>"
+	"/usr/sbin/sshd|p<22>"
+	"/usr/sbin/sshd"
 
 The '<' and '>' can be ignored, they are supported just for visual reasons.
 
@@ -99,11 +99,11 @@ it again with the updated whitelist information passed as insertion parameters. 
 
 i.e. if you want to whitelist the next connections, after insertion of netlog:
 
-"/usr/sbin/skype", "/usr/bin/ssh|i<127.0.0.1>" and "/usr/bin/sshd|i<127.0.0.1>|p<22>"
+"/usr/sbin/skype", "/usr/bin/ssh|i<127.0.0.1>" and "/usr/sbin/sshd|i<127.0.0.1>|p<22>"
 
 You should execute in a bash shell:
 
-echo /usr/sbin/skype,/usr/bin/ssh|i<127.0.0.1>,/usr/bin/sshd|i<127.0.0.1>|p<22> > /proc/netlog_config
+echo /usr/sbin/skype,/usr/bin/ssh|i<127.0.0.1>,/usr/sbin/sshd|i<127.0.0.1>|p<22> > /proc/netlog_config
 
 * **************************************WARNING**************************************** *
 *											*
