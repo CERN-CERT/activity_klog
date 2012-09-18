@@ -103,7 +103,7 @@ i.e. if you want to whitelist the next connections, after insertion of netlog:
 
 You should execute in a bash shell:
 
-echo /usr/bin/skype,/usr/bin/ssh|i<127.0.0.1>,/usr/sbin/sshd|i<127.0.0.1>|p<22> > /proc/netlog_config
+echo "/usr/bin/skype,/usr/bin/ssh|i<127.0.0.1>,/usr/sbin/sshd|i<127.0.0.1>|p<22>" > /proc/netlog_config
 
 * **************************************WARNING**************************************** *
 *											*
