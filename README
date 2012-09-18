@@ -3,8 +3,8 @@
 					+---------------------------+
 
 Product name: 			netlog
-Date:				Sep 10 2012
-Version:			1.15
+Date:				Sep 18 2012
+Version:			1.3
 Vendor:				CERN
 Author:				Panos Sakkos while at Computer Security Team 
 CST Email:			cert-sec@cern.ch
@@ -46,7 +46,7 @@ zero (0) to a non-zero value (i.e. 1) and recompile netlog.
 					+----------+
 					|Change Log|
 					+----------+
-1.23
+1.3
 	*On the fly configuration of the whitelist
 
 1.12
