@@ -1,6 +1,5 @@
-%define dist .ai6
+%{!?dist: %define dist .ai6}
 %define debug_package %{nil}
-
 
 Name:		netlog
 Version:	1.30
