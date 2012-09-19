@@ -114,7 +114,14 @@ echo "/usr/bin/skype,/usr/bin/ssh|i<127.0.0.1>,/usr/sbin/sshd|i<127.0.0.1>|p<22>
 *											*
 * For the format of the connection string read the "Dynamic Whitelisting" section above.*
 * ************************************************************************************* *
-					
+
+netlog will log the changes of the whitelist:
+
+Sep 19 09:57:26 panos-PC kernel: [ 1841.262471] netlog-config:	[+] Cleared whitelist
+Sep 19 09:57:26 panos-PC kernel: [ 1841.262479] netlog-config:	[+] Whitelisted /usr/sbin/skype
+Sep 19 09:57:26 panos-PC kernel: [ 1841.262483] netlog-config:	[+] Whitelisted /usr/bin/ssh|i<127.0.0.1>
+Sep 19 09:57:26 panos-PC kernel: [ 1841.262486] netlog-config:	[+] Whitelisted /usr/sbin/sshd|i<127.0.0.1>
+
 					+------------------+
 					|Absolute Path Mode|
 					+------------------+
@@ -154,9 +161,9 @@ Dec 19 14:19:07 panos-PC kernel: netlog: sshd[3755] TCP 137.138.191.167:22 <-> 1
 					|How to compile|
 					+--------------+
 
-In the source directory run:
+In the src directory run:
 
-	make build
+	make
 
 Then run:
 
