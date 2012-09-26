@@ -14,6 +14,7 @@
 #include "whitelist.h"
 #include "netlog.h"
 #include "connection.h"
+#include "proc_config.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 	#define get_current_uid() current->uid
@@ -610,6 +611,17 @@ int __init plant_probes(void)
 
 	#if WHITELISTING
 
+	err = create_proc_config();
+
+	if(err < 0)
+	{
+		printk(KERN_INFO MODULE_NAME ":\t[-] Creation of proc file for configuring connection whitelisting failed\n");
+	}
+	else
+	{
+		printk(KERN_INFO MODULE_NAME ":\t[+] Created %s proc file for configuring connection whitelisting\n", PROC_CONFIG_NAME);
+	}
+
 	do_whitelist();
 
 	#endif
@@ -635,5 +647,11 @@ int __init plant_probes(void)
 void __exit unplant_probes(void)
 {
 	unplant_all();
+
+	#if WHITELISTING
+
 	destroy_whitelist();
+	destroy_proc_config();
+
+	#endif
 }

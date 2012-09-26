@@ -3,8 +3,8 @@
 					+---------------------------+
 
 Product name: 			netlog
-Date:				Jun 5 2012
-Version:			1.15
+Date:				Sep 18 2012
+Version:			1.30
 Vendor:				CERN
 Author:				Panos Sakkos while at Computer Security Team 
 CST Email:			cert-sec@cern.ch
@@ -46,6 +46,8 @@ zero (0) to a non-zero value (i.e. 1) and recompile netlog.
 					+----------+
 					|Change Log|
 					+----------+
+1.30
+	*On the fly configuration of the whitelist
 
 1.12
 	*Optimizations
@@ -66,16 +68,16 @@ The parameter is named connections_to_whitelist and it's an array of strings wit
 "/absolute/execution/path|i<ip address>|p<port number>"
 
 i.e.:
-	"/usr/bin/sshd|i<127.128.0.0>|p<22>"
-	"/usr/bin/sshd|i<127.128.0.0>"
-	"/usr/bin/sshd|p<22>"
-	"/usr/bin/sshd"
+	"/usr/sbin/sshd|i<127.128.0.0>|p<22>"
+	"/usr/sbin/sshd|i<127.128.0.0>"
+	"/usr/sbin/sshd|p<22>"
+	"/usr/sbin/sshd"
 
 The '<' and '>' can be ignored, they are supported just for visual reasons.
 
 Example of whitelisting multiple connections:
 
-insmod netlog.ko connections_to_whitelist="/usr/sbin/skype","/usr/bin/ssh|i<127.0.0.1>","/usr/bin/sshd|i<127.0.0.1>|p<22>"
+insmod netlog.ko connections_to_whitelist="/usr/bin/skype","/usr/bin/ssh|i<127.0.0.1>","/usr/bin/sshd|i<127.0.0.1>|p<22>"
 
 Note that you are not able to whitelist an ip address or port without specifing an absolute 
 execution path of a binary. Also, you can whitelist up to 150 connections. For more, change
@@ -85,6 +87,40 @@ Do not leave spaces between the comma separators and the strings because the par
 If you believe that you will not need whitelisting at all, we recommend you to compile netlog with disabled the whitelisting
 in order to boost even more its perfomance. In order to not compile the code of whitelisting, change the static constant
 WHITELISTING to 0 in netlog.h file and recompile netlog.
+
+					+-----------------------------------------+
+					|On the fly configuration of the whitelist|
+					+-----------------------------------------+
+
+The process of whitelisting (described in "Dynamic Whitelisting" section) can be done also while netlog is planted.
+If you want to change the whitelist when netlog is planted, there is no need to remove the module and insert 
+it again with the updated whitelist information passed as insertion parameters. This can be done by editing the
+/proc/config-netlog proc file. This file contains per line the currently whitelisted connections. 
+
+i.e. if you want to whitelist the next connections, after insertion of netlog:
+
+"/usr/bin/skype", "/usr/bin/ssh|i<127.0.0.1>" and "/usr/sbin/sshd|i<127.0.0.1>|p<22>"
+
+You should execute in a bash shell:
+
+echo "/usr/bin/skype,/usr/bin/ssh|i<127.0.0.1>,/usr/sbin/sshd|i<127.0.0.1>|p<22>" > /proc/netlog_config
+
+* **************************************WARNING**************************************** *
+*											*
+* Do not edit the proc_config entry with a text editor or try to replace it etc.	*
+* Just echo the connection strings that describes the connections you want to whitelist,*
+* separated by the comma character and NOTHING MORE (not even a space).			*
+* Also do not try to append the proc file.						*
+*											*
+* For the format of the connection string read the "Dynamic Whitelisting" section above.*
+* ************************************************************************************* *
+
+netlog will log the changes of the whitelist:
+
+Sep 19 09:57:26 panos-PC kernel: [ 1841.262471] netlog-config:	[+] Cleared whitelist
+Sep 19 09:57:26 panos-PC kernel: [ 1841.262479] netlog-config:	[+] Whitelisted /usr/sbin/skype
+Sep 19 09:57:26 panos-PC kernel: [ 1841.262483] netlog-config:	[+] Whitelisted /usr/bin/ssh|i<127.0.0.1>
+Sep 19 09:57:26 panos-PC kernel: [ 1841.262486] netlog-config:	[+] Whitelisted /usr/sbin/sshd|i<127.0.0.1>
 
 					+------------------+
 					|Absolute Path Mode|
@@ -125,9 +161,9 @@ Dec 19 14:19:07 panos-PC kernel: netlog: sshd[3755] TCP 137.138.191.167:22 <-> 1
 					|How to compile|
 					+--------------+
 
-In the source directory run:
+In the src directory run:
 
-	make build
+	make
 
 Then run:
 

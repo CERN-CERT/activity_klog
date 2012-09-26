@@ -1,6 +1,8 @@
 #ifndef __CONNECTION__
 #define __CONNECTION__
 
+#define MAX_LENGTH_OF_CONNECTION_STRING (5 + INET6_ADDRSTRLEN + 2 + MAX_ABSOLUTE_EXEC_PATH + 1 + 2 + 1)
+
 #define NO_PORT -1
 
 #define FIELD_SEPARATOR '|'
