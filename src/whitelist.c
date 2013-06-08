@@ -35,25 +35,25 @@ int whitelist(const char *connection_string)
 	}
 
 	connection_to_whitelist = initialize_connection_from_string(connection_string);
-	
+
 	if(connection_to_whitelist == NULL)
 	{
 		goto out_fail;
 	}
 
 	/*Check if it's already whitelisted*/
-	
+
 	for(i = 0; i < size; ++i)
 	{
 		if(connections_are_equal(connection_to_whitelist, white_list[i]))
 		{
 			/*Already whitelisted*/
-			
+
 			goto out_fail;
 		}
 	}
 
-	white_list[size] = connection_to_whitelist;	
+	white_list[size] = connection_to_whitelist;
 	++size;
 
 	/* Update the proc configuration buffer */
@@ -101,13 +101,13 @@ int is_whitelisted(const struct task_struct *task, const char *ip, const int por
 	/*Check if the execution path and the ip and port are whitelisted*/
 
 	spin_lock_irqsave(&access_whitelist_spinlock, flags);
-	
+
 	for(i = 0; i < size; ++i)
 	{
 		if(connection_matches_attributes(white_list[i], path, ip, port))
 		{
 			/*Connection found in the whitelist*/
-			
+
 			goto whitelisted;
 		}
 	}
@@ -125,16 +125,16 @@ whitelisted:
 void destroy_whitelist(void)
 {
 	int i;
-	
+
 	spin_lock_irqsave(&access_whitelist_spinlock, flags);
-	
+
 	for(i = 0; i < size; ++i)
 	{
 		destroy_connection(white_list[i]);
 	}
-	
+
 	size = 0;
-	
+
 	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
 }
 
@@ -156,14 +156,14 @@ char *exe_from_mm(const struct mm_struct *mm, char *buffer, int length)
 		{
 			break;
 		}
-			
+
 		vma = vma->vm_next;
 	}
 
 	if(vma && vma->vm_file)
 	{
 		p = call_d_path(vma->vm_file, buffer, length);
-		
+
 		if(IS_ERR(p))
 		{
 			p = NULL;

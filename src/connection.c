@@ -18,18 +18,18 @@ struct connection
 struct connection *initialize_connection(void)
 {
 	struct connection *new_connection = NULL;
-	
+
 	new_connection = kmalloc(sizeof(struct connection), GFP_ATOMIC);
-	
+
 	if(new_connection == NULL)
 	{
 		return NULL;
 	}
-	
+
 	memset(new_connection->executable, '\0', sizeof(new_connection->executable));
 	memset(new_connection->ip, '\0', sizeof(new_connection->ip));
 	new_connection->port = NO_PORT;
-	
+
 	return new_connection;
 }
 
@@ -45,7 +45,7 @@ struct connection *initialize_connection(void)
  *
  *The implementation contains a little bit of magic. Sorry! Panos
  */
- 
+
 struct connection *initialize_connection_from_string(const char *connection_string)
 {
 	int i;
@@ -56,16 +56,16 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 	{
 		goto out_fail;
 	}
-	
+
 	new_connection = initialize_connection();
-	
+
 	if(new_connection == NULL)
 	{
 		goto out_fail;
 	}
-	
+
 	/*First field has to be a path*/
-	
+
 	i = 0;
 	ch = connection_string;
 
@@ -74,7 +74,7 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 		new_connection->executable[i] = *ch;
 		ch++;
 		i++;
-	
+
 		/*Too big path, fail to whitelist*/
 
 		if(i >= MAX_ABSOLUTE_EXEC_PATH)
@@ -82,7 +82,7 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 			goto out_fail;
 		}
 	}
-	
+
 	new_connection->executable[i] = '\0';
 
 	/*Skip the field separator, if any*/
@@ -91,30 +91,30 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 	{
 		ch++;
 	}
-		
+
 	/*Case of next field being an ip address*/
-	
+
 	if(*ch == 'i')
-	{	
+	{
 		/*If the ip is IPv6, we will add square brackets in the beginning and in
-		 *the end. This is done in order to make right comparison between ipv6 
-		 *addresses. The inet_utils functions return ipv6 addresses within square 
+		 *the end. This is done in order to make right comparison between ipv6
+		 *addresses. The inet_utils functions return ipv6 addresses within square
 		 *brackets.
 		 */
-		
+
 		int ipv6 = looks_like_ipv6(ch);
-	
+
 		ch++;
-		
+
 		/*Skip '<', if any*/
-		
+
 		if(*ch == '<')
 		{
 			ch++;
 		}
-	
+
 		i = 0;
-		
+
 		if(ipv6)
 		{
 			/*Add opening square bracket*/
@@ -170,9 +170,9 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 		const char *number_start;
 
 		ch++;
-	
+
 		/*Skip '<', if any*/
-		
+
 		if(*ch == '<')
 		{
 			ch++;
@@ -181,22 +181,22 @@ struct connection *initialize_connection_from_string(const char *connection_stri
 		number_start = ch;
 
 		/*Go to end of number*/
-		
+
 		while(*ch != '>' && *ch != '\0' && *ch != FIELD_SEPARATOR)
 		{
 			ch++;
 		}
 		ch--;
-		
+
 		new_connection->port = 0;
-		
+
 		while(ch >= number_start)
 		{
 			new_connection->port += (*ch - '0') * base;
 			base *= 10;
 			ch--;
 		}
-		
+
 		if(!valid_port_number(new_connection->port))
 		{
 			goto out_fail;
@@ -217,11 +217,11 @@ int connection_matches_attributes(const struct connection *connection, const cha
 	{
 		return 0;
 	}
-	
+
 	if(strncmp(connection->executable, path, MAX_ABSOLUTE_EXEC_PATH) != 0)
 	{
 		/*Executable path missmatch*/
-		
+
 		return 0;
 	}
 
@@ -240,7 +240,7 @@ int connection_matches_attributes(const struct connection *connection, const cha
 		if(connection->port != port)
 		{
 			/*Ports given and missmatched*/
-			
+
 			return 0;
 		}
 	}

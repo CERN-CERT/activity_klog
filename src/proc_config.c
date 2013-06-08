@@ -16,8 +16,8 @@ void add_connection_string_to_proc_config(const char *connection_string)
 	{
 		return;
 	}
-		
-	procfs_buffer_size += snprintf(procfs_buffer + procfs_buffer_size, PROCFS_MAX_SIZE - procfs_buffer_size, 
+
+	procfs_buffer_size += snprintf(procfs_buffer + procfs_buffer_size, PROCFS_MAX_SIZE - procfs_buffer_size,
 											"%s,", connection_string);
 }
 
@@ -35,7 +35,7 @@ void update_whitelist(void)
 
 	/* Copy the prc fs buffer into a temporary, because it will
 	 * be updated from the void whitelist(struct connection *connection).
-	 * 
+	 *
 	 * By this way, the buffer will be consistent with the whitelist, because
 	 * some connections might not be in the right format.
 	 */
@@ -45,7 +45,7 @@ void update_whitelist(void)
 
 	destroy_whitelist();
 
-	printk(KERN_INFO PROC_CONFIG_NAME ":\t[+] Cleared whitelist\n");	
+	printk(KERN_INFO PROC_CONFIG_NAME ":\t[+] Cleared whitelist\n");
 
 	/* Whitelist one by one the connections that our buffer has */
 
@@ -96,7 +96,7 @@ void update_whitelist(void)
 		}
 		else
 		{
-			connection_string_length++;		
+			connection_string_length++;
 		}
 	}
 
@@ -116,12 +116,12 @@ int procfile_read(char *buffer, char **buffer_location, off_t offset, int buffer
 		printk(KERN_ERR PROC_CONFIG_NAME ": Not large enought buffer to copy the procfs buffer\n");
 		written = 0;
 	}
-	else 
+	else
 	{
 		/* Trim the last comma, if exists */
 
 		if(procfs_buffer[procfs_buffer_size - 1] == ',')
-		{		
+		{
 			procfs_buffer_size--;
 			procfs_buffer[procfs_buffer_size] = '\0';
 		}
@@ -136,7 +136,7 @@ int procfile_write(struct file *file, const char *buffer, unsigned long count, v
 {
 	procfs_buffer_size = count;
 
-	if(procfs_buffer_size >= PROCFS_MAX_SIZE) 
+	if(procfs_buffer_size >= PROCFS_MAX_SIZE)
 	{
 		printk(KERN_ERR PROC_CONFIG_NAME ": There is no enought space in the procfs buffer, changes will be ignored\n");
 
@@ -159,7 +159,7 @@ int create_proc_config(void)
 {
 	netlog_config_proc_file = create_proc_entry(PROC_CONFIG_NAME, 0600, NULL);
 
-	if(netlog_config_proc_file == NULL) 
+	if(netlog_config_proc_file == NULL)
 	{
 		remove_proc_entry(PROC_CONFIG_NAME, NULL);
 
@@ -173,7 +173,7 @@ int create_proc_config(void)
 	netlog_config_proc_file->gid = 0;
 
 	initialize_procfs_buffer();
-	
+
 	return 0;
 }
 
@@ -181,9 +181,9 @@ void destroy_proc_config(void)
 {
 	if(netlog_config_proc_file != NULL)
 	{
-		remove_proc_entry(PROC_CONFIG_NAME, NULL);	
+		remove_proc_entry(PROC_CONFIG_NAME, NULL);
 		netlog_config_proc_file = NULL;
-		
+
 		initialize_procfs_buffer();
 	}
 }

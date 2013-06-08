@@ -1,9 +1,9 @@
 #ifndef __IPUTILS__
 #define __IPUTILS__
 
-/* API that provides destination and source ip addresses, 
- * given the target struct sock, struct socket or 
- *the struct sockaddr. 
+/* API that provides destination and source ip addresses,
+ * given the target struct sock, struct socket or
+ *the struct sockaddr.
  */
 
 struct sock;
