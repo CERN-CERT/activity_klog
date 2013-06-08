@@ -24,7 +24,7 @@ int is_whitelisted(const struct task_struct *task, const char *ip, const int por
 
 void destroy_whitelist(void);
 
-char *exe_from_mm(const struct mm_struct *mm, char *buf, int len);
+char *exe_from_mm(struct mm_struct *mm, char *buf, int len);
 
 #endif
 
