@@ -1,6 +1,8 @@
 #include <linux/module.h>
+#include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
+#include <linux/version.h>
 #include <asm/uaccess.h>
 #include "whitelist.h"
 #include "connection.h"
@@ -103,6 +105,7 @@ void update_whitelist(void)
 	memset(temp_procfs_buffer, '\0', PROCFS_MAX_SIZE);
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
 int procfile_read(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data)
 {
 	int written;
@@ -130,9 +133,37 @@ int procfile_read(char *buffer, char **buffer_location, off_t offset, int buffer
 	}
 
 	return written;
+#else
+ssize_t procfile_read(struct file *fd, char __user *buffer, size_t buffer_length, loff_t *offset)
+{
+	int written;
+
+	if(*offset >= procfs_buffer_size - 1)
+	{
+		return 0;
+	}
+	else
+	{
+		/* Trim the last comma, if exists */
+
+		if(procfs_buffer[procfs_buffer_size - 1] == ',')
+		{
+			procfs_buffer_size--;
+			procfs_buffer[procfs_buffer_size] = '\0';
+		}
+
+		written = snprintf(buffer, buffer_length, "%s", procfs_buffer + *offset);
+		*offset += buffer_length - 1;
+		return written;
+	}
+#endif
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
 int procfile_write(struct file *file, const char *buffer, unsigned long count, void *data)
+#else
+ssize_t procfile_write(struct file *fd, const char __user *buffer, size_t count, loff_t *offset)
+#endif
 {
 	procfs_buffer_size = count;
 
@@ -155,6 +186,7 @@ int procfile_write(struct file *file, const char *buffer, unsigned long count, v
 	return count;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
 int create_proc_config(void)
 {
 	netlog_config_proc_file = create_proc_entry(PROC_CONFIG_NAME, 0600, NULL);
@@ -176,6 +208,27 @@ int create_proc_config(void)
 
 	return 0;
 }
+# else
+static const struct file_operations netlog_proc_dir_operations = {
+	.owner			= THIS_MODULE,
+	.read			= procfile_read,
+	.write			= procfile_write,
+};
+int create_proc_config(void)
+{
+	// TODO: use proc_create_data and store procfs_buffer inside
+	netlog_config_proc_file = proc_create(PROC_CONFIG_NAME, S_IFREG | S_IRUSR | S_IWUSR, NULL, &netlog_proc_dir_operations);
+	if(netlog_config_proc_file == NULL)
+	{
+		return -CREATE_PROC_FAILED;
+	}
+	proc_set_user(netlog_config_proc_file, 0, 0);
+
+	initialize_procfs_buffer();
+
+	return 0;
+}
+#endif
 
 void destroy_proc_config(void)
 {
