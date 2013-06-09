@@ -13,6 +13,12 @@
 
 #define PROBE_CONNECTION_CLOSE 1
 
+/* In absolute_path_mode mode, probes need to resolve those absolute path.
+ * For memory reason, those path lentgh must be bounded.
+ */
+#define MAX_ABSOLUTE_EXEC_PATH 950
+
+
 /* Set to non-zero value in order to compile the whitelisting code*/
 
 #define WHITELISTING 1

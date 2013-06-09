@@ -20,9 +20,76 @@
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 	#define get_current_uid() current->uid
+	#define call_d_path(file, buffer, length) d_path(file->f_dentry, file->f_vfsmnt, buffer, length);
 #else
 	#define get_current_uid() current_uid()
+	#define call_d_path(file, buffer, length) d_path(&file->f_path, buffer, length);
 #endif
+
+/********************************/
+/*            Tools             */
+/********************************/
+
+static char *path_from_mm(struct mm_struct *mm, char *buffer, int length)
+{
+        char *p = NULL;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
+        struct vm_area_struct *vma;
+
+        if(unlikely(mm == NULL))
+        {
+                return NULL;
+        }
+
+        vma = mm->mmap;
+
+        while(vma)
+        {
+                if((vma->vm_flags & VM_EXECUTABLE) && vma->vm_file)
+                {
+                        break;
+                }
+
+                vma = vma->vm_next;
+        }
+
+        if(vma && vma->vm_file)
+        {
+                p = call_d_path(vma->vm_file, buffer, length);
+
+                if(IS_ERR(p))
+                {
+                        p = NULL;
+                }
+        }
+#else
+        if(unlikely(mm == NULL))
+        {
+                return NULL;
+        }
+        down_read(&mm->mmap_sem);
+        if(likely(mm->exe_file == NULL))
+        {
+                p = call_d_path(mm->exe_file, buffer, length);
+                if(IS_ERR(p))
+                {
+                        p = NULL;
+                }
+        } else {
+                p = NULL;
+        }
+        up_read(&mm->mmap_sem);
+#endif
+        return p;
+}
+
+static char *get_path(char *buffer)
+{
+        if(!absolute_path_mode)
+		return current->comm;
+	else
+		return path_from_mm(current->mm, buffer, sizeof(buffer));
+}
 
 /**********************************/
 /*           PROBES               */
@@ -56,6 +123,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 	struct socket *sock;
 	int destination_port;
 	char *destination_ip;
+	char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 
 	sock = match_socket[current->pid];
 
@@ -69,35 +137,23 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 		goto out;
 	}
 
+	path = get_path(buffer);
 	destination_ip = get_destination_ip(sock);
 	destination_port = get_destination_port(sock);
 
 	#if WHITELISTING
 
-	if(is_whitelisted(current, destination_ip, destination_port))
+	if(is_whitelisted(path, destination_ip, destination_port))
 	{
 		goto out;
 	}
 
 	#endif
 
-	if(!absolute_path_mode)
-	{
-		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid,
-									get_source_ip(sock), get_source_port(sock),
-									destination_ip, destination_port,
-									get_current_uid());
-	}
-	else
-	{
-		char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
-		path = exe_from_mm(current->mm, buffer, sizeof(buffer));
-
-		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", path, current->pid,
-									get_source_ip(sock), get_source_port(sock),
-									destination_ip, destination_port,
-									get_current_uid());
-	}
+	printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", path, current->pid,
+								get_source_ip(sock), get_source_port(sock),
+								destination_ip, destination_port,
+								get_current_uid());
 
 out:
 	match_socket[current->pid] = NULL;
@@ -115,6 +171,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	struct socket *sock;
 	char *destination_ip;
 	int err, destination_port;
+	char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 
 	sock = sockfd_lookup(regs_return_value(regs), &err);
 
@@ -128,12 +185,13 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 		goto out;
 	}
 
+	path = get_path(buffer);
 	destination_ip = get_destination_ip(sock);
 	destination_port = get_destination_port(sock);
 
 	#if WHITELISTING
 
-	if(is_whitelisted(current, destination_ip, destination_port))
+	if(is_whitelisted(path, destination_ip, destination_port))
 	{
 		goto out;
 	}
@@ -141,24 +199,10 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	#endif
 
 
-	if(!absolute_path_mode)
-	{
-		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid,
-									get_source_ip(sock), get_source_port(sock),
-									destination_ip, destination_port,
-									get_current_uid());
-	}
-	else
-	{
-		char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
-		path = exe_from_mm(current->mm, buffer, sizeof(buffer));
-
-		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", path, current->pid,
-									get_source_ip(sock), get_source_port(sock),
-									destination_ip, destination_port,
-									get_current_uid());
-	}
-
+	printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", path, current->pid,
+								get_source_ip(sock), get_source_port(sock),
+								destination_ip, destination_port,
+								get_current_uid());
 out:
 	if(likely(sock != NULL))
 	{
@@ -175,6 +219,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 	struct socket *sock;
 	char *destination_ip;
 	int err, destination_port;
+	char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 
 	sock = sockfd_lookup(fd, &err);
 
@@ -183,12 +228,13 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 		goto out;
 	}
 
+	path = get_path(buffer);
 	destination_ip = get_destination_ip(sock);
 	destination_port = get_destination_port(sock);
 
 	#if WHITELISTING
 
-	if(is_whitelisted(current, destination_ip, destination_port))
+	if(is_whitelisted(path, destination_ip, destination_port))
 	{
 		goto out;
 	}
@@ -198,47 +244,21 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 	if(is_tcp(sock) && likely(get_destination_port(sock) != 0))
 	{
 
-		if(!absolute_path_mode)
-		{
-			printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid,
-										get_source_ip(sock), get_source_port(sock),
-										destination_ip, destination_port,
-										get_current_uid());
-		}
-		else
-		{
-			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
-			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
-
-			printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", path, current->pid,
-									get_source_ip(sock), get_source_port(sock),
-									destination_ip, destination_port,
-									get_current_uid());
-		}
+		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", path, current->pid,
+								get_source_ip(sock), get_source_port(sock),
+								destination_ip, destination_port,
+								get_current_uid());
 	}
 
 	#if PROBE_UDP
 
 	else if(is_udp(sock) && is_inet(sock))
 	{
-		if(!absolute_path_mode)
-		{
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid,
-										get_source_ip(sock), get_source_port(sock),
-										destination_ip, destination_port,
-										get_current_uid());
-		}
-		else
-		{
-			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
-			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
-
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n",
-										path, current->pid,
-										get_source_ip(sock), get_source_port(sock),
-										destination_ip, destination_port,
-										get_current_uid());
-		}
+		printk(KERN_INFO MODULE_NAME ": %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n",
+									path, current->pid,
+									get_source_ip(sock), get_source_port(sock),
+									destination_ip, destination_port,
+									get_current_uid());
 	}
 
 	#endif
@@ -264,6 +284,7 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 	int err;
 	char *ip;
 	struct socket *sock;
+	char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 
 	sock = sockfd_lookup(sockfd, &err);
 
@@ -278,10 +299,11 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 	}
 
 	ip = get_ip(addr);
+	path = get_path(buffer);
 
 	#if WHITELISTING
 
-	if(is_whitelisted(current, ip, NO_PORT))
+	if(is_whitelisted(path, ip, NO_PORT))
 	{
 		goto out;
 	}
@@ -290,41 +312,16 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 
 	if(any_ip_address(ip))
 	{
-		if(!absolute_path_mode)
-		{
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind (any IP address):%d (uid=%d)\n",
-										current->comm, current->pid,
-										ntohs(((struct sockaddr_in *)addr)->sin_port),
-										get_current_uid());
-		}
-		else
-		{
-			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
-			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
-
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind (any IP address):%d (uid=%d)\n",
-											path, current->pid,
-										 	ntohs(((struct sockaddr_in *)addr)->sin_port),
-										 	get_current_uid());
-		}
+		printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind (any IP address):%d (uid=%d)\n",
+										path, current->pid,
+									 	ntohs(((struct sockaddr_in *)addr)->sin_port),
+									 	get_current_uid());
 	}
 	else
 	{
-		if(!absolute_path_mode)
-		{
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip,
-											ntohs(((struct sockaddr_in6 *)addr)->sin6_port),
-											get_current_uid());
-		}
-		else
-		{
-			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
-			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
-
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind %s:%d (uid=%d)\n", path, current->pid, ip,
-											ntohs(((struct sockaddr_in6 *)addr)->sin6_port),
-											get_current_uid());
-		}
+		printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind %s:%d (uid=%d)\n", path, current->pid, ip,
+										ntohs(((struct sockaddr_in6 *)addr)->sin6_port),
+										get_current_uid());
 	}
 
 out:
