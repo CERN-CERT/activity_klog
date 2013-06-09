@@ -2,10 +2,11 @@
 # Variables needed to build the kernel module
 #
 name      = netlog
-src_files = inet_utils.c probes.c whitelist.c connection.c proc_config.c
+src_files = inet_utils.c probes.c whitelist.c connection.c proc_config.c netlog_module.c
 
 obj-m += $(name).o
-$(name)-objs := $(src_files:.c=.o)
+$(name)-y := $(src_files:.c=.o)
+ccflags-y  += -D'MODULE_NAME="netlog"'
 
 kernel_version = $(shell uname -r)
 

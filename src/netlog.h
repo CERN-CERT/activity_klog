@@ -24,17 +24,4 @@
 #define CLOSE_PROBE_FAILED 3
 #define BIND_PROBE_FAILED 4
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Panos Sakkos <panos.sakkos@cern.ch>");
-MODULE_DESCRIPTION("netlog logs information about every internet connection\n"
-		   "\t\tfrom and to the machine that is installed. This information\n"
-		   "\t\tis source/destination ips and ports, process name and pid,\n"
-		   "\t\tuid and the protocol (TCP/UDP).");
-
-int __init plant_probes(void);
-void __exit unplant_probes(void);
-
-module_init(plant_probes);
-module_exit(unplant_probes);
-
 #endif
