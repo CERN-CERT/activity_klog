@@ -1,20 +1,20 @@
-#include <linux/module.h>
-#include <linux/kprobes.h>
-#include <linux/init.h>
-#include <linux/in.h>
-#include <linux/net.h>
-#include <net/ip.h>
-#include <linux/socket.h>
-#include <linux/version.h>
 #include <linux/file.h>
-#include <linux/unistd.h>
-#include <linux/syscalls.h>
+#include <linux/in.h>
+#include <linux/init.h>
+#include <linux/ipv6.h>
 #include <linux/kallsyms.h>
+#include <linux/kprobes.h>
+#include <linux/module.h>
+#include <linux/net.h>
+#include <linux/socket.h>
+#include <linux/syscalls.h>
+#include <linux/version.h>
+#include <linux/unistd.h>
+#include <net/ip.h>
 #include "inet_utils.h"
 #include "whitelist.h"
 #include "netlog.h"
-#include "connection.h"
-#include "proc_config.h"
+#include "log.h"
 #include "probes.h"
 #include "internal.h"
 
@@ -81,12 +81,59 @@ static char *path_from_mm(struct mm_struct *mm, char *buffer, int length)
         return p;
 }
 
-static char *get_path(char *buffer)
+static char *get_path(char *buffer, size_t len)
 {
         if(!absolute_path_mode)
 		return current->comm;
 	else
-		return path_from_mm(current->mm, buffer, sizeof(buffer));
+		return path_from_mm(current->mm, buffer, len);
+}
+
+static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
+{
+	char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
+	unsigned short family;
+	const void *dst_ip;
+	const void *src_ip;
+	int dst_port;
+	int src_port;
+
+	if(unlikely(sock == NULL) || unlikely(sock->sk == NULL))
+		return;
+
+	path = get_path(buffer, MAX_ABSOLUTE_EXEC_PATH);
+	buffer[MAX_ABSOLUTE_EXEC_PATH] = '\0';
+	if(unlikely(path == NULL))
+		return;
+
+	/* Get everything */
+	family = sock->sk->sk_family;
+	dst_port = ntohs(inet_sk(sock->sk)->DPORT);
+	src_port = ntohs(inet_sk(sock->sk)->SPORT);
+	switch(family)
+	{
+		case AF_INET:
+			dst_ip = &inet_sk(sock->sk)->DADDR;
+			src_ip = &inet_sk(sock->sk)->SADDR;
+			break;
+		case AF_INET6:
+			dst_ip = &inet6_sk(sock->sk)->daddr;
+			src_ip = &inet6_sk(sock->sk)->saddr;
+			break;
+		default:
+			dst_ip = NULL;
+			src_ip = NULL;
+			break;
+	}
+
+#if WHITELISTING
+	/* Are we whitelisted ? */
+	if(is_whitelisted(path, family, dst_ip, dst_port))
+		return;
+#endif
+
+        store_record(current->pid, get_current_uid(), path, action, protocol,
+	             family, src_ip, src_port, dst_ip, dst_port);
 }
 
 /**********************************/
@@ -103,15 +150,12 @@ static char *get_path(char *buffer)
 
 static struct socket *match_socket[PID_MAX_LIMIT] = {NULL};
 
-static int netlog_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
+static int
+netlog_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
 {
-	if(unlikely(current == NULL))
-	{
-		goto out;
-	}
+	if (likely(current != NULL))
+		match_socket[current->pid] = sock;
 
-	match_socket[current->pid] = sock;
-out:
 	jprobe_return();
 	return 0;
 }
@@ -119,41 +163,14 @@ out:
 static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct socket *sock;
-	int destination_port;
-	char *destination_ip;
-	char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 
 	sock = match_socket[current->pid];
 
-	if(unlikely(!is_tcp(sock)) || unlikely(!is_inet(sock)))
-	{
-		goto out;
-	}
+	if (likely(is_tcp(sock)) &&
+	    likely(is_inet(sock)) &&
+	    likely(current != NULL))
+		log_if_not_whitelisted(sock, PROTO_TCP, ACTION_CONNECT);
 
-	if(unlikely(current == NULL))
-	{
-		goto out;
-	}
-
-	path = get_path(buffer);
-	destination_ip = get_destination_ip(sock);
-	destination_port = get_destination_port(sock);
-
-	#if WHITELISTING
-
-	if(is_whitelisted(path, destination_ip, destination_port))
-	{
-		goto out;
-	}
-
-	#endif
-
-	printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", path, current->pid,
-								get_source_ip(sock), get_source_port(sock),
-								destination_ip, destination_port,
-								get_current_uid());
-
-out:
 	match_socket[current->pid] = NULL;
 	return 0;
 }
@@ -167,172 +184,99 @@ out:
 static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct socket *sock;
-	char *destination_ip;
-	int err, destination_port;
-	char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
+	int err;
 
 	sock = sockfd_lookup(regs_return_value(regs), &err);
 
-	if(unlikely(!is_tcp(sock)) || unlikely(!is_inet(sock)))
-	{
-		goto out;
-	}
+	if (likely(is_tcp(sock)) &&
+	    likely(is_inet(sock)) &&
+	    likely(current != NULL))
+		log_if_not_whitelisted(sock, PROTO_TCP, ACTION_ACCEPT);
 
-	if(unlikely(current == NULL))
-	{
-		goto out;
-	}
-
-	path = get_path(buffer);
-	destination_ip = get_destination_ip(sock);
-	destination_port = get_destination_port(sock);
-
-	#if WHITELISTING
-
-	if(is_whitelisted(path, destination_ip, destination_port))
-	{
-		goto out;
-	}
-
-	#endif
-
-
-	printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", path, current->pid,
-								get_source_ip(sock), get_source_port(sock),
-								destination_ip, destination_port,
-								get_current_uid());
-out:
 	if(likely(sock != NULL))
-	{
 		sockfd_put(sock);
-	}
 
 	return 0;
 }
 
 #if PROBE_CONNECTION_CLOSE
-
 asmlinkage static long netlog_sys_close(unsigned int fd)
 {
 	struct socket *sock;
-	char *destination_ip;
-	int err, destination_port;
-	char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
+	int err;
 
 	sock = sockfd_lookup(fd, &err);
 
-	if(likely(!is_inet(sock)) || unlikely(current == NULL))
-	{
+	if (likely(!is_inet(sock)) ||
+	    unlikely(current == NULL))
 		goto out;
-	}
 
-	path = get_path(buffer);
-	destination_ip = get_destination_ip(sock);
-	destination_port = get_destination_port(sock);
-
-	#if WHITELISTING
-
-	if(is_whitelisted(path, destination_ip, destination_port))
-	{
-		goto out;
-	}
-
-	#endif
-
-	if(is_tcp(sock) && likely(get_destination_port(sock) != 0))
-	{
-
-		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", path, current->pid,
-								get_source_ip(sock), get_source_port(sock),
-								destination_ip, destination_port,
-								get_current_uid());
-	}
-
-	#if PROBE_UDP
-
+	if(is_tcp(sock) &&
+	   likely(inet_sk(sock->sk)->DPORT != 0))
+		log_if_not_whitelisted(sock, PROTO_TCP, ACTION_CLOSE);
+#if PROBE_UDP
 	else if(is_udp(sock) && is_inet(sock))
-	{
-		printk(KERN_INFO MODULE_NAME ": %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n",
-									path, current->pid,
-									get_source_ip(sock), get_source_port(sock),
-									destination_ip, destination_port,
-									get_current_uid());
-	}
-
-	#endif
+		log_if_not_whitelisted(sock, PROTO_UDP, ACTION_CLOSE);
+#endif
 
 out:
 	if(likely(sock != NULL))
-	{
 		sockfd_put(sock);
-	}
 
 	jprobe_return();
 	return 0;
 }
 
-#endif
+#endif /* PROBE_CONNECTION_CLOSE */
 
 #if PROBE_UDP
-
 /* UDP protocol is connectionless protocol, so we probe the bind system call */
-
 asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 {
 	int err;
-	char *ip;
 	struct socket *sock;
+        const void *ip;
 	char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
-
 	sock = sockfd_lookup(sockfd, &err);
 
-	if(!is_inet(sock) || !is_udp(sock))
-	{
+	if (!is_inet(sock) ||
+            !is_udp(sock) ||
+	    unlikely(current == NULL) ||
+	    unlikely(addr == NULL))
 		goto out;
+
+        path = get_path(buffer, MAX_ABSOLUTE_EXEC_PATH);
+        buffer[MAX_ABSOLUTE_EXEC_PATH] = '\0';
+        if(unlikely(path == NULL))
+                goto out;
+
+	switch(addr->sa_family) {
+		case AF_INET:
+			ip = &((struct sockaddr_in *)addr)->sin_addr;
+			break;
+		case AF_INET6:
+			ip = &((struct sockaddr_in6 *)addr)->sin6_addr;
+			break;
+		default:
+			ip = NULL;
+			break;
 	}
 
-	if(unlikely(current == NULL))
-	{
+#if WHITELISTING
+	if(is_whitelisted(path, addr->sa_family, ip, NO_PORT))
 		goto out;
-	}
-
-	ip = get_ip(addr);
-	path = get_path(buffer);
-
-	#if WHITELISTING
-
-	if(is_whitelisted(path, ip, NO_PORT))
-	{
-		goto out;
-	}
-
-	#endif
-
-	if(any_ip_address(ip))
-	{
-		printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind (any IP address):%d (uid=%d)\n",
-										path, current->pid,
-									 	ntohs(((struct sockaddr_in *)addr)->sin_port),
-									 	get_current_uid());
-	}
-	else
-	{
-		printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind %s:%d (uid=%d)\n", path, current->pid, ip,
-										ntohs(((struct sockaddr_in6 *)addr)->sin6_port),
-										get_current_uid());
-	}
+#endif
+	store_record(current->pid, get_current_uid(), path, ACTION_BIND,
+	             PROTO_UDP, addr->sa_family, ip, NO_PORT, NULL, NO_PORT);
 
 out:
 	if(likely(sock != NULL))
-	{
 		sockfd_put(sock);
-	}
 
 	jprobe_return();
 	return 0;
 }
-
-#endif
+#endif /* PROBE_UDP */
 
 int signal_that_will_cause_exit(int trap_number)
 {
