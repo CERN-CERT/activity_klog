@@ -63,21 +63,19 @@ static char *path_from_mm(struct mm_struct *mm, char *buffer, int length)
                 }
         }
 #else
-        if(unlikely(mm == NULL))
-        {
+        if (unlikely(mm == NULL))
                 return NULL;
-        }
+
         down_read(&mm->mmap_sem);
-        if(likely(mm->exe_file == NULL))
-        {
+
+        if (unlikely(mm->exe_file == NULL)) {
+		p = NULL;
+	} else {
                 p = call_d_path(mm->exe_file, buffer, length);
                 if(IS_ERR(p))
-                {
                         p = NULL;
-                }
-        } else {
-                p = NULL;
         }
+
         up_read(&mm->mmap_sem);
 #endif
         return p;
