@@ -6,12 +6,10 @@
 #include <linux/unistd.h>
 #include <linux/syscalls.h>
 #include <linux/kallsyms.h>
-#include "inet_utils.h"
 #include "whitelist.h"
-#include "netlog.h"
-#include "connection.h"
 #include "proc_config.h"
 #include "probes.h"
+#include "netlog.h"
 
 /*******************************/
 /* Kernel Versionning handling */

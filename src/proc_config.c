@@ -5,7 +5,6 @@
 #include <linux/version.h>
 #include <asm/uaccess.h>
 #include "whitelist.h"
-#include "connection.h"
 #include "proc_config.h"
 
 static unsigned long procfs_buffer_size = 0;
