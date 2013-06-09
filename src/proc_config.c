@@ -105,35 +105,6 @@ void update_whitelist(void)
 	memset(temp_procfs_buffer, '\0', PROCFS_MAX_SIZE);
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
-int procfile_read(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data)
-{
-	int written;
-
-	if(offset > 0)
-	{
-		written = 0;
-	}
-	else if(buffer_length < procfs_buffer_size)
-	{
-		printk(KERN_ERR PROC_CONFIG_NAME ": Not large enought buffer to copy the procfs buffer\n");
-		written = 0;
-	}
-	else
-	{
-		/* Trim the last comma, if exists */
-
-		if(procfs_buffer[procfs_buffer_size - 1] == ',')
-		{
-			procfs_buffer_size--;
-			procfs_buffer[procfs_buffer_size] = '\0';
-		}
-
-		written = snprintf(buffer, buffer_length, "%s\n", procfs_buffer);
-	}
-
-	return written;
-#else
 ssize_t procfile_read(struct file *fd, char __user *buffer, size_t buffer_length, loff_t *offset)
 {
 	int written;
@@ -156,14 +127,9 @@ ssize_t procfile_read(struct file *fd, char __user *buffer, size_t buffer_length
 		*offset += buffer_length - 1;
 		return written;
 	}
-#endif
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
-int procfile_write(struct file *file, const char *buffer, unsigned long count, void *data)
-#else
 ssize_t procfile_write(struct file *fd, const char __user *buffer, size_t count, loff_t *offset)
-#endif
 {
 	procfs_buffer_size = count;
 
@@ -186,34 +152,12 @@ ssize_t procfile_write(struct file *fd, const char __user *buffer, size_t count,
 	return count;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
-int create_proc_config(void)
-{
-	netlog_config_proc_file = create_proc_entry(PROC_CONFIG_NAME, 0600, NULL);
-
-	if(netlog_config_proc_file == NULL)
-	{
-		remove_proc_entry(PROC_CONFIG_NAME, NULL);
-
-		return -CREATE_PROC_FAILED;
-	}
-
-	netlog_config_proc_file->read_proc  = procfile_read;
-	netlog_config_proc_file->write_proc = procfile_write;
-	netlog_config_proc_file->mode = S_IFREG | S_IRUSR | S_IWUSR;
-	netlog_config_proc_file->uid = 0;
-	netlog_config_proc_file->gid = 0;
-
-	initialize_procfs_buffer();
-
-	return 0;
-}
-# else
 static const struct file_operations netlog_proc_dir_operations = {
 	.owner			= THIS_MODULE,
 	.read			= procfile_read,
 	.write			= procfile_write,
 };
+
 int create_proc_config(void)
 {
 	// TODO: use proc_create_data and store procfs_buffer inside
@@ -222,13 +166,15 @@ int create_proc_config(void)
 	{
 		return -CREATE_PROC_FAILED;
 	}
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
+	netlog_config_proc_file->uid = 0;
+	netlog_config_proc_file->gid = 0;
+#else
 	proc_set_user(netlog_config_proc_file, 0, 0);
-
+#endif
 	initialize_procfs_buffer();
-
 	return 0;
 }
-#endif
 
 void destroy_proc_config(void)
 {
