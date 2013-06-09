@@ -39,25 +39,13 @@
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 25)
 	#define SADDR saddr
-#else
-	#define SADDR inet_saddr
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 25)
 	#define DADDR daddr
-#else
-	#define DADDR inet_daddr
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 25)
 	#define SPORT sport
-#else
-	#define SPORT inet_sport
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 25)
 	#define DPORT dport
 #else
+	#define SADDR inet_saddr
+	#define DADDR inet_daddr
+	#define SPORT inet_sport
 	#define DPORT inet_dport
 #endif
 
