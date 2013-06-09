@@ -1,5 +1,5 @@
-#ifndef __PROC_CONFIG__
-#define __PROC_CONFIG__
+#ifndef __NETLOG_PROC_CONFIG__
+#define __NETLOG_PROC_CONFIG__
 
 #define PROCFS_MAX_SIZE 4096
 #define PROC_CONFIG_NAME "netlog-config"
@@ -14,4 +14,4 @@ void destroy_proc_config(void);
 
 void add_connection_string_to_proc_config(const char *connection_string);
 
-#endif
+#endif /* __NETLOG_PROC_CONFIG__ */

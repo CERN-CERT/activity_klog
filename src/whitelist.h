@@ -1,5 +1,5 @@
-#ifndef __WHITELIST__
-#define __WHITELIST__
+#ifndef __NETLOG_WHITELIST__
+#define __NETLOG_WHITELIST__
 
 #define WHITELIST_FAIL -1
 
@@ -26,5 +26,4 @@ void destroy_whitelist(void);
 
 char *exe_from_mm(struct mm_struct *mm, char *buf, int len);
 
-#endif
-
+#endif /* __NETLOG_WHITELIST__ */

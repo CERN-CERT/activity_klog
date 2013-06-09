@@ -24,4 +24,4 @@
 #define CLOSE_PROBE_FAILED 3
 #define BIND_PROBE_FAILED 4
 
-#endif
+#endif /* __NETLOG__ */

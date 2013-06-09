@@ -1,5 +1,5 @@
-#ifndef __CONNECTION__
-#define __CONNECTION__
+#ifndef __NETLOG_CONNECTION__
+#define __NETLOG_CONNECTION__
 
 #define MAX_LENGTH_OF_CONNECTION_STRING (5 + INET6_ADDRSTRLEN + 2 + MAX_ABSOLUTE_EXEC_PATH + 1 + 2 + 1)
 
@@ -17,4 +17,4 @@ int connection_matches_attributes(const struct connection *connection, const cha
 
 void destroy_connection(struct connection *connection);
 
-#endif
+#endif /* __NETLOG_CONNECTION__ */

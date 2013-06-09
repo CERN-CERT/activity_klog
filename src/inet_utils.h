@@ -1,5 +1,5 @@
-#ifndef __IPUTILS__
-#define __IPUTILS__
+#ifndef __NETLOG_IPUTILS__
+#define __NETLOG_IPUTILS__
 
 /* API that provides destination and source ip addresses,
  * given the target struct sock, struct socket or
@@ -38,5 +38,4 @@ int valid_port_number(const int port);
 
 int looks_like_valid_ip(const char *ip);
 
-#endif
-
+#endif /* __NETLOG_IPUTILS__ */

@@ -1,6 +1,6 @@
-#ifndef __INTERNAL__
-#define __INTERNAL__
+#ifndef __NETLOG_INTERNAL__
+#define __NETLOG_INTERNAL___
 
 extern int absolute_path_mode;
 
-#endif
+#endif /* __NETLOG_INTERNAL__ */

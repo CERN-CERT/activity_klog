@@ -1,7 +1,7 @@
-#ifndef __PROBES__
-#define __PROBES__
+#ifndef __NETLOG_PROBES__
+#define __NETLOG_PROBES__
 
 int plant_all(void);
 void unplant_all(void);
 
-#endif
+#endif /* __NETLOG_PROBES__ */
