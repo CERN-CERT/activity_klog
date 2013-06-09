@@ -8,22 +8,9 @@
 #define WHITELISTED 1
 #define NOT_WHITELISTED 0
 
-/*The maximum lenght of the whitelisted paths. Any path
- *with lenght greater than this, cannot be whitelisted.
- */
+void set_whitelist_from_array(char **raw_array, int raw_len);
+void set_whitelist_from_string(char *raw_list);
 
-#define MAX_ABSOLUTE_EXEC_PATH 950
-
-/*The number of maximum whitelisted processes*/
-
-#define MAX_WHITELIST_SIZE 150
-
-int whitelist(const char *connection_string);
-
-int is_whitelisted(const struct task_struct *task, const char *ip, const int port);
-
-void destroy_whitelist(void);
-
-char *exe_from_mm(struct mm_struct *mm, char *buf, int len);
+int is_whitelisted(const char *path, unsigned short family, const void *ip, int port);
 
 #endif /* __NETLOG_WHITELIST__ */

@@ -54,42 +54,6 @@ MODULE_PARM_DESC(connections_to_whitelist, " An array of strings that contains t
 					    "\t\tThe format of the string must be '/absolute/executable/path ip_address-port'");
 #endif
 
-#if WHITELISTING
-
-static void do_whitelist(void)
-{
-	int i, err;
-
-	/*Deal with the whitelisting*/
-
-	if(whitelist_length > MAX_WHITELIST_SIZE)
-	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Cannot whitelist more than %d connections. The %d last parameters paths will be ignored. \
-					Please change MAX_WHITELIST_SIZE definition in netlog.h and recompile, or contact \
-					CERN-CERT <cert@cern.ch>\n", MAX_WHITELIST_SIZE, whitelist_length - MAX_WHITELIST_SIZE);
-
-		whitelist_length = MAX_WHITELIST_SIZE;
-	}
-
-	/*Will not check if the paths are valid, because in case that they are, they will be ignored*/
-
-	for(i = 0; i < whitelist_length; ++i)
-	{
-		err = whitelist(connections_to_whitelist[i]);
-
-		if(err < 0)
-		{
-			printk(KERN_ERR MODULE_NAME ":\t[-] Failed to whitelist %s\n", connections_to_whitelist[i]);
-		}
-		else
-		{
-			printk(KERN_INFO MODULE_NAME ":\t[+] Whitelisted %s\n", connections_to_whitelist[i]);
-		}
-	}
-}
-
-#endif
-
 /************************************/
 /*             INIT MODULE          */
 /************************************/
@@ -107,7 +71,7 @@ static int __init netlog_init(void)
 		return err;
 	}
 
-	#if WHITELISTING
+#if WHITELISTING
 
 	err = create_proc_config();
 
@@ -120,9 +84,9 @@ static int __init netlog_init(void)
 		printk(KERN_INFO MODULE_NAME ":\t[+] Created %s proc file for configuring connection whitelisting\n", PROC_CONFIG_NAME);
 	}
 
-	do_whitelist();
+	set_whitelist_from_array(connections_to_whitelist, whitelist_length);
 
-	#endif
+#endif
 
 	if(absolute_path_mode)
 	{
