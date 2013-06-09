@@ -1,6 +1,8 @@
 #ifndef __NETLOG_WHITELIST__
 #define __NETLOG_WHITELIST__
 
+#include <linux/sched.h>
+
 #define WHITELIST_FAIL -1
 
 #define WHITELISTED 1
@@ -15,8 +17,6 @@
 /*The number of maximum whitelisted processes*/
 
 #define MAX_WHITELIST_SIZE 150
-
-struct task_struct;
 
 int whitelist(const char *connection_string);
 
