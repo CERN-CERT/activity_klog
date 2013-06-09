@@ -57,7 +57,7 @@ int valid_port_number(const int port)
 	return (port > 0 && port < 65536);
 }
 
-void copy_ip(void *dst, void *src, unsigned short family)
+void copy_ip(void *dst, const void *src, unsigned short family)
 {
 	switch(family)
 	{

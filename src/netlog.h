@@ -33,6 +33,9 @@
 #define CLOSE_PROBE_FAILED 3
 #define BIND_PROBE_FAILED 4
 
+/* Size of the buffer containing the logs */
+#define LOG_BUF_LEN (1 << 20)
+
 /* Separator for the whitelisting */
 #define FIELD_SEPARATOR '|'
 
