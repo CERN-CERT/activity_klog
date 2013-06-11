@@ -255,7 +255,7 @@ static ssize_t netlog_log_read(struct file *file, char __user *buf, size_t count
 			               &record->src.ip4, record->src_port);
 			break;
 		case AF_INET6:
-			len += sprintf(data->buf + len, "%pI6c:%d",
+			len += sprintf(data->buf + len, "[%pI6c]:%d",
 			               &record->src.ip6, record->src_port);
 			break;
 		default:
@@ -281,10 +281,10 @@ static ssize_t netlog_log_read(struct file *file, char __user *buf, size_t count
 	switch(record->family) {
 		case AF_INET:
 			len += sprintf(data->buf + len, "%pI4:%d",
-			               &record->dst.ip4, record->src_port);
+			               &record->dst.ip4, record->dst_port);
 			break;
 		case AF_INET6:
-			len += sprintf(data->buf + len, "%pI6c:%d",
+			len += sprintf(data->buf + len, "[%pI6c]:%d",
 			               &record->dst.ip6, record->dst_port);
 			break;
 		default:
