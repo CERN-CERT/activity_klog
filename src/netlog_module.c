@@ -9,6 +9,7 @@
 #include "whitelist.h"
 #include "proc_config.h"
 #include "probes.h"
+#include "log.h"
 #include "netlog.h"
 
 /*******************************/
@@ -62,10 +63,14 @@ static int __init netlog_init(void)
 
 	printk(KERN_INFO MODULE_NAME ": Light monitoring tool for inet connections by CERN Security Team\n");
 
-	err = plant_all();
+	err = init_netlog_dev();
+	if(err < 0)
+		return err;
 
+	err = plant_all();
 	if(err < 0)
 	{
+		destroy_netlog_dev();
 		return err;
 	}
 
@@ -107,7 +112,7 @@ static int __init netlog_init(void)
 static void __exit netlog_exit(void)
 {
 	unplant_all();
-
+	destroy_netlog_dev();
 	#if WHITELISTING
 
 	destroy_whitelist();
