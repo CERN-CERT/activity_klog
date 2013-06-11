@@ -1,6 +1,5 @@
 #include <linux/ipv6.h>
 #include <net/ip.h>
-#include <linux/socket.h>
 #include <linux/version.h>
 #include "inet_utils.h"
 

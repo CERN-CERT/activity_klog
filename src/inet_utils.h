@@ -6,9 +6,7 @@
  *the struct sockaddr.
  */
 
-struct sock;
-struct socket;
-struct sockaddr;
+#include <linux/net.h>
 #include <linux/version.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 25)

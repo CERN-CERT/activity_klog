@@ -1,6 +1,8 @@
 #ifndef __NETLOG_LOG__
 #define __NETLOG_LOG___
 
+#include <linux/types.h>
+
 #define NO_IP 0
 
 #define PROTO_TCP 0
