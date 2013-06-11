@@ -13,4 +13,6 @@ void set_whitelist_from_string(char *raw_list);
 
 int is_whitelisted(const char *path, unsigned short family, const void *ip, int port);
 
+void destroy_whitelist(void);
+
 #endif /* __NETLOG_WHITELIST__ */

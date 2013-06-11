@@ -140,6 +140,17 @@ purge_whitelist(void)
 	}
 }
 
+void
+destroy_whitelist(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&access_whitelist_spinlock, flags);
+
+	purge_whitelist();
+
+	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
+}
 
 static void
 add_whiterow(char *raw)
