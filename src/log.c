@@ -1,3 +1,4 @@
+#include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/ipv6.h>
 #include <linux/syslog.h>
@@ -341,12 +342,52 @@ const struct file_operations netlog_log_fops = {
 	.release = netlog_log_release,
 };
 
+
+/* Device identifiers */
+static dev_t netlog_dev;
+static struct cdev netlog_c_dev;
+static struct class *netlog_class;
+
+
 int init_netlog_dev(void)
 {
-	return -1;
+	int err;
+	struct device *dev;
+
+	netlog_class = class_create(THIS_MODULE, "netlog");
+	if (IS_ERR(netlog_class))
+		return PTR_ERR(netlog_class);
+
+	err =  alloc_chrdev_region(&netlog_dev, 0, 1, MODULE_NAME);
+	if (err < 0)
+		goto clean_class;
+
+	cdev_init(&netlog_c_dev, &netlog_log_fops);
+	err = cdev_add(&netlog_c_dev, netlog_dev, 1);
+	if (err < 0)
+		goto clean_chrdev_region;
+
+	dev = device_create(netlog_class, NULL, netlog_dev, NULL, MODULE_NAME);
+	if (IS_ERR(dev)) {
+		err = PTR_ERR(dev);
+		goto clean_cdev;
+	}
+	return 0;
+
+clean_cdev:
+	cdev_del(&netlog_c_dev);
+clean_chrdev_region:
+	unregister_chrdev_region(netlog_dev, 1);
+clean_class:
+	class_destroy(netlog_class);
+	return err;
 }
 
 void destroy_netlog_dev(void)
 {
+	device_destroy(netlog_class, netlog_dev);
+	cdev_del(&netlog_c_dev);
+	unregister_chrdev_region(netlog_dev, 1);
+	class_destroy(netlog_class);
 	return;
 }
