@@ -36,6 +36,10 @@
 /* Size of the buffer containing the logs */
 #define LOG_BUF_LEN (1 << 20)
 
+/* Log facility and level for our devicde */
+#define LOG_FACILITY 0
+#define LOG_LEVEL    6
+
 /* Separator for the whitelisting */
 #define FIELD_SEPARATOR '|'
 

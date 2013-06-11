@@ -1,5 +1,6 @@
 #include <linux/fs.h>
 #include <linux/ipv6.h>
+#include <linux/syslog.h>
 #include "inet_utils.h"
 #include "netlog.h"
 
@@ -56,8 +57,7 @@ static u32 next_record(u32 idx)
 	size_t *len;
 
 	len = (size_t*)(log_buf + idx);
-	if (*len == 0)
-	{
+	if (*len == 0) {
 		/* We need to wrap around */
 		return 0;
 	}
@@ -81,7 +81,7 @@ store_record(pid_t pid, uid_t uid, const char* path, u8 action,
 	while (log_first_seq < log_next_seq) {
 		size_t free;
 
-        	if (log_next_idx > log_first_idx)
+		if (log_next_idx > log_first_idx)
 			free = max(LOG_BUF_LEN - log_next_idx, log_first_idx);
 		else
 			free = log_first_idx - log_next_idx;
@@ -94,7 +94,7 @@ store_record(pid_t pid, uid_t uid, const char* path, u8 action,
 		log_first_seq++;
 	}
 
-	if (log_next_idx + record_size + sizeof(size_t) >= LOG_BUF_LEN) {
+	if (unlikely(log_next_idx + record_size + sizeof(size_t) >= LOG_BUF_LEN)) {
 		/*
 		 * As free > size + sizeof(size_t), this mean that we had
 		 * free = max(log_buf_len - log_next_idx, log_first_idx)
@@ -128,8 +128,8 @@ store_record(pid_t pid, uid_t uid, const char* path, u8 action,
 	record->dst_port = dst_port;
 
 	/* Update the next position */
-        log_next_idx += record_size;
-        log_next_seq++;
+	log_next_idx += record_size;
+	log_next_seq++;
 
 	spin_unlock_irqrestore(&log_lock, flags);
 
@@ -137,28 +137,197 @@ store_record(pid_t pid, uid_t uid, const char* path, u8 action,
 	wake_up_interruptible(&log_wait);
 }
 
+struct user_data {
+	u64 log_curr_seq;
+	u32 log_curr_idx;
+	struct mutex lock;
+	char buf[8192];
+};
+
 static loff_t netlog_log_llseek(struct file *file, loff_t offset, int whence)
 {
+	struct user_data *data = file->private_data;
+	unsigned long flags;
+
+	if (unlikely(data == NULL))
+		return -EBADF;
+
+	/* We do not support custom offset */
+	if (unlikely(offset != 0))
+		return -ESPIPE;
+
+	/* Set the 'offset' to the desired value */
+	spin_lock_irqsave(&log_lock, flags);
+	switch (whence) {
+		case SEEK_SET:
+		case SEEK_DATA:
+			data->log_curr_seq = log_first_seq;
+			data->log_curr_idx = log_first_idx;
+			break;
+		case SEEK_END:
+			data->log_curr_seq = log_next_seq;
+			data->log_curr_idx = log_next_idx;
+			break;
+		default:
+			spin_unlock_irqrestore(&log_lock, flags);
+			return -EINVAL;
+	}
+	spin_unlock_irqrestore(&log_lock, flags);
+
 	return 0;
 }
 
 static ssize_t netlog_log_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
 {
+	struct user_data *data = file->private_data;
+	struct netlog_log *record;
+	u64 usec;
+	unsigned long flags;
+	size_t len;
+	ssize_t err, ret;
+
+	if (unlikely(data == NULL))
+		return -EBADF;
+
+	/* Is the user already reading ? */
+	err = mutex_lock_interruptible(&data->lock);
+	if (err)
+		return err;
+
+	spin_lock_irqsave(&log_lock, flags);
+	/* Wait until we have something to read */
+	while (data->log_curr_seq == log_next_seq) {
+		/* Too bad, this call cannot be non-blocking */
+		if (file->f_flags & O_NONBLOCK) {
+			ret = -EAGAIN;
+			spin_unlock_irqrestore(&log_lock, flags);
+			goto out;
+		}
+
+		/* We need to wait, unlock */
+		spin_unlock_irqrestore(&log_lock, flags);
+		ret = wait_event_interruptible(log_wait, data->log_curr_seq != log_next_seq);
+		if (ret)
+			goto out;
+		spin_lock_irqsave(&log_lock, flags);
+	}
+
+	/* Perhaps we waited for too long and some data is lost */
+	if (unlikely(data->log_curr_seq < log_first_seq)) {
+		/* Rest the position and alert the user */
+		data->log_curr_seq = log_first_seq;
+		data->log_curr_idx = log_first_idx;
+		spin_unlock_irqrestore(&log_lock, flags);
+		ret = -EPIPE;
+		goto out;
+	}
+
+	/* Get the current record */
+	record = (struct netlog_log*)(log_buf + data->log_curr_idx);
+
+	/* Now we are good to go (locked, with something to print */
+	/* Fill the header */
+	usec = record->nsec;
+	do_div(usec, 1000);
+	len = sprintf(data->buf, "%u,%llu,%llu,-;",
+	              (LOG_FACILITY << 3) | LOG_LEVEL,
+	              data->log_curr_seq, usec);
+
+	//TODO: print record (end it with a \n)
+
+	/* Prepare for next iteration */
+	data->log_curr_idx = next_record(data->log_curr_idx);
+	++data->log_curr_seq;
+
+	/* Unlock */
+	spin_unlock_irqrestore(&log_lock, flags);
+
+	/* The user buffer is too small, abort */
+	if (unlikely(len > count)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* Copy the data into userspace */
+	if (unlikely(copy_to_user(buf, data->buf, len))) {
+		/* Copy failed */
+		ret = -EFAULT;
+		goto out;
+	}
+
+out:
+	mutex_unlock(&data->lock);
 	return 0;
 }
 
 static unsigned int netlog_log_poll(struct file *file, poll_table *wait)
 {
-	return 0;
+	struct user_data *data = file->private_data;
+	unsigned long flags;
+	int ret = 0;
+
+	if (unlikely(data == NULL))
+		return POLLERR|POLLNVAL;
+
+	/* Update the poll state */
+	poll_wait(file, &log_wait, wait);
+
+	/* Check if there is anything to read */
+	spin_lock_irqsave(&log_lock, flags);
+	if (data->log_curr_seq < log_next_seq) {
+		/* Return error when data has vanished underneath us */
+		if (data->log_curr_seq < log_first_seq)
+			ret = POLLIN|POLLRDNORM|POLLERR|POLLPRI;
+		else
+			ret = POLLIN|POLLRDNORM;
+	}
+	spin_unlock_irqrestore(&log_lock, flags);
+
+	return ret;
 }
 
 static int netlog_log_open(struct inode *inode, struct file *file)
 {
+	struct user_data *data;
+	unsigned long flags;
+	int err;
+
+	/* Use the kernel security hook to verify that it's authorized */
+	err = security_syslog(SYSLOG_ACTION_READ_ALL);
+	if (err)
+		return err;
+
+	/* Allocate private data */
+	data = kmalloc(sizeof(struct user_data), GFP_KERNEL);
+	if (unlikely(data == NULL))
+		return -ENOMEM;
+
+	/* Initialize read mutex */
+	mutex_init(&data->lock);
+
+	/* Get current state */
+	spin_lock_irqsave(&log_lock, flags);
+	data->log_curr_seq = log_first_seq;
+	data->log_curr_idx = log_first_idx;
+	spin_unlock_irqrestore(&log_lock, flags);
+
+
+	/* Store private data */
+	file->private_data = data;
+
 	return 0;
 }
 
 static int netlog_log_release(struct inode *inode, struct file *file)
 {
+	struct user_data *data = file->private_data;
+
+	if (data == NULL)
+		return 0;
+
+	mutex_destroy(&data->lock);
+	kfree(data);
+
 	return 0;
 }
 
@@ -171,3 +340,13 @@ const struct file_operations netlog_log_fops = {
 	.poll = netlog_log_poll,
 	.release = netlog_log_release,
 };
+
+int init_netlog_dev(void)
+{
+	return -1;
+}
+
+void destroy_netlog_dev(void)
+{
+	return;
+}
