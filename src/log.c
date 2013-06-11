@@ -412,7 +412,7 @@ int init_netlog_dev(void)
 	int err;
 	struct device *dev;
 
-	netlog_class = class_create(THIS_MODULE, "netlog");
+	netlog_class = class_create(THIS_MODULE, MODULE_NAME);
 	if (IS_ERR(netlog_class))
 		return PTR_ERR(netlog_class);
 

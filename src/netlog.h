@@ -40,6 +40,9 @@
 #define LOG_FACILITY 0
 #define LOG_LEVEL    6
 
+/* Device name (in /dev/log) */
+#define NELOG_DEVICE_NAME MODULE_NAME
+
 /* Separator for the whitelisting */
 #define FIELD_SEPARATOR '|'
 
