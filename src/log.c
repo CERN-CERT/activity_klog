@@ -313,10 +313,10 @@ uid:
 		ret = -EFAULT;
 		goto out;
 	}
-
+	ret = len;
 out:
 	mutex_unlock(&data->lock);
-	return 0;
+	return ret;
 }
 
 static unsigned int netlog_log_poll(struct file *file, poll_table *wait)
