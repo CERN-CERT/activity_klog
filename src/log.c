@@ -4,6 +4,7 @@
 #include <linux/syslog.h>
 #include "inet_utils.h"
 #include "netlog.h"
+#include "log.h"
 
 /* Log structure of records stored the buffer */
 struct netlog_log {
@@ -18,12 +19,12 @@ struct netlog_log {
 	int src_port;
 	int dst_port;
 	union {
-		struct in_addr ip;
+		struct in_addr ip4;
 		struct in6_addr ip6;
 		u8 raw[16];
 	} dst;
 	union {
-		struct in_addr ip;
+		struct in_addr ip4;
 		struct in6_addr ip6;
 		u8 raw[16];
 	} src;
@@ -178,6 +179,18 @@ static loff_t netlog_log_llseek(struct file *file, loff_t offset, int whence)
 	return 0;
 }
 
+static inline const char* log_protocol(struct netlog_log *log)
+{
+	switch(log->protocol) {
+		case PROTO_TCP:
+			return "TCP";
+		case PROTO_UDP:
+			return "UDP";
+		default:
+			return "UNK";
+	}
+}
+
 static ssize_t netlog_log_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
 {
 	struct user_data *data = file->private_data;
@@ -234,7 +247,52 @@ static ssize_t netlog_log_read(struct file *file, char __user *buf, size_t count
 	              (LOG_FACILITY << 3) | LOG_LEVEL,
 	              data->log_curr_seq, usec);
 
-	//TODO: print record (end it with a \n)
+	len += sprintf(data->buf + len, "%s: %s[%d] %s ", MODULE_NAME,
+	               log_path(record), record->pid, log_protocol(record));
+	switch(record->family) {
+		case AF_INET:
+			len += sprintf(data->buf + len, "%pI4:%d",
+			               &record->src.ip4, record->src_port);
+			break;
+		case AF_INET6:
+			len += sprintf(data->buf + len, "%pI6c:%d",
+			               &record->src.ip6, record->src_port);
+			break;
+		default:
+			len += sprintf(data->buf + len, "Unknown");
+	}
+	switch(record->action) {
+		case ACTION_CONNECT:
+			len += sprintf(data->buf + len, " -> ");
+			break;
+		case ACTION_ACCEPT:
+			len += sprintf(data->buf + len, " <- ");
+			break;
+		case ACTION_CLOSE:
+			len += sprintf(data->buf + len, " <!> ");
+			break;
+		case ACTION_BIND:
+			len += sprintf(data->buf + len, " BIND ");
+			goto uid;
+		default:
+			len += sprintf(data->buf + len, " UNK ");
+			goto uid;
+	}
+	switch(record->family) {
+		case AF_INET:
+			len += sprintf(data->buf + len, "%pI4:%d",
+			               &record->dst.ip4, record->src_port);
+			break;
+		case AF_INET6:
+			len += sprintf(data->buf + len, "%pI6c:%d",
+			               &record->dst.ip6, record->dst_port);
+			break;
+		default:
+			len += sprintf(data->buf + len, "Unknown");
+			break;
+	}
+uid:
+	len += sprintf(data->buf + len, " (uid=%d)\n", record->uid);
 
 	/* Prepare for next iteration */
 	data->log_curr_idx = next_record(data->log_curr_idx);
