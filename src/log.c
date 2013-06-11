@@ -128,6 +128,7 @@ store_record(pid_t pid, uid_t uid, const char* path, u8 action,
 		copy_ip(record->dst.raw, dst_ip, family);
 	record->src_port = src_port;
 	record->dst_port = dst_port;
+	memcpy(log_path(record), path, path_len);
 
 	/* Update the next position */
 	log_next_idx += record_size;
@@ -247,8 +248,8 @@ static ssize_t netlog_log_read(struct file *file, char __user *buf, size_t count
 	              (LOG_FACILITY << 3) | LOG_LEVEL,
 	              data->log_curr_seq, usec);
 
-	len += sprintf(data->buf + len, "%s: %s[%d] %s ", MODULE_NAME,
-	               log_path(record), record->pid, log_protocol(record));
+	len += sprintf(data->buf + len, "%s: %.*s[%d] %s ", MODULE_NAME,
+	               record->path_len, log_path(record), record->pid, log_protocol(record));
 	switch(record->family) {
 		case AF_INET:
 			len += sprintf(data->buf + len, "%pI4:%d",
