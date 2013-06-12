@@ -10,6 +10,9 @@
 #include "internal.h"
 #include "inet_utils.h"
 
+#define BUFFER_STEP 4096
+#define BUFFER_MAX  4096000
+
 /* Whitelist */
 struct white_process {
 	struct white_process *next;
@@ -23,6 +26,10 @@ struct white_process {
 	size_t path_len;
 	char path[];
 };
+
+/* Max size of a row without the path */
+/* |i<${ip}>|p<${port}>\n */
+#define ROW_MAX_SIZE (9 + INET6_ADDRSTRLEN + 6)
 
 struct white_process *whitelist = NULL;
 
@@ -60,7 +67,7 @@ whiterow_from_string(char *str)
 	new_row->family = AF_UNSPEC;
 
 	/* Fill it with the path */
-	memcpy(&new_row->path, str, len);
+	memcpy(new_row->path, str, len);
 	new_row->path_len = len;
 	new_row->path[len] = '\0';
 
@@ -190,7 +197,7 @@ set_whitelist_from_array(char **raw_array, int raw_len)
 	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
 }
 
-const static char *list_delims = ",";
+const static char *list_delims = ",\n";
 
 void
 set_whitelist_from_string(char *raw_list)
@@ -256,4 +263,58 @@ whitelisted:
 	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
 
 	return WHITELISTED;
+}
+
+size_t
+dump_whitelist(char **buf, size_t len)
+{
+	struct white_process *row;
+	unsigned long flags;
+	size_t pos, curr_len;
+	char *curr_buf;
+
+	if (unlikely(buf == NULL))
+		return 0;
+
+	pos = 0;
+	spin_lock_irqsave(&access_whitelist_spinlock, flags);
+	row = whitelist;
+	while (row != NULL) {
+		curr_len = len;
+		while(len - pos < ROW_MAX_SIZE + row->path_len) {
+			len += BUFFER_STEP;
+		}
+		if (curr_len != len) {
+			if (len > BUFFER_MAX) {
+				len = curr_len;
+				goto out;
+			}
+			curr_buf = *buf;
+			*buf = krealloc(*buf, len, GFP_ATOMIC);
+			if (*buf == NULL) {
+				*buf = curr_buf;
+				len = curr_len;
+				goto out;
+			}
+		}
+		memcpy((*buf) + pos, row->path, row->path_len);
+		pos += row->path_len;
+		switch(row->family) {
+			case AF_INET:
+				pos += sprintf(*buf, "|i<%pI4>", &row->ip.ip4);
+				break;
+			case AF_INET6:
+				pos += sprintf(*buf, "|i<%pI6c>", &row->ip.ip6);
+				break;
+			default:
+				break;
+		}
+		if (row->port != NO_PORT)
+			pos += sprintf(*buf, "|p<%d>", row->port);
+		(*buf)[pos++] = '\n';
+		row = row->next;
+	}
+out:
+	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
+	return pos;
 }

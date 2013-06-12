@@ -1,5 +1,6 @@
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
 #include <linux/version.h>
@@ -7,182 +8,156 @@
 #include "whitelist.h"
 #include "proc_config.h"
 
-static unsigned long procfs_buffer_size = 0;
-static char procfs_buffer[PROCFS_MAX_SIZE];
-static struct proc_dir_entry *netlog_config_proc_file = NULL;
+#define BUFFER_STEP 4096
+#define BUFFER_MAX  4096000
 
-void add_connection_string_to_proc_config(const char *connection_string)
+struct user_data {
+	char state;
+	char *buf;
+	size_t pos;
+	size_t size;
+};
+
+#define STATE_READ 0
+#define STATE_WRITE 1
+
+static struct proc_dir_entry *netlog_proc_file;
+
+ssize_t netlog_proc_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
 {
-	if(connection_string == NULL)
-	{
-		return;
+	struct user_data* data = file->private_data;
+	size_t current_size;
+	char *current_buf;
+
+	if (unlikely(data == NULL) ||
+	    unlikely(data->buf == NULL))
+		return -EBADF;
+
+	current_size = data->size;
+	while (count > data->size - data->pos - 1) {
+		data->size += 4096;
 	}
-
-	procfs_buffer_size += snprintf(procfs_buffer + procfs_buffer_size, PROCFS_MAX_SIZE - procfs_buffer_size,
-											"%s,", connection_string);
-}
-
-void initialize_procfs_buffer(void)
-{
-	memset(procfs_buffer, '\0', PROCFS_MAX_SIZE);
-	procfs_buffer_size = 0;
-}
-
-void update_whitelist(void)
-{
-	int i, connection_string_length;
-	static char temp_procfs_buffer[PROCFS_MAX_SIZE];
-	char new_connection_string[MAX_NEW_CONNECTION_SIZE], *start;
-
-	/* Copy the prc fs buffer into a temporary, because it will
-	 * be updated from the void whitelist(struct connection *connection).
-	 *
-	 * By this way, the buffer will be consistent with the whitelist, because
-	 * some connections might not be in the right format.
-	 */
-
-	memcpy(temp_procfs_buffer, procfs_buffer, PROCFS_MAX_SIZE);
-	initialize_procfs_buffer();
-
-	destroy_whitelist();
-
-	printk(KERN_INFO PROC_CONFIG_NAME ":\t[+] Cleared whitelist\n");
-
-	/* Whitelist one by one the connections that our buffer has */
-
-	start = temp_procfs_buffer;
-	connection_string_length = 0;
-
-	for(i = 0; ; ++i)
-	{
-		/* Each connection is separated by a comma in the buffer,
-		 * or by a \0 if there is no comma after the last connection string.
-		 * Locate them and add them to the whitelist.
-		 */
-
-		if(temp_procfs_buffer[i] == ',' || temp_procfs_buffer[i] == '\0')
-		{
-			int err;
-
-			connection_string_length++;
-			memcpy(new_connection_string, start, connection_string_length);
-			new_connection_string[connection_string_length - 1] = '\0';
-
-			/* Whitelist the new connection */
-
-			err = whitelist(new_connection_string);
-
-			if(err < 0)
-			{
-				printk(KERN_ERR PROC_CONFIG_NAME ":\t[-] Failed to whitelist %s\n", new_connection_string);
-			}
-			else
-			{
-				printk(KERN_INFO PROC_CONFIG_NAME ":\t[+] Whitelisted %s\n", new_connection_string);
-			}
-
-			if(temp_procfs_buffer[i] == '\0')
-			{
-				/* End of parsing */
-
-				break;
-			}
-			else
-			{
-				/* Skip separating character */
-
-				start += connection_string_length;
-				connection_string_length = 0;
-			}
-		}
-		else
-		{
-			connection_string_length++;
+	if (current_size != data->size) {
+		if (data->size > BUFFER_MAX)
+			return -ENOMEM;
+		current_buf = data->buf;
+		data->buf = krealloc(data->buf, data->size, GFP_KERNEL);
+		if (data->buf == NULL) {
+			data->buf = current_buf;
+			data->size = current_size;
+			return -ENOMEM;
 		}
 	}
 
-	memset(temp_procfs_buffer, '\0', PROCFS_MAX_SIZE);
-}
-
-ssize_t procfile_read(struct file *fd, char __user *buffer, size_t buffer_length, loff_t *offset)
-{
-	int written;
-
-	if(*offset >= procfs_buffer_size - 1)
-	{
-		return 0;
-	}
-	else
-	{
-		/* Trim the last comma, if exists */
-
-		if(procfs_buffer[procfs_buffer_size - 1] == ',')
-		{
-			procfs_buffer_size--;
-			procfs_buffer[procfs_buffer_size] = '\0';
-		}
-
-		written = snprintf(buffer, buffer_length, "%s", procfs_buffer + *offset);
-		*offset += buffer_length - 1;
-		return written;
-	}
-}
-
-ssize_t procfile_write(struct file *fd, const char __user *buffer, size_t count, loff_t *offset)
-{
-	procfs_buffer_size = count;
-
-	if(procfs_buffer_size >= PROCFS_MAX_SIZE)
-	{
-		printk(KERN_ERR PROC_CONFIG_NAME ": There is no enought space in the procfs buffer, changes will be ignored\n");
-
-		return -ENOSPC;
-	}
-
-	if(copy_from_user(procfs_buffer, buffer, procfs_buffer_size))
-	{
+	if (unlikely(copy_from_user(data->buf, buf, count)))
 		return -EFAULT;
-	}
-
-	procfs_buffer[procfs_buffer_size - 1] = '\0';
-
-	update_whitelist();
-
+	data->pos += count;
 	return count;
 }
 
-static const struct file_operations netlog_proc_dir_operations = {
-	.owner			= THIS_MODULE,
-	.read			= procfile_read,
-	.write			= procfile_write,
+static ssize_t netlog_proc_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
+{
+	struct user_data* data = file->private_data;
+	size_t to_be_copied;
+
+	if (unlikely(data == NULL) ||
+	    unlikely(data->buf == NULL))
+		return -EBADF;
+
+	if (data->pos >= data->size)
+		return 0;
+
+	to_be_copied = min(count, data->size - data->pos);
+	if (unlikely(copy_to_user(buf, data->buf, to_be_copied)))
+		return -EFAULT;
+	data->pos += to_be_copied;
+	return to_be_copied;
+}
+
+
+static int netlog_proc_open(struct inode *inode, struct file *file)
+{
+	struct user_data *data;
+	int err = 0;
+
+	data = kmalloc(sizeof(struct user_data), GFP_KERNEL);
+	if (unlikely(data == NULL))
+		return -ENOMEM;
+	data->buf = kmalloc(BUFFER_STEP ,GFP_KERNEL);
+	if (unlikely(data->buf == NULL)) {
+		kfree(data);
+		return -ENOMEM;
+	}
+	data->size = BUFFER_STEP;
+	data->pos = 0;
+
+	switch(file->f_flags & O_ACCMODE) {
+		case O_RDONLY:
+			data->state = STATE_READ;
+			data->size = dump_whitelist(&data->buf, BUFFER_STEP);
+			break;
+		case O_WRONLY:
+			data->state = STATE_WRITE;
+			break;
+		default:
+			err = -EINVAL;
+			break;
+	}
+	file->private_data = data;
+	if (err != 0) {
+		kfree(data->buf);
+		kfree(data);
+	}
+	return err;
+}
+
+
+static int netlog_proc_release(struct inode *inode, struct file *file)
+{
+        struct user_data *data = file->private_data;
+	int ret = 0;
+
+	if (unlikely(data == NULL) || unlikely(data->buf == NULL))
+		return 0;
+
+	switch(data->state) {
+		case STATE_READ:
+			break;
+		case STATE_WRITE:
+			data->buf[data->pos] = '\0';
+			destroy_whitelist();
+			set_whitelist_from_string(data->buf);
+			break;
+	}
+	kfree(data);
+	return ret;
+}
+
+const struct file_operations netlog_proc_ops = {
+	.owner = THIS_MODULE,
+	.open = netlog_proc_open,
+	.read  = netlog_proc_read,
+	.write = netlog_proc_write,
+	.release = netlog_proc_release,
 };
 
 int create_proc_config(void)
 {
-	// TODO: use proc_create_data and store procfs_buffer inside
-	netlog_config_proc_file = proc_create(PROC_CONFIG_NAME, S_IFREG | S_IRUSR | S_IWUSR, NULL, &netlog_proc_dir_operations);
-	if(netlog_config_proc_file == NULL)
-	{
-		return -CREATE_PROC_FAILED;
-	}
+	netlog_proc_file = proc_create(PROC_CONFIG_NAME, S_IFREG | S_IRUSR | S_IWUSR, NULL, &netlog_proc_ops);
+	if(netlog_proc_file == NULL)
+		return -ENOMEM;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
-	netlog_config_proc_file->uid = 0;
-	netlog_config_proc_file->gid = 0;
+	netlog_proc_file->uid = 0;
+	netlog_proc_file->gid = 0;
 #else
-	proc_set_user(netlog_config_proc_file, 0, 0);
+	proc_set_user(netlog_proc_file, 0, 0);
 #endif
-	initialize_procfs_buffer();
 	return 0;
 }
 
 void destroy_proc_config(void)
 {
-	if(netlog_config_proc_file != NULL)
-	{
-		remove_proc_entry(PROC_CONFIG_NAME, NULL);
-		netlog_config_proc_file = NULL;
-
-		initialize_procfs_buffer();
-	}
+	if(netlog_proc_file != NULL)
+		proc_remove(netlog_proc_file);
 }
 

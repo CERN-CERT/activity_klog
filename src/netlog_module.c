@@ -115,8 +115,8 @@ static void __exit netlog_exit(void)
 	destroy_netlog_dev();
 	#if WHITELISTING
 
-	destroy_whitelist();
 	destroy_proc_config();
+	destroy_whitelist();
 
 	#endif
 }
