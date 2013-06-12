@@ -36,7 +36,6 @@ struct white_process *whitelist = NULL;
 /* Lock on the whitelist */
 DEFINE_SPINLOCK(access_whitelist_spinlock);
 
-
 static struct white_process*
 whiterow_from_string(char *str)
 {
@@ -210,7 +209,7 @@ set_whitelist_from_string(char *raw_list)
 	while ((raw = strsep(&raw_list, list_delims)) != NULL)
 		add_whiterow(raw);
 
-        spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
+	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
 }
 
 int
@@ -218,7 +217,7 @@ is_whitelisted(const char *path, unsigned short family, const void *ip, int port
 {
 	size_t path_len;
 	unsigned long flags;
-        struct white_process *row;
+	struct white_process *row;
 
 	path_len = strnlen(path, MAX_ABSOLUTE_EXEC_PATH);
 
@@ -231,8 +230,8 @@ is_whitelisted(const char *path, unsigned short family, const void *ip, int port
 
 	spin_lock_irqsave(&access_whitelist_spinlock, flags);
 
-        row = whitelist;
-        while (row != NULL) {
+	row = whitelist;
+	while (row != NULL) {
 		if ((row->port == NO_PORT || row->port == port) &&
 		     row->path_len == path_len && (memcmp(row->path, path, path_len) == 0)) {
 			if (row->family == AF_UNSPEC)
@@ -252,8 +251,8 @@ is_whitelisted(const char *path, unsigned short family, const void *ip, int port
 				}
 			}
 		}
-                row = row->next;
-        }
+		row = row->next;
+	}
 
 	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
 
