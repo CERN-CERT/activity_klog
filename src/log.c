@@ -1,7 +1,6 @@
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/ipv6.h>
-#include <linux/syslog.h>
 #include "inet_utils.h"
 #include "netlog.h"
 #include "log.h"
@@ -350,12 +349,6 @@ static int netlog_log_open(struct inode *inode, struct file *file)
 {
 	struct user_data *data;
 	unsigned long flags;
-	int err;
-
-	/* Use the kernel security hook to verify that it's authorized */
-	err = security_syslog(SYSLOG_ACTION_READ_ALL);
-	if (err)
-		return err;
 
 	/* Allocate private data */
 	data = kmalloc(sizeof(struct user_data), GFP_KERNEL);
