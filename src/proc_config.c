@@ -7,6 +7,7 @@
 #include <asm/uaccess.h>
 #include "whitelist.h"
 #include "proc_config.h"
+#include "netlog.h"
 
 #define BUFFER_STEP 4096
 #define BUFFER_MAX  4096000
@@ -158,6 +159,10 @@ int create_proc_config(void)
 void destroy_proc_config(void)
 {
 	if(netlog_proc_file != NULL)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
+		remove_proc_entry(PROC_CONFIG_NAME, NULL);
+#else
 		proc_remove(netlog_proc_file);
+#endif
 }
 

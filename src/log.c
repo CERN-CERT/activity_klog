@@ -1,9 +1,11 @@
-#include <linux/cdev.h>
 #include <linux/fs.h>
+#include <linux/cdev.h>
+#include <linux/in.h>
 #include <linux/ipv6.h>
-#include "inet_utils.h"
+#include <linux/version.h>
 #include "netlog.h"
 #include "log.h"
+#include "retro-compat.h"
 
 /* Log structure of records stored the buffer */
 struct netlog_log {
@@ -65,6 +67,22 @@ static u32 next_record(u32 idx)
 	return idx + *len;
 }
 
+/* Small tool */
+void copy_ip(void *dst, const void *src, unsigned short family)
+{
+	switch(family)
+	{
+		case AF_INET:
+			memcpy(dst, src, sizeof(struct in_addr));
+			break;
+		case AF_INET6:
+			memcpy(dst, src, sizeof(struct in6_addr));
+			break;
+		default:
+			break;
+	}
+}
+
 void
 store_record(pid_t pid, uid_t uid, const char* path, u8 action,
              u8 protocol, unsigned short family,
@@ -72,7 +90,9 @@ store_record(pid_t pid, uid_t uid, const char* path, u8 action,
 	struct netlog_log *record;
 	size_t path_len, record_size;
 	unsigned long flags;
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
+	struct timespec ts;
+#endif
 	path_len = strlen(path);
 	record_size = sizeof(struct netlog_log) + path_len + 1;
 	record_size += (-record_size) & (LOG_ALIGN - 1);
@@ -111,7 +131,12 @@ store_record(pid_t pid, uid_t uid, const char* path, u8 action,
 	/* Store the data in the recored */
 	record->len = record_size;
 	record->path_len = path_len;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
+	getnstimeofday(&ts);
+	record->nsec = (u64) timespec_to_ns(&ts);
+#else
 	record->nsec = local_clock();
+#endif
 	record->pid = pid;
 	record->uid = uid;
 	record->action = action;
@@ -162,7 +187,6 @@ static loff_t netlog_log_llseek(struct file *file, loff_t offset, int whence)
 	spin_lock_irqsave(&log_lock, flags);
 	switch (whence) {
 		case SEEK_SET:
-		case SEEK_DATA:
 			data->log_curr_seq = log_first_seq;
 			data->log_curr_idx = log_first_idx;
 			break;
@@ -251,15 +275,26 @@ static ssize_t netlog_log_read(struct file *file, char __user *buf, size_t count
 	               record->path_len, log_path(record), record->pid, log_protocol(record));
 	switch(record->family) {
 		case AF_INET:
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
+			len += print_ipv4(data->buf + len, &record->src.ip4);
+			len += sprintf(data->buf + len, ":%d", record->src_port);
+#else
 			len += sprintf(data->buf + len, "%pI4:%d",
 			               &record->src.ip4, record->src_port);
+#endif
 			break;
 		case AF_INET6:
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
+			len += print_ipv6(data->buf + len, &record->src.ip6);
+			len += sprintf(data->buf + len, ":%d", record->src_port);
+#else
 			len += sprintf(data->buf + len, "[%pI6c]:%d",
 			               &record->src.ip6, record->src_port);
+#endif
 			break;
 		default:
 			len += sprintf(data->buf + len, "Unknown");
+			break;
 	}
 	switch(record->action) {
 		case ACTION_CONNECT:
@@ -280,12 +315,22 @@ static ssize_t netlog_log_read(struct file *file, char __user *buf, size_t count
 	}
 	switch(record->family) {
 		case AF_INET:
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
+			len += print_ipv4(data->buf + len, &record->dst.ip4);
+			len += sprintf(data->buf + len, ":%d", record->dst_port);
+#else
 			len += sprintf(data->buf + len, "%pI4:%d",
 			               &record->dst.ip4, record->dst_port);
+#endif
 			break;
 		case AF_INET6:
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
+			len += print_ipv6(data->buf + len, &record->dst.ip6);
+			len += sprintf(data->buf + len, ":%d", record->dst_port);
+#else
 			len += sprintf(data->buf + len, "[%pI6c]:%d",
 			               &record->dst.ip6, record->dst_port);
+#endif
 			break;
 		default:
 			len += sprintf(data->buf + len, "Unknown");
@@ -419,7 +464,11 @@ int init_netlog_dev(void)
 	if (err < 0)
 		goto clean_chrdev_region;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
+	dev = device_create(netlog_class, NULL, netlog_dev,  MODULE_NAME);
+#else
 	dev = device_create(netlog_class, NULL, netlog_dev, NULL, MODULE_NAME);
+#endif
 	if (IS_ERR(dev)) {
 		err = PTR_ERR(dev);
 		goto clean_cdev;

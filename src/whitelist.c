@@ -8,7 +8,7 @@
 #include "proc_config.h"
 #include "netlog.h"
 #include "internal.h"
-#include "inet_utils.h"
+#include "retro-compat.h"
 
 #define BUFFER_STEP 4096
 #define BUFFER_MAX  4096000

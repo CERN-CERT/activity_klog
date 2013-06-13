@@ -11,11 +11,11 @@
 #include <linux/version.h>
 #include <linux/unistd.h>
 #include <net/ip.h>
-#include "inet_utils.h"
 #include "whitelist.h"
 #include "netlog.h"
 #include "log.h"
 #include "probes.h"
+#include "retro-compat.h"
 #include "internal.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
