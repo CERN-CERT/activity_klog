@@ -91,15 +91,14 @@ static char *get_path(char *buffer, size_t len)
 
 static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 {
+	/* sock & sock->sk need to be non null */
+
 	char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 	unsigned short family;
 	const void *dst_ip;
 	const void *src_ip;
 	int dst_port;
 	int src_port;
-
-	if(unlikely(sock == NULL) || unlikely(sock->sk == NULL))
-		return;
 
 	path = get_path(buffer, MAX_ABSOLUTE_EXEC_PATH);
 	buffer[MAX_ABSOLUTE_EXEC_PATH] = '\0';
@@ -166,9 +165,12 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	sock = match_socket[current->pid];
 
-	if (likely(is_tcp(sock)) &&
-	    likely(is_inet(sock)) &&
-	    likely(current != NULL))
+	if (likely(current != NULL) &&
+	    likely(sock != NULL) &&
+	    likely(sock->sk != NULL) &&
+	    likely(sock->sk->sk_family == AF_INET ||
+	           sock->sk->sk_family == AF_INET6) &&
+	    likely(sock->sk->sk_protocol == IPPROTO_TCP))
 		log_if_not_whitelisted(sock, PROTO_TCP, ACTION_CONNECT);
 
 	match_socket[current->pid] = NULL;
@@ -188,14 +190,14 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	sock = sockfd_lookup(regs_return_value(regs), &err);
 
-	if (likely(is_tcp(sock)) &&
-	    likely(is_inet(sock)) &&
-	    likely(current != NULL))
-		log_if_not_whitelisted(sock, PROTO_TCP, ACTION_ACCEPT);
-
-	if(likely(sock != NULL))
+	if (likely(sock != NULL)) {
+		if (likely(sock->sk != NULL) &&
+		    likely(sock->sk->sk_family == AF_INET ||
+		           sock->sk->sk_family == AF_INET6) &&
+		    likely(sock->sk->sk_protocol == IPPROTO_TCP))
+			log_if_not_whitelisted(sock, PROTO_TCP, ACTION_ACCEPT);
 		sockfd_put(sock);
-
+	}
 	return 0;
 }
 
@@ -207,15 +209,18 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 
 	sock = sockfd_lookup(fd, &err);
 
-	if (likely(!is_inet(sock)) ||
-	    unlikely(current == NULL))
+	if (unlikely(current == NULL) ||
+	    unlikely(sock == NULL) ||
+	    unlikely(sock->sk == NULL) ||
+	    likely(sock->sk->sk_family != AF_INET &&
+	           sock->sk->sk_family != AF_INET6))
 		goto out;
 
-	if(is_tcp(sock) &&
-	   likely(inet_sk(sock->sk)->DPORT != 0))
+	if (sock->sk->sk_protocol == IPPROTO_TCP &&
+	    likely(inet_sk(sock->sk)->DPORT != 0))
 		log_if_not_whitelisted(sock, PROTO_TCP, ACTION_CLOSE);
 #if PROBE_UDP
-	else if(is_udp(sock) && is_inet(sock))
+	else if (sock->sk->sk_protocol == IPPROTO_UDP)
 		log_if_not_whitelisted(sock, PROTO_UDP, ACTION_CLOSE);
 #endif
 
@@ -239,9 +244,12 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 	char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 	sock = sockfd_lookup(sockfd, &err);
 
-	if (!is_inet(sock) ||
-            !is_udp(sock) ||
-	    unlikely(current == NULL) ||
+	if (unlikely(current == NULL) ||
+	    unlikely(sock == NULL) ||
+	    unlikely(sock->sk == NULL) ||
+	    (sock->sk->sk_family != AF_INET &&
+	     sock->sk->sk_family != AF_INET6) ||
+	    sock->sk->sk_protocol != IPPROTO_UDP ||
 	    unlikely(addr == NULL))
 		goto out;
 

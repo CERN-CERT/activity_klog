@@ -28,27 +28,6 @@
 	    ntohs((addr).s6_addr16[7])
 #endif
 
-int is_inet(struct socket *sock)
-{
-	if(unlikely(sock == NULL) || unlikely(sock->sk == NULL))
-		return 0;
-	return (sock->sk->sk_family == AF_INET || sock->sk->sk_family == AF_INET6);
-}
-
-int is_tcp(struct socket *sock)
-{
-	if(unlikely(sock == NULL) || unlikely(sock->sk == NULL))
-		return 0;
-	return (sock->sk->sk_protocol == IPPROTO_TCP);
-}
-
-int is_udp(struct socket *sock)
-{
-	if(unlikely(sock == NULL) || unlikely(sock->sk == NULL))
-		return 0;
-	return (sock->sk->sk_protocol == IPPROTO_UDP);
-}
-
 int valid_port_number(const int port)
 {
 	/*Port 0 useless in this case, so we consider it invalid*/

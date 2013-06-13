@@ -21,12 +21,6 @@
         #define DPORT inet_dport
 #endif
 
-int is_inet(struct socket *sock);
-
-int is_tcp(struct socket *sock);
-
-int is_udp(struct socket *sock);
-
 int valid_port_number(const int port);
 
 void copy_ip(void *dst, const void *src, unsigned short family);
