@@ -28,13 +28,6 @@
 	    ntohs((addr).s6_addr16[7])
 #endif
 
-int valid_port_number(const int port)
-{
-	/*Port 0 useless in this case, so we consider it invalid*/
-
-	return (port > 0 && port < 65536);
-}
-
 void copy_ip(void *dst, const void *src, unsigned short family)
 {
 	switch(family)

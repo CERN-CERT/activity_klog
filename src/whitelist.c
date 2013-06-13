@@ -95,7 +95,7 @@ whiterow_from_string(char *str)
 				*(str + slen) = '\0';
 				if (unlikely(kstrtoint(str, 0, &new_row->port)))
 					goto fail;
-				if (unlikely(valid_port_number(new_row->port)))
+				if (unlikely(new_row->port < 1 || new_row->port > 65535))
 					goto fail;
 				*(str + slen) = temp;
 				break;

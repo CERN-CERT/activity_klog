@@ -21,8 +21,6 @@
         #define DPORT inet_dport
 #endif
 
-int valid_port_number(const int port);
-
 void copy_ip(void *dst, const void *src, unsigned short family);
 
 #endif /* __NETLOG_IPUTILS__ */
