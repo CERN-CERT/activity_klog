@@ -37,11 +37,12 @@
 /*      MODULE PARAMETERS         */
 /**********************************/
 
-int absolute_path_mode = 0;
+int absolute_path_mode = 1;
 
 module_param(absolute_path_mode, int, 0);
-MODULE_PARM_DESC(absolute_path_mode, " Boolean parameter for absolute path mode. When enabled, \n"
-				"\t\tit will log the execution path instead of the process name");
+MODULE_PARM_DESC(absolute_path_mode, " Boolean parameter for absolute path mode. If disabled,\n"
+                                     "\t\tboth whiltelisting and log will only contain the process name\n"
+                                     "\t\tinstead of the complete path\n");
 
 #if WHITELISTING
 
