@@ -176,6 +176,35 @@ static int stream_post_connect(struct kretprobe_instance *ri, struct pt_regs *re
 	return 0;
 }
 
+#if PROBE_UDP
+static int dgram_pre_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
+{
+	if (likely(current != NULL))
+		match_socket[current->pid] = sock;
+
+	jprobe_return();
+	return 0;
+}
+
+static int dgram_post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+	struct socket *sock;
+
+	sock = match_socket[current->pid];
+
+	if (likely(current != NULL) &&
+	    likely(sock != NULL) &&
+	    likely(sock->sk != NULL) &&
+	    likely(sock->sk->sk_family == AF_INET ||
+	           sock->sk->sk_family == AF_INET6) &&
+	    likely(sock->sk->sk_protocol == IPPROTO_UDP))
+		log_if_not_whitelisted(sock, PROTO_UDP, ACTION_CONNECT);
+
+	match_socket[current->pid] = NULL;
+	return 0;
+}
+#endif /* PROBE_UDP */
+
 /* post_accept probe is called right after the accept system call returns.
  * In the return register is placed the socket file descriptor. So with the
  * user of regs_register_status we can get the socket file descriptor and log
@@ -338,6 +367,29 @@ static struct kretprobe stream_connect_kretprobe =
         },
 };
 
+#if PROBE_UDP
+static struct jprobe dgram_connect_jprobe =
+{
+	.entry = (kprobe_opcode_t *) dgram_pre_connect,
+	.kp =
+	{
+		.symbol_name = "inet_dgram_connect",
+		.fault_handler = handler_fault,
+	},
+};
+
+static struct kretprobe dgram_connect_kretprobe =
+{
+        .handler = dgram_post_connect,
+        .maxactive = 16 * NR_CPUS,
+        .kp =
+        {
+        	.symbol_name = "inet_dgram_connect",
+		.fault_handler = handler_fault,
+        },
+};
+#endif /* PROBE_UDP */
+
 static struct kretprobe accept_kretprobe =
 {
 	.handler = post_accept,
@@ -389,6 +441,14 @@ void unplant_all(void)
 	unregister_kretprobe(&stream_connect_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted stream connect post handler probe\n");
 
+#if PROBE_UDP
+  	unregister_jprobe(&dgram_connect_jprobe);
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted dgram connect pre handler probe\n");
+
+	unregister_kretprobe(&dgram_connect_kretprobe);
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted dgram connect post handler probe\n");
+#endif
+
 	unregister_kretprobe(&accept_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted accept post handler probe\n");
 
@@ -434,6 +494,32 @@ int plant_all(void)
 	}
 
 	printk(KERN_INFO MODULE_NAME ":\t[+] Planted stream connect post handler\n");
+
+#if PROBE_UDP
+	err = register_jprobe(&dgram_connect_jprobe);
+
+	if(err < 0)
+	{
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant dgram connect pre handler\n");
+		unplant_all();
+
+		return -CONNECT_PROBE_FAILED;
+	}
+
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted dgram connect pre handler\n");
+
+	err = register_kretprobe(&dgram_connect_kretprobe);
+
+	if(err < 0)
+	{
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant dgram connect post handler\n");
+		unplant_all();
+
+		return -CONNECT_PROBE_FAILED;
+	}
+
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted dgramconnect post handler\n");
+#endif /* PROBE_UDP */
 
 	err = register_kretprobe(&accept_kretprobe);
 
