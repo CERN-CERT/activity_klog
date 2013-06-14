@@ -1,11 +1,11 @@
 #ifndef __NETLOG__
 #define __NETLOG__
 
-/* Change to non zero value (i.e. 1) if you wish to probe
- * the binding of UDP sockets.
+/* Change to zero value (0) if you wish to not probe
+ * UDP sockets (bind, connect, close if PROBE_CONNECTION_CLOSE).
  */
 
-#define PROBE_UDP 0
+#define PROBE_UDP 1
 
 /* Change to zero value (0) if you wish to not probe
  * the close system call for the sockets.
