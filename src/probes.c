@@ -33,7 +33,7 @@
 static char *path_from_mm(struct mm_struct *mm, char *buffer, int length)
 {
         char *p = NULL;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
         struct vm_area_struct *vma;
 
         if(unlikely(mm == NULL))
