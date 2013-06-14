@@ -265,51 +265,39 @@ out:
 #endif /* PROBE_CONNECTION_CLOSE */
 
 #if PROBE_UDP
+static struct socket *match_bind[PID_MAX_LIMIT] = {NULL};
+
+static int post_bind(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+	struct socket *sock;
+	sock = match_bind[current->pid];
+
+	if (likely(sock != NULL)) {
+		if (likely(sock->sk != NULL) &&
+		    likely(sock->sk->sk_family == AF_INET ||
+		           sock->sk->sk_family == AF_INET6) &&
+		    likely(sock->sk->sk_protocol == IPPROTO_UDP))
+			log_if_not_whitelisted(sock, PROTO_UDP, ACTION_BIND);
+		sockfd_put(sock);
+	}
+
+	match_bind[current->pid] = NULL;
+	return 0;
+}
+
 /* UDP protocol is connectionless protocol, so we probe the bind system call */
-asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
+asmlinkage static int pre_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 {
 	int err;
 	struct socket *sock;
-        const void *ip;
-	char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
+
+	if (unlikely(current == NULL))
+		return 0;
+
 	sock = sockfd_lookup(sockfd, &err);
 
-	if (unlikely(current == NULL) ||
-	    unlikely(sock == NULL) ||
-	    unlikely(sock->sk == NULL) ||
-	    (sock->sk->sk_family != AF_INET &&
-	     sock->sk->sk_family != AF_INET6) ||
-	    sock->sk->sk_protocol != IPPROTO_UDP ||
-	    unlikely(addr == NULL))
-		goto out;
-
-        path = get_path(buffer, MAX_ABSOLUTE_EXEC_PATH);
-        buffer[MAX_ABSOLUTE_EXEC_PATH] = '\0';
-        if(unlikely(path == NULL))
-                goto out;
-
-	switch(addr->sa_family) {
-		case AF_INET:
-			ip = &((struct sockaddr_in *)addr)->sin_addr;
-			break;
-		case AF_INET6:
-			ip = &((struct sockaddr_in6 *)addr)->sin6_addr;
-			break;
-		default:
-			ip = NULL;
-			break;
-	}
-
-#if WHITELISTING
-	if(is_whitelisted(path, addr->sa_family, ip, NO_PORT))
-		goto out;
-#endif
-	store_record(current->pid, get_current_uid(), path, ACTION_BIND,
-	             PROTO_UDP, addr->sa_family, ip, NO_PORT, NULL, NO_PORT);
-
-out:
-	if(likely(sock != NULL))
-		sockfd_put(sock);
+	if (likely(sock != NULL))
+		match_bind[current->pid] = sock;
 
 	jprobe_return();
 	return 0;
@@ -421,9 +409,20 @@ static struct jprobe close_jprobe =
 
 #if PROBE_UDP
 
+static struct kretprobe bind_kretprobe =
+{
+	.handler = post_bind,
+	.maxactive = 16 * NR_CPUS,
+        .kp =
+        {
+		.symbol_name = "sys_bind",
+		.fault_handler = handler_fault,
+        },
+};
+
 static struct jprobe bind_jprobe =
 {
-	.entry = (kprobe_opcode_t *) netlog_sys_bind,
+	.entry = (kprobe_opcode_t *) pre_bind,
 	.kp =
 	{
 		.symbol_name = "sys_bind",
@@ -460,6 +459,9 @@ void unplant_all(void)
 	#endif
 
 	#if PROBE_UDP
+
+	unregister_kretprobe(&bind_kretprobe);
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted bind post handler probe\n");
 
   	unregister_jprobe(&bind_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted bind pre handler probe\n");
@@ -562,6 +564,18 @@ int plant_all(void)
 	}
 
 	printk(KERN_INFO MODULE_NAME ":\t[+] Planted bind pre handler\n");
+
+	err = register_kretprobe(&bind_kretprobe);
+
+	if(err < 0)
+	{
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant bind post handler\n");
+		unplant_all();
+
+		return -BIND_PROBE_FAILED;
+	}
+
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted bind post handler\n");
 
 	#endif
 
