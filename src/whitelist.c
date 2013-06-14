@@ -136,7 +136,7 @@ purge_whitelist(void)
 	struct white_process *current_row;
 	struct white_process *next_row;
 
-	printk(KERN_INFO PROC_CONFIG_NAME ":\t[+] Cleared whitelist\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Cleared whitelist\n");
 
 	current_row = whitelist;
 	while (current_row != NULL) {
