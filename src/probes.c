@@ -149,8 +149,7 @@ static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 
 static struct socket *match_socket[PID_MAX_LIMIT] = {NULL};
 
-static int
-netlog_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
+static int stream_pre_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
 {
 	if (likely(current != NULL))
 		match_socket[current->pid] = sock;
@@ -159,7 +158,7 @@ netlog_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_
 	return 0;
 }
 
-static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
+static int stream_post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct socket *sock;
 
@@ -316,9 +315,9 @@ int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
 /*         probe definitions        */
 /*************************************/
 
-static struct jprobe connect_jprobe =
+static struct jprobe stream_connect_jprobe =
 {
-	.entry = (kprobe_opcode_t *) netlog_inet_stream_connect,
+	.entry = (kprobe_opcode_t *) stream_pre_connect,
 	.kp =
 	{
 		.symbol_name = "inet_stream_connect",
@@ -326,9 +325,9 @@ static struct jprobe connect_jprobe =
 	},
 };
 
-static struct kretprobe connect_kretprobe =
+static struct kretprobe stream_connect_kretprobe =
 {
-        .handler = post_connect,
+        .handler = stream_post_connect,
         .maxactive = 16 * NR_CPUS,
         .kp =
         {
@@ -354,7 +353,7 @@ static struct kretprobe accept_kretprobe =
 
 #if PROBE_CONNECTION_CLOSE
 
-static struct jprobe tcp_close_jprobe =
+static struct jprobe close_jprobe =
 {
 	.entry = (kprobe_opcode_t *) netlog_sys_close,
 	.kp =
@@ -382,18 +381,18 @@ static struct jprobe bind_jprobe =
 
 void unplant_all(void)
 {
-  	unregister_jprobe(&connect_jprobe);
-	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted connect pre handler probe\n");
+  	unregister_jprobe(&stream_connect_jprobe);
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted stream connect pre handler probe\n");
 
-	unregister_kretprobe(&connect_kretprobe);
-	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted connect post handler probe\n");
+	unregister_kretprobe(&stream_connect_kretprobe);
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted stream connect post handler probe\n");
 
 	unregister_kretprobe(&accept_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted accept post handler probe\n");
 
 	#if PROBE_CONNECTION_CLOSE
 
-	unregister_jprobe(&tcp_close_jprobe);
+	unregister_jprobe(&close_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted close pre handler probe\n");
 
 	#endif
@@ -410,29 +409,29 @@ int plant_all(void)
 {
 	int err;
 
-	err = register_jprobe(&connect_jprobe);
+	err = register_jprobe(&stream_connect_jprobe);
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant connect pre handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant stream connect pre handler\n");
 		unplant_all();
 
 		return -CONNECT_PROBE_FAILED;
 	}
 
-	printk(KERN_INFO MODULE_NAME ":\t[+] Planted connect pre handler\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted stream connect pre handler\n");
 
-	err = register_kretprobe(&connect_kretprobe);
+	err = register_kretprobe(&stream_connect_kretprobe);
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant connect post handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant stream connect post handler\n");
 		unplant_all();
 
 		return -CONNECT_PROBE_FAILED;
 	}
 
-	printk(KERN_INFO MODULE_NAME ":\t[+] Planted connect post handler\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted stream connect post handler\n");
 
 	err = register_kretprobe(&accept_kretprobe);
 
@@ -448,7 +447,7 @@ int plant_all(void)
 
 	#if PROBE_CONNECTION_CLOSE
 
-	err = register_jprobe(&tcp_close_jprobe);
+	err = register_jprobe(&close_jprobe);
 
 	if(err < 0)
 	{
