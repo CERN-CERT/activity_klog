@@ -248,8 +248,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 	    likely(inet_sk(sock->sk)->DPORT != 0))
 		log_if_not_whitelisted(sock, PROTO_TCP, ACTION_CLOSE);
 #if PROBE_UDP
-	else if (sock->type == SOCK_DGRAM &&
-	         sock->sk->sk_protocol == IPPROTO_UDP &&
+	else if (sock->sk->sk_protocol == IPPROTO_UDP &&
 	         inet_sk(sock->sk)->SPORT != 0)
 		log_if_not_whitelisted(sock, PROTO_UDP, ACTION_CLOSE);
 #endif
