@@ -94,6 +94,11 @@ store_record(pid_t pid, uid_t uid, const char* path, u8 action,
 	struct timespec ts;
 #endif
 	path_len = strlen(path);
+	if (unlikely(path_len > (LOG_BUF_LEN >> 4) ||
+	             path_len > INT_MAX)) {
+		printk(KERN_INFO MODULE_NAME ": Warning, troncating path\n");
+		path_len = min((LOG_BUF_LEN >> 4), INT_MAX);
+	}
 	record_size = sizeof(struct netlog_log) + path_len + 1;
 	record_size += (-record_size) & (LOG_ALIGN - 1);
 
@@ -272,7 +277,8 @@ static ssize_t netlog_log_read(struct file *file, char __user *buf, size_t count
 	              data->log_curr_seq, usec);
 
 	len += sprintf(data->buf + len, "%s: %.*s[%d] %s ", MODULE_NAME,
-	               record->path_len, log_path(record), record->pid, log_protocol(record));
+	               (int)record->path_len, log_path(record),
+	               record->pid, log_protocol(record));
 	switch(record->family) {
 		case AF_INET:
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
