@@ -72,16 +72,17 @@ whiterow_from_string(char *str)
 
 	/* Try to extact the next field */
 	while (*pos == FIELD_SEPARATOR) {
-		str = pos + 1;
+		temp = *(pos + 1);
+		str = pos + 2;
 		if (*str == '<')
 			++str;
 		for (pos = str; *pos != FIELD_SEPARATOR && *pos != '\0'; ++pos);
-		slen = pos - str - 1;
+		slen = pos - str;
 		if (*(pos - 1) == '>')
 			--slen;
 		if (unlikely(slen <= 0))
 			goto fail;
-		switch(*str) {
+		switch(temp) {
 			 case 'i':
 				if (in4_pton(str + 1, slen, new_row->ip.raw, -1, NULL) == 1)
 					new_row->family = AF_INET;
