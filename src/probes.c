@@ -1,58 +1,147 @@
-#include <linux/module.h>
-#include <linux/kprobes.h>
-#include <linux/init.h>
-#include <linux/in.h>
-#include <linux/net.h>
-#include <net/ip.h>
-#include <linux/socket.h>
-#include <linux/version.h>
 #include <linux/file.h>
-#include <linux/unistd.h>
-#include <linux/syscalls.h>
+#include <linux/in.h>
+#include <linux/init.h>
+#include <linux/ipv6.h>
 #include <linux/kallsyms.h>
-#include "inet_utils.h"
+#include <linux/kprobes.h>
+#include <linux/module.h>
+#include <linux/net.h>
+#include <linux/socket.h>
+#include <linux/syscalls.h>
+#include <linux/version.h>
+#include <linux/unistd.h>
+#include <net/ip.h>
 #include "whitelist.h"
 #include "netlog.h"
-#include "connection.h"
-#include "proc_config.h"
+#include "log.h"
+#include "probes.h"
+#include "retro-compat.h"
+#include "internal.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 	#define get_current_uid() current->uid
+	#define call_d_path(file, buffer, length) d_path(file->f_dentry, file->f_vfsmnt, buffer, length);
 #else
 	#define get_current_uid() current_uid()
+	#define call_d_path(file, buffer, length) d_path(&file->f_path, buffer, length);
 #endif
 
-#define MODULE_NAME "netlog"
+/********************************/
+/*            Tools             */
+/********************************/
 
-/**********************************/
-/*      MODULE PARAMETERS         */
-/**********************************/
+static char *path_from_mm(struct mm_struct *mm, char *buffer, int length)
+{
+        char *p = NULL;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
+        struct vm_area_struct *vma;
 
-int absolute_path_mode = 0;
+        if(unlikely(mm == NULL))
+        {
+                return NULL;
+        }
 
-module_param(absolute_path_mode, int, 0);
-MODULE_PARM_DESC(absolute_path_mode, " Boolean parameter for absolute path mode. When enabled, \n"
-				"\t\tit will log the execution path instead of the process name");
+        vma = mm->mmap;
 
+        while(vma)
+        {
+                if((vma->vm_flags & VM_EXECUTABLE) && vma->vm_file)
+                {
+                        break;
+                }
+
+                vma = vma->vm_next;
+        }
+
+        if(vma && vma->vm_file)
+        {
+                p = call_d_path(vma->vm_file, buffer, length);
+
+                if(IS_ERR(p))
+                {
+                        p = NULL;
+                }
+        }
+#else
+        if (unlikely(mm == NULL))
+                return NULL;
+
+        down_read(&mm->mmap_sem);
+
+        if (unlikely(mm->exe_file == NULL)) {
+		p = NULL;
+	} else {
+                p = call_d_path(mm->exe_file, buffer, length);
+                if(IS_ERR(p))
+                        p = NULL;
+        }
+
+        up_read(&mm->mmap_sem);
+#endif
+        return p;
+}
+
+static char *get_path(char *buffer, size_t len)
+{
+        if(!absolute_path_mode)
+		return current->comm;
+	else
+		return path_from_mm(current->mm, buffer, len);
+}
+
+static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
+{
+	/* sock & sock->sk need to be non null */
+
+	char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
+	unsigned short family;
+	const void *dst_ip;
+	const void *src_ip;
+	int dst_port;
+	int src_port;
+
+	path = get_path(buffer, MAX_ABSOLUTE_EXEC_PATH);
+	buffer[MAX_ABSOLUTE_EXEC_PATH] = '\0';
+	if(unlikely(path == NULL))
+		return;
+
+	/* Get everything */
+	family = sock->sk->sk_family;
+	dst_port = ntohs(inet_sk(sock->sk)->DPORT);
+	src_port = ntohs(inet_sk(sock->sk)->SPORT);
+	switch(family)
+	{
+		case AF_INET:
+			dst_ip = &inet_sk(sock->sk)->DADDR;
+			src_ip = &inet_sk(sock->sk)->SADDR;
+			break;
+		case AF_INET6:
+			dst_ip = &inet6_sk(sock->sk)->daddr;
+			src_ip = &inet6_sk(sock->sk)->saddr;
+			break;
+		default:
+			dst_ip = NULL;
+			src_ip = NULL;
+			break;
+	}
 
 #if WHITELISTING
-
-static int whitelist_length = 0;
-static char *connections_to_whitelist[MAX_WHITELIST_SIZE] = {'\0'};
-
-module_param_array(connections_to_whitelist, charp, &whitelist_length, 0000);
-MODULE_PARM_DESC(connections_to_whitelist, " An array of strings that contains the connections that " MODULE_NAME " will ignore.\n"
-					    "\t\tThe format of the string must be '/absolute/executable/path ip_address-port'");
-
+	/* Are we whitelisted ? */
+	if(is_whitelisted(path, family, dst_ip, dst_port))
+		return;
 #endif
+
+        store_record(current->pid, get_current_uid(), path, action, protocol,
+	             family, src_ip, src_port, dst_ip, dst_port);
+}
 
 /**********************************/
 /*           PROBES               */
 /**********************************/
 
-/* The next two probes are for the connect system call. We need to associate the process that 
+/* The next two probes are for the connect system call. We need to associate the process that
  * requested the connection with the socket file descriptor that the kernel returned.
- * The socket file descriptor is available only after the system call returns. 
+ * The socket file descriptor is available only after the system call returns.
  * Though we need to be able to get the pointer to the socket struct that was given as a parameter
  * to connect and log its contents. We cannot have a process requesting two connects in the same time,
  * because when a system call is called, the process is suspended until its end of execution.
@@ -60,71 +149,61 @@ MODULE_PARM_DESC(connections_to_whitelist, " An array of strings that contains t
 
 static struct socket *match_socket[PID_MAX_LIMIT] = {NULL};
 
-static int netlog_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
-{	
-	if(unlikely(current == NULL))
-	{
-		goto out;
-	}
+static int stream_pre_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
+{
+	if (likely(current != NULL))
+		match_socket[current->pid] = sock;
 
-	match_socket[current->pid] = sock;
-out:
 	jprobe_return();
 	return 0;
 }
 
-static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
+static int stream_post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct socket *sock;
-	int destination_port;
-	char *destination_ip;
 
 	sock = match_socket[current->pid];
 
-	if(unlikely(!is_tcp(sock)) || unlikely(!is_inet(sock)))
-	{
-		goto out;
-	}
+	if (likely(current != NULL) &&
+	    likely(sock != NULL) &&
+	    likely(sock->sk != NULL) &&
+	    likely(sock->sk->sk_family == AF_INET ||
+	           sock->sk->sk_family == AF_INET6) &&
+	    likely(sock->sk->sk_protocol == IPPROTO_TCP))
+		log_if_not_whitelisted(sock, PROTO_TCP, ACTION_CONNECT);
 
-	if(unlikely(current == NULL))
-	{
-		goto out;
-	}	
-
-	destination_ip = get_destination_ip(sock);
-	destination_port = get_destination_port(sock);
-
-	#if WHITELISTING
-
-	if(is_whitelisted(current, destination_ip, destination_port))
-	{
-		goto out;
-	}
-
-	#endif
-
-	if(!absolute_path_mode)
-	{
-		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
-									get_source_ip(sock), get_source_port(sock),
-									destination_ip, destination_port, 
-									get_current_uid());
-	}
-	else
-	{
-		char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
-		path = exe_from_mm(current->mm, buffer, sizeof(buffer));
-
-		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", path, current->pid,
-									get_source_ip(sock), get_source_port(sock),
-									destination_ip, destination_port, 
-									get_current_uid());
-	}
-
-out:
 	match_socket[current->pid] = NULL;
 	return 0;
 }
+
+#if PROBE_UDP
+static int dgram_pre_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
+{
+	if (likely(current != NULL))
+		match_socket[current->pid] = sock;
+
+	jprobe_return();
+	return 0;
+}
+
+static int dgram_post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+	struct socket *sock;
+
+	sock = match_socket[current->pid];
+
+	if (likely(current != NULL) &&
+	    likely(sock != NULL) &&
+	    likely(sock->sk != NULL) &&
+	    likely(sock->sk->sk_family == AF_INET ||
+	           sock->sk->sk_family == AF_INET6) &&
+	    likely(sock->sk->sk_protocol == IPPROTO_UDP))
+		log_if_not_whitelisted(sock, PROTO_UDP, ACTION_CONNECT);
+
+	match_socket[current->pid] = NULL;
+	return 0;
+}
+#endif /* PROBE_UDP */
 
 /* post_accept probe is called right after the accept system call returns.
  * In the return register is placed the socket file descriptor. So with the
@@ -135,231 +214,94 @@ out:
 static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct socket *sock;
-	char *destination_ip;
-	int err, destination_port;
+	int err;
 
 	sock = sockfd_lookup(regs_return_value(regs), &err);
 
-	if(unlikely(!is_tcp(sock)) || unlikely(!is_inet(sock)))
-	{
-		goto out;
-	}
-
-	if(unlikely(current == NULL))
-	{
-		goto out;
-	}
-
-	destination_ip = get_destination_ip(sock);
-	destination_port = get_destination_port(sock);
-
-	#if WHITELISTING
-
-	if(is_whitelisted(current, destination_ip, destination_port))
-	{
-		goto out;
-	}
-
-	#endif
-
-
-	if(!absolute_path_mode)
-	{
-		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
-									get_source_ip(sock), get_source_port(sock),
-									destination_ip, destination_port, 
-									get_current_uid()); 
-	}
-	else
-	{
-		char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
-		path = exe_from_mm(current->mm, buffer, sizeof(buffer));
-
-		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", path, current->pid, 
-									get_source_ip(sock), get_source_port(sock),
-									destination_ip, destination_port, 
-									get_current_uid()); 
-	}
-
-out:
-	if(likely(sock != NULL))
-	{
+	if (likely(sock != NULL)) {
+		if (likely(sock->sk != NULL) &&
+		    likely(sock->sk->sk_family == AF_INET ||
+		           sock->sk->sk_family == AF_INET6) &&
+		    likely(sock->sk->sk_protocol == IPPROTO_TCP))
+			log_if_not_whitelisted(sock, PROTO_TCP, ACTION_ACCEPT);
 		sockfd_put(sock);
 	}
-
 	return 0;
 }
 
 #if PROBE_CONNECTION_CLOSE
-
 asmlinkage static long netlog_sys_close(unsigned int fd)
 {
 	struct socket *sock;
-	char *destination_ip;
-	int err, destination_port;
+	int err;
 
 	sock = sockfd_lookup(fd, &err);
 
-	if(likely(!is_inet(sock)) || unlikely(current == NULL))
-	{
+	if (unlikely(current == NULL) ||
+	    unlikely(sock == NULL) ||
+	    unlikely(sock->sk == NULL) ||
+	    likely(sock->sk->sk_family != AF_INET &&
+	           sock->sk->sk_family != AF_INET6))
 		goto out;
-	}
 
-	destination_ip = get_destination_ip(sock);
-	destination_port = get_destination_port(sock);
-
-	#if WHITELISTING
-
-	if(is_whitelisted(current, destination_ip, destination_port))
-	{
-		goto out;
-	}
-
-	#endif
-
-	if(is_tcp(sock) && likely(get_destination_port(sock) != 0))
-	{	
-	
-		if(!absolute_path_mode)
-		{
-			printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-										get_source_ip(sock), get_source_port(sock),
-										destination_ip, destination_port, 
-										get_current_uid());
-		}
-		else
-		{
-			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
-			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
-		
-			printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", path, current->pid, 
-									get_source_ip(sock), get_source_port(sock),
-									destination_ip, destination_port, 
-									get_current_uid());
-		}
-	}
-
-	#if PROBE_UDP
-
-	else if(is_udp(sock) && is_inet(sock))
-	{
-		if(!absolute_path_mode)
-		{
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
-										get_source_ip(sock), get_source_port(sock),
-										destination_ip, destination_port, 
-										get_current_uid());
-		}
-		else
-		{
-			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
-			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
-		
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", 
-										path, current->pid, 
-										get_source_ip(sock), get_source_port(sock),
-										destination_ip, destination_port, 
-										get_current_uid());
-		}
-	}
-
-	#endif
+	if (sock->sk->sk_protocol == IPPROTO_TCP &&
+	    likely(inet_sk(sock->sk)->DPORT != 0))
+		log_if_not_whitelisted(sock, PROTO_TCP, ACTION_CLOSE);
+#if PROBE_UDP
+	else if (sock->sk->sk_protocol == IPPROTO_UDP &&
+	         inet_sk(sock->sk)->SPORT != 0)
+		log_if_not_whitelisted(sock, PROTO_UDP, ACTION_CLOSE);
+#endif
 
 out:
 	if(likely(sock != NULL))
-	{
 		sockfd_put(sock);
-	}
 
 	jprobe_return();
 	return 0;
 }
 
-#endif
+#endif /* PROBE_CONNECTION_CLOSE */
 
 #if PROBE_UDP
+static struct socket *match_bind[PID_MAX_LIMIT] = {NULL};
+
+static int post_bind(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+	struct socket *sock;
+	sock = match_bind[current->pid];
+
+	if (likely(sock != NULL)) {
+		if (likely(sock->sk != NULL) &&
+		    likely(sock->sk->sk_family == AF_INET ||
+		           sock->sk->sk_family == AF_INET6) &&
+		    likely(sock->sk->sk_protocol == IPPROTO_UDP))
+			log_if_not_whitelisted(sock, PROTO_UDP, ACTION_BIND);
+		sockfd_put(sock);
+	}
+
+	match_bind[current->pid] = NULL;
+	return 0;
+}
 
 /* UDP protocol is connectionless protocol, so we probe the bind system call */
-
-asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
+asmlinkage static int pre_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 {
 	int err;
-	char *ip;
 	struct socket *sock;
+
+	if (unlikely(current == NULL))
+		return 0;
 
 	sock = sockfd_lookup(sockfd, &err);
 
-	if(!is_inet(sock) || !is_udp(sock))
-	{
-		goto out;
-	}
-
-	if(unlikely(current == NULL))
-	{
-		goto out;
-	}
-
-	ip = get_ip(addr);
-
-	#if WHITELISTING
-
-	if(is_whitelisted(current, ip, NO_PORT))
-	{
-		goto out;
-	}
-
-	#endif
-
-	if(any_ip_address(ip))
-	{
-		if(!absolute_path_mode)
-		{
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
-										current->comm, current->pid,
-										ntohs(((struct sockaddr_in *)addr)->sin_port), 
-										get_current_uid());
-		}
-		else
-		{
-			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
-			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
-
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
-											path, current->pid,
-										 	ntohs(((struct sockaddr_in *)addr)->sin_port), 
-										 	get_current_uid());		
-		}
-	}
-	else
-	{
-		if(!absolute_path_mode)
-		{
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
-											ntohs(((struct sockaddr_in6 *)addr)->sin6_port), 
-											get_current_uid());
-		}
-		else
-		{
-			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
-			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
-		
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind %s:%d (uid=%d)\n", path, current->pid, ip,
-											ntohs(((struct sockaddr_in6 *)addr)->sin6_port), 
-											get_current_uid());		
-		}
-	}
-
-out:
-	if(likely(sock != NULL))
-	{
-		sockfd_put(sock);
-	}
+	if (likely(sock != NULL))
+		match_bind[current->pid] = sock;
 
 	jprobe_return();
 	return 0;
 }
-
-#endif
+#endif /* PROBE_UDP */
 
 int signal_that_will_cause_exit(int trap_number)
 {
@@ -391,32 +333,55 @@ int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
 /*         probe definitions        */
 /*************************************/
 
-static struct jprobe connect_jprobe = 
-{	
-	.entry = (kprobe_opcode_t *) netlog_inet_stream_connect,
-	.kp = 
+static struct jprobe stream_connect_jprobe =
+{
+	.entry = (kprobe_opcode_t *) stream_pre_connect,
+	.kp =
 	{
 		.symbol_name = "inet_stream_connect",
 		.fault_handler = handler_fault,
 	},
 };
 
-static struct kretprobe connect_kretprobe = 
+static struct kretprobe stream_connect_kretprobe =
 {
-        .handler = post_connect,
+        .handler = stream_post_connect,
         .maxactive = 16 * NR_CPUS,
-        .kp = 
+        .kp =
         {
         	.symbol_name = "inet_stream_connect",
 		.fault_handler = handler_fault,
         },
 };
 
-static struct kretprobe accept_kretprobe = 
+#if PROBE_UDP
+static struct jprobe dgram_connect_jprobe =
+{
+	.entry = (kprobe_opcode_t *) dgram_pre_connect,
+	.kp =
+	{
+		.symbol_name = "inet_dgram_connect",
+		.fault_handler = handler_fault,
+	},
+};
+
+static struct kretprobe dgram_connect_kretprobe =
+{
+        .handler = dgram_post_connect,
+        .maxactive = 16 * NR_CPUS,
+        .kp =
+        {
+        	.symbol_name = "inet_dgram_connect",
+		.fault_handler = handler_fault,
+        },
+};
+#endif /* PROBE_UDP */
+
+static struct kretprobe accept_kretprobe =
 {
 	.handler = post_accept,
 	.maxactive = 16 * NR_CPUS,
-        .kp = 
+        .kp =
         {
 		#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
         	.symbol_name = "sys_accept",
@@ -429,10 +394,10 @@ static struct kretprobe accept_kretprobe =
 
 #if PROBE_CONNECTION_CLOSE
 
-static struct jprobe tcp_close_jprobe = 
-{	
+static struct jprobe close_jprobe =
+{
 	.entry = (kprobe_opcode_t *) netlog_sys_close,
-	.kp = 
+	.kp =
 	{
 		.symbol_name = "sys_close",
 		.fault_handler = handler_fault,
@@ -443,10 +408,21 @@ static struct jprobe tcp_close_jprobe =
 
 #if PROBE_UDP
 
-static struct jprobe bind_jprobe = 
-{	
-	.entry = (kprobe_opcode_t *) netlog_sys_bind,
-	.kp = 
+static struct kretprobe bind_kretprobe =
+{
+	.handler = post_bind,
+	.maxactive = 16 * NR_CPUS,
+        .kp =
+        {
+		.symbol_name = "sys_bind",
+		.fault_handler = handler_fault,
+        },
+};
+
+static struct jprobe bind_jprobe =
+{
+	.entry = (kprobe_opcode_t *) pre_bind,
+	.kp =
 	{
 		.symbol_name = "sys_bind",
 		.fault_handler = handler_fault,
@@ -457,23 +433,34 @@ static struct jprobe bind_jprobe =
 
 void unplant_all(void)
 {
-  	unregister_jprobe(&connect_jprobe);
-	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted connect pre handler probe\n");
-	
-	unregister_kretprobe(&connect_kretprobe);
-	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted connect post handler probe\n");
+  	unregister_jprobe(&stream_connect_jprobe);
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted stream connect pre handler probe\n");
+
+	unregister_kretprobe(&stream_connect_kretprobe);
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted stream connect post handler probe\n");
+
+#if PROBE_UDP
+  	unregister_jprobe(&dgram_connect_jprobe);
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted dgram connect pre handler probe\n");
+
+	unregister_kretprobe(&dgram_connect_kretprobe);
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted dgram connect post handler probe\n");
+#endif
 
 	unregister_kretprobe(&accept_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted accept post handler probe\n");
 
 	#if PROBE_CONNECTION_CLOSE
 
-	unregister_jprobe(&tcp_close_jprobe);
+	unregister_jprobe(&close_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted close pre handler probe\n");
 
 	#endif
 
 	#if PROBE_UDP
+
+	unregister_kretprobe(&bind_kretprobe);
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted bind post handler probe\n");
 
   	unregister_jprobe(&bind_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted bind pre handler probe\n");
@@ -485,29 +472,55 @@ int plant_all(void)
 {
 	int err;
 
-	err = register_jprobe(&connect_jprobe);
+	err = register_jprobe(&stream_connect_jprobe);
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant connect pre handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant stream connect pre handler\n");
 		unplant_all();
-		
+
 		return -CONNECT_PROBE_FAILED;
 	}
 
-	printk(KERN_INFO MODULE_NAME ":\t[+] Planted connect pre handler\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted stream connect pre handler\n");
 
-	err = register_kretprobe(&connect_kretprobe);
+	err = register_kretprobe(&stream_connect_kretprobe);
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant connect post handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant stream connect post handler\n");
 		unplant_all();
-		
+
 		return -CONNECT_PROBE_FAILED;
 	}
 
-	printk(KERN_INFO MODULE_NAME ":\t[+] Planted connect post handler\n");
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted stream connect post handler\n");
+
+#if PROBE_UDP
+	err = register_jprobe(&dgram_connect_jprobe);
+
+	if(err < 0)
+	{
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant dgram connect pre handler\n");
+		unplant_all();
+
+		return -CONNECT_PROBE_FAILED;
+	}
+
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted dgram connect pre handler\n");
+
+	err = register_kretprobe(&dgram_connect_kretprobe);
+
+	if(err < 0)
+	{
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant dgram connect post handler\n");
+		unplant_all();
+
+		return -CONNECT_PROBE_FAILED;
+	}
+
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted dgramconnect post handler\n");
+#endif /* PROBE_UDP */
 
 	err = register_kretprobe(&accept_kretprobe);
 
@@ -515,7 +528,7 @@ int plant_all(void)
 	{
 		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant accept post handler\n");
 		unplant_all();
-		
+
 		return -ACCEPT_PROBE_FAILED;
 	}
 
@@ -523,20 +536,20 @@ int plant_all(void)
 
 	#if PROBE_CONNECTION_CLOSE
 
-	err = register_jprobe(&tcp_close_jprobe);
+	err = register_jprobe(&close_jprobe);
 
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant close pre handler\n");
 		unplant_all();
-		
+
 		return -CLOSE_PROBE_FAILED;
 	}
 
 	printk(KERN_INFO MODULE_NAME ":\t[+] Planted close pre handler\n");
 
 	#endif
-	
+
 	#if PROBE_UDP
 
 	err = register_jprobe(&bind_jprobe);
@@ -545,113 +558,25 @@ int plant_all(void)
 	{
 		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant bind pre handler\n");
 		unplant_all();
-		
+
 		return -BIND_PROBE_FAILED;
 	}
 
 	printk(KERN_INFO MODULE_NAME ":\t[+] Planted bind pre handler\n");
 
-	#endif
-
-	return 0;
-}
-
-#if WHITELISTING
-
-void do_whitelist(void)
-{
-	int i, err;
-
-	/*Deal with the whitelisting*/
-
-	if(whitelist_length > MAX_WHITELIST_SIZE)
-	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Cannot whitelist more than %d connections. The %d last parameters paths will be ignored. \
-					Please change MAX_WHITELIST_SIZE definition in netlog.h and recompile, or contact \
-					CERN-CERT <cert@cern.ch>\n", MAX_WHITELIST_SIZE, whitelist_length - MAX_WHITELIST_SIZE);
-					
-		whitelist_length = MAX_WHITELIST_SIZE;
-	}
-
-	/*Will not check if the paths are valid, because in case that they are, they will be ignored*/
-
-	for(i = 0; i < whitelist_length; ++i)
-	{
-		err = whitelist(connections_to_whitelist[i]);
-
-		if(err < 0)
-		{
-			printk(KERN_ERR MODULE_NAME ":\t[-] Failed to whitelist %s\n", connections_to_whitelist[i]);
-		}
-		else
-		{
-			printk(KERN_INFO MODULE_NAME ":\t[+] Whitelisted %s\n", connections_to_whitelist[i]);
-		}
-	}
-}
-
-#endif
-
-/************************************/
-/*             INIT MODULE          */
-/************************************/
-
-int __init plant_probes(void)
-{
-	int err;
-
-	printk(KERN_INFO MODULE_NAME ": Light monitoring tool for inet connections by CERN Security Team\n");
-
-	err = plant_all();
+	err = register_kretprobe(&bind_kretprobe);
 
 	if(err < 0)
 	{
-		return err;
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant bind post handler\n");
+		unplant_all();
+
+		return -BIND_PROBE_FAILED;
 	}
 
-	#if WHITELISTING
-
-	err = create_proc_config();
-
-	if(err < 0)
-	{
-		printk(KERN_INFO MODULE_NAME ":\t[-] Creation of proc file for configuring connection whitelisting failed\n");
-	}
-	else
-	{
-		printk(KERN_INFO MODULE_NAME ":\t[+] Created %s proc file for configuring connection whitelisting\n", PROC_CONFIG_NAME);
-	}
-
-	do_whitelist();
+	printk(KERN_INFO MODULE_NAME ":\t[+] Planted bind post handler\n");
 
 	#endif
-
-	if(absolute_path_mode)
-	{
-		printk(KERN_INFO MODULE_NAME ":\t[+] Absolute path mode is enabled. The logs will contain the absolute execution path\n");
-	}
-	else
-	{
-		printk(KERN_INFO MODULE_NAME ":\t[-] Absolute path mode is disabled. The logs will contain the process name\n");
-	}
-
-	printk(KERN_INFO MODULE_NAME ":\t[+] Deployed\n");
 
 	return 0;
-}
-
-/************************************/
-/*             EXIT MODULE          */
-/************************************/
-
-void __exit unplant_probes(void)
-{
-	unplant_all();
-
-	#if WHITELISTING
-
-	destroy_whitelist();
-	destroy_proc_config();
-
-	#endif
 }
