@@ -44,6 +44,7 @@ whiterow_from_string(char *str)
 	size_t len;
 	ssize_t slen;
 	char temp;
+	int ret;
 
 	if (unlikely(str == NULL))
 		return NULL;
@@ -94,11 +95,12 @@ whiterow_from_string(char *str)
 			case 'p':
 				temp = *(str + slen);
 				*(str + slen) = '\0';
-				if (unlikely(kstrtoint(str, 0, &new_row->port)))
+				ret = kstrtoint(str, 0, &new_row->port);
+				*(str + slen) = temp;
+				if (unlikely(ret))
 					goto fail;
 				if (unlikely(new_row->port < 1 || new_row->port > 65535))
 					goto fail;
-				*(str + slen) = temp;
 				break;
 			default:
 				goto fail;
