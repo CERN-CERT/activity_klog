@@ -144,6 +144,7 @@ purge_whitelist(void)
 		kfree(current_row);
 		current_row = next_row;
 	}
+	whitelist = NULL;
 }
 
 void
