@@ -305,16 +305,16 @@ dump_whitelist(char **buf, size_t len)
 		pos += row->path_len;
 		switch(row->family) {
 			case AF_INET:
-				pos += sprintf(*buf, "|i<%pI4>", &row->ip.ip4);
+				pos += sprintf(*buf + pos, "|i<%pI4>", &row->ip.ip4);
 				break;
 			case AF_INET6:
-				pos += sprintf(*buf, "|i<%pI6c>", &row->ip.ip6);
+				pos += sprintf(*buf + pos, "|i<%pI6c>", &row->ip.ip6);
 				break;
 			default:
 				break;
 		}
 		if (row->port != NO_PORT)
-			pos += sprintf(*buf, "|p<%d>", row->port);
+			pos += sprintf(*buf + pos, "|p<%d>", row->port);
 		(*buf)[pos++] = '\n';
 		row = row->next;
 	}
