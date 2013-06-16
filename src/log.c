@@ -195,6 +195,8 @@ static loff_t netlog_log_llseek(struct file *file, loff_t offset, int whence)
 			data->log_curr_seq = log_first_seq;
 			data->log_curr_idx = log_first_idx;
 			break;
+		case SEEK_CUR:
+			break;
 		case SEEK_END:
 			data->log_curr_seq = log_next_seq;
 			data->log_curr_idx = log_next_idx;
