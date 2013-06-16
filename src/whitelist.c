@@ -211,7 +211,8 @@ set_whitelist_from_string(char *raw_list)
 	spin_lock_irqsave(&access_whitelist_spinlock, flags);
 
 	while ((raw = strsep(&raw_list, list_delims)) != NULL)
-		add_whiterow(raw);
+		if (likely(*raw != '\0' && *raw != '\n'))
+			add_whiterow(raw);
 
 	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
 }
