@@ -85,9 +85,9 @@ whiterow_from_string(char *str)
 			goto fail;
 		switch(temp) {
 			 case 'i':
-				if (in4_pton(str + 1, slen, new_row->ip.raw, -1, NULL) == 1)
+				if (in4_pton(str, slen, new_row->ip.raw, -1, NULL) == 1)
 					new_row->family = AF_INET;
-				else if (in6_pton(str + 1, slen, new_row->ip.raw, -1, NULL) == 1)
+				else if (in6_pton(str, slen, new_row->ip.raw, -1, NULL) == 1)
 					new_row->family = AF_INET6;
 				else
 					goto fail;
