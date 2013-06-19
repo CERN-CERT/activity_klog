@@ -27,6 +27,14 @@
 #endif
 
 /********************************/
+/*          Variables           */
+/********************************/
+
+u32 loaded_probes = 0;
+DEFINE_SPINLOCK(probe_lock);
+
+
+/********************************/
 /*            Tools             */
 /********************************/
 
@@ -176,7 +184,6 @@ static int stream_post_connect(struct kretprobe_instance *ri, struct pt_regs *re
 	return 0;
 }
 
-#if PROBE_UDP
 static int dgram_pre_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
 {
 	if (likely(current != NULL))
@@ -203,7 +210,6 @@ static int dgram_post_connect(struct kretprobe_instance *ri, struct pt_regs *reg
 	match_socket[current->pid] = NULL;
 	return 0;
 }
-#endif /* PROBE_UDP */
 
 /* post_accept probe is called right after the accept system call returns.
  * In the return register is placed the socket file descriptor. So with the
@@ -229,7 +235,6 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	return 0;
 }
 
-#if PROBE_CONNECTION_CLOSE
 asmlinkage static long netlog_sys_close(unsigned int fd)
 {
 	struct socket *sock;
@@ -244,14 +249,14 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 	           sock->sk->sk_family != AF_INET6))
 		goto out;
 
-	if (sock->sk->sk_protocol == IPPROTO_TCP &&
+	if ((loaded_probes & (1 << PROBE_TCP_CLOSE)) &&
+	    sock->sk->sk_protocol == IPPROTO_TCP &&
 	    likely(inet_sk(sock->sk)->DPORT != 0))
 		log_if_not_whitelisted(sock, PROTO_TCP, ACTION_CLOSE);
-#if PROBE_UDP
-	else if (sock->sk->sk_protocol == IPPROTO_UDP &&
+	else if ((loaded_probes & (1 << PROBE_UDP_CLOSE)) &&
+	         sock->sk->sk_protocol == IPPROTO_UDP &&
 	         inet_sk(sock->sk)->SPORT != 0)
 		log_if_not_whitelisted(sock, PROTO_UDP, ACTION_CLOSE);
-#endif
 
 out:
 	if(likely(sock != NULL))
@@ -261,9 +266,6 @@ out:
 	return 0;
 }
 
-#endif /* PROBE_CONNECTION_CLOSE */
-
-#if PROBE_UDP
 static struct socket *match_bind[PID_MAX_LIMIT] = {NULL};
 
 static int post_bind(struct kretprobe_instance *ri, struct pt_regs *regs)
@@ -301,7 +303,6 @@ asmlinkage static int pre_bind(int sockfd, const struct sockaddr *addr, int addr
 	jprobe_return();
 	return 0;
 }
-#endif /* PROBE_UDP */
 
 int signal_that_will_cause_exit(int trap_number)
 {
@@ -354,7 +355,6 @@ static struct kretprobe stream_connect_kretprobe =
         },
 };
 
-#if PROBE_UDP
 static struct jprobe dgram_connect_jprobe =
 {
 	.entry = (kprobe_opcode_t *) dgram_pre_connect,
@@ -375,7 +375,6 @@ static struct kretprobe dgram_connect_kretprobe =
 		.fault_handler = handler_fault,
         },
 };
-#endif /* PROBE_UDP */
 
 static struct kretprobe accept_kretprobe =
 {
@@ -392,8 +391,6 @@ static struct kretprobe accept_kretprobe =
         },
 };
 
-#if PROBE_CONNECTION_CLOSE
-
 static struct jprobe close_jprobe =
 {
 	.entry = (kprobe_opcode_t *) netlog_sys_close,
@@ -403,10 +400,6 @@ static struct jprobe close_jprobe =
 		.fault_handler = handler_fault,
 	}
 };
-
-#endif
-
-#if PROBE_UDP
 
 static struct kretprobe bind_kretprobe =
 {
@@ -429,46 +422,83 @@ static struct jprobe bind_jprobe =
 	},
 };
 
-#endif
+/****************************************/
+/*     Planting/unplanting probes       */
+/****************************************/
 
-void unplant_all(void)
+static void unplant_tcp_connect(void)
 {
   	unregister_jprobe(&stream_connect_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted stream connect pre handler probe\n");
 
 	unregister_kretprobe(&stream_connect_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted stream connect post handler probe\n");
+}
 
-#if PROBE_UDP
+static void unplant_udp_connect(void)
+{
   	unregister_jprobe(&dgram_connect_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted dgram connect pre handler probe\n");
 
 	unregister_kretprobe(&dgram_connect_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted dgram connect post handler probe\n");
-#endif
+}
 
+static void unplant_tcp_accept(void)
+{
 	unregister_kretprobe(&accept_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted accept post handler probe\n");
+}
 
-	#if PROBE_CONNECTION_CLOSE
-
+static void unplant_close(void)
+{
 	unregister_jprobe(&close_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted close pre handler probe\n");
+}
 
-	#endif
-
-	#if PROBE_UDP
-
+static void unplant_udp_bind(void)
+{
 	unregister_kretprobe(&bind_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted bind post handler probe\n");
 
   	unregister_jprobe(&bind_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted bind pre handler probe\n");
-
-	#endif
 }
 
-int plant_all(void)
+void unplant_probe(u32 probe)
+{
+	unsigned long flags;
+	u32 removed_probes;
+
+	spin_lock_irqsave(&probe_lock, flags);
+	removed_probes = loaded_probes & probe;
+	loaded_probes ^= removed_probes;
+
+	if (removed_probes & (1 << PROBE_TCP_CONNECT))
+		unplant_tcp_connect();
+
+	if (removed_probes & (1 << PROBE_TCP_ACCEPT))
+		unplant_tcp_accept();
+
+	if (removed_probes & ((1 << PROBE_TCP_CLOSE) | (1 << PROBE_UDP_CLOSE))) {
+		if (!(loaded_probes & ((1 << PROBE_TCP_CLOSE) | (1 << PROBE_UDP_CLOSE))))
+			unplant_close();
+ 	}
+	if (removed_probes & (1 << PROBE_UDP_CONNECT))
+		unplant_udp_connect();
+
+	if (removed_probes & (1 << PROBE_UDP_BIND))
+		unplant_udp_bind();
+
+	spin_unlock_irqrestore(&probe_lock, flags);
+}
+
+void unplant_all(void)
+{
+	unplant_probe((1 << (PROBES_NUMBER + 1)) - 1);
+}
+
+static int plant_tcp_connect(void)
 {
 	int err;
 
@@ -496,7 +526,13 @@ int plant_all(void)
 
 	printk(KERN_INFO MODULE_NAME ":\t[+] Planted stream connect post handler\n");
 
-#if PROBE_UDP
+	return 0;
+}
+
+static int plant_udp_connect(void)
+{
+	int err;
+
 	err = register_jprobe(&dgram_connect_jprobe);
 
 	if(err < 0)
@@ -520,7 +556,13 @@ int plant_all(void)
 	}
 
 	printk(KERN_INFO MODULE_NAME ":\t[+] Planted dgramconnect post handler\n");
-#endif /* PROBE_UDP */
+
+	return 0;
+}
+
+static int plant_tcp_accept(void)
+{
+	int err;
 
 	err = register_kretprobe(&accept_kretprobe);
 
@@ -534,7 +576,12 @@ int plant_all(void)
 
 	printk(KERN_INFO MODULE_NAME ":\t[+] Planted accept post handler\n");
 
-	#if PROBE_CONNECTION_CLOSE
+	return 0;
+}
+
+static int plant_close(void)
+{
+	int err;
 
 	err = register_jprobe(&close_jprobe);
 
@@ -548,9 +595,12 @@ int plant_all(void)
 
 	printk(KERN_INFO MODULE_NAME ":\t[+] Planted close pre handler\n");
 
-	#endif
+	return 0;
+}
 
-	#if PROBE_UDP
+static int plant_udp_bind(void)
+{
+	int err;
 
 	err = register_jprobe(&bind_jprobe);
 
@@ -576,7 +626,65 @@ int plant_all(void)
 
 	printk(KERN_INFO MODULE_NAME ":\t[+] Planted bind post handler\n");
 
-	#endif
-
 	return 0;
 }
+
+int plant_probe(u32 probe)
+{
+	unsigned long flags;
+	u32 new_probes;
+	int err = 0;
+
+	spin_lock_irqsave(&probe_lock, flags);
+	new_probes = (probe ^ loaded_probes) & probe;
+
+	if (new_probes & (1 << PROBE_TCP_CONNECT)) {
+		err = plant_tcp_connect();
+		if (err)
+			goto unlock;
+		loaded_probes |= 1 << PROBE_TCP_CONNECT;
+ 	}
+
+	if (new_probes & (1 << PROBE_TCP_ACCEPT)) {
+		err = plant_tcp_accept();
+		if (err)
+			goto unlock;
+		loaded_probes |= 1 << PROBE_TCP_ACCEPT;
+ 	}
+
+	if (new_probes & (1 << PROBE_TCP_CLOSE)) {
+		if (!(loaded_probes & (1 << PROBE_UDP_CLOSE))) {
+			err = plant_close();
+			if (err)
+				goto unlock;
+		}
+		loaded_probes |= 1 << PROBE_TCP_CLOSE;
+ 	}
+	if (new_probes & (1 << PROBE_UDP_CONNECT)) {
+		err = plant_udp_connect();
+		if (err)
+			return err;
+		loaded_probes |= 1 << PROBE_UDP_CONNECT;
+ 	}
+
+	if (new_probes & (1 << PROBE_UDP_BIND)) {
+		err = plant_udp_bind();
+		if (err)
+			goto unlock;
+		loaded_probes |= 1 << PROBE_UDP_BIND;
+ 	}
+
+	if (new_probes & (1 << PROBE_UDP_CLOSE)) {
+		if (!(loaded_probes & (1 << PROBE_TCP_CLOSE))) {
+			err = plant_close();
+			if (err)
+				goto unlock;
+		}
+		loaded_probes |= 1 << PROBE_UDP_CONNECT;
+ 	}
+
+unlock:
+	spin_unlock_irqrestore(&probe_lock, flags);
+	return err;
+}
+

@@ -1,17 +1,8 @@
 #ifndef __NETLOG__
 #define __NETLOG__
 
-/* Change to zero value (0) if you wish to not probe
- * UDP sockets (bind, connect, close if PROBE_CONNECTION_CLOSE).
- */
-
-#define PROBE_UDP 1
-
-/* Change to zero value (0) if you wish to not probe
- * the close system call for the sockets.
- */
-
-#define PROBE_CONNECTION_CLOSE 1
+/* Probes enabled by default (all) */
+#define DEFAULT_PROBES 0xFFFFFFFF
 
 /* In absolute_path_mode mode, probes need to resolve those absolute path.
  * For memory reason, those path lentgh must be bounded.

@@ -44,6 +44,11 @@ MODULE_PARM_DESC(absolute_path_mode, " Boolean parameter for absolute path mode.
                                      "\t\tboth whiltelisting and log will only contain the process name\n"
                                      "\t\tinstead of the complete path\n");
 
+int probes = DEFAULT_PROBES;
+
+module_param(probes, int, 0);
+MODULE_PARM_DESC(probes, " Integer paramter describing which prbes should be loaded\n");
+
 #if WHITELISTING
 
 static int whitelist_length = 0;
@@ -68,7 +73,7 @@ static int __init netlog_init(void)
 	if(err < 0)
 		return err;
 
-	err = plant_all();
+	err = plant_probe(probes);
 	if(err < 0)
 	{
 		destroy_netlog_dev();
