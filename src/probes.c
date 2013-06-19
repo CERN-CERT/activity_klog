@@ -105,7 +105,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	if(!absolute_path_mode)
 	{
-		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
+		printk(KERN_DEBUG MODULE_NAME ": %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", current->comm, current->pid, 
 									get_source_ip(sock), get_source_port(sock),
 									destination_ip, destination_port, 
 									get_current_uid());
@@ -115,7 +115,7 @@ static int post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 		char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 		path = exe_from_mm(current->mm, buffer, sizeof(buffer));
 
-		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", path, current->pid,
+		printk(KERN_DEBUG MODULE_NAME ": %s[%d] TCP %s:%d -> %s:%d (uid=%d)\n", path, current->pid,
 									get_source_ip(sock), get_source_port(sock),
 									destination_ip, destination_port, 
 									get_current_uid());
@@ -165,7 +165,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	if(!absolute_path_mode)
 	{
-		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
+		printk(KERN_DEBUG MODULE_NAME ": %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", current->comm, current->pid, 
 									get_source_ip(sock), get_source_port(sock),
 									destination_ip, destination_port, 
 									get_current_uid()); 
@@ -175,7 +175,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 		char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 		path = exe_from_mm(current->mm, buffer, sizeof(buffer));
 
-		printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", path, current->pid, 
+		printk(KERN_DEBUG MODULE_NAME ": %s[%d] TCP %s:%d <- %s:%d (uid=%d)\n", path, current->pid, 
 									get_source_ip(sock), get_source_port(sock),
 									destination_ip, destination_port, 
 									get_current_uid()); 
@@ -222,7 +222,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 	
 		if(!absolute_path_mode)
 		{
-			printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+			printk(KERN_DEBUG MODULE_NAME ": %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 										get_source_ip(sock), get_source_port(sock),
 										destination_ip, destination_port, 
 										get_current_uid());
@@ -232,7 +232,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
 		
-			printk(KERN_INFO MODULE_NAME ": %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", path, current->pid, 
+			printk(KERN_DEBUG MODULE_NAME ": %s[%d] TCP %s:%d <-> %s:%d (uid=%d)\n", path, current->pid, 
 									get_source_ip(sock), get_source_port(sock),
 									destination_ip, destination_port, 
 									get_current_uid());
@@ -245,7 +245,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 	{
 		if(!absolute_path_mode)
 		{
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
+			printk(KERN_DEBUG MODULE_NAME ": %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", current->comm, current->pid, 
 										get_source_ip(sock), get_source_port(sock),
 										destination_ip, destination_port, 
 										get_current_uid());
@@ -255,7 +255,7 @@ asmlinkage static long netlog_sys_close(unsigned int fd)
 			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
 		
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", 
+			printk(KERN_DEBUG MODULE_NAME ": %s[%d] UDP %s:%d <-> %s:%d (uid=%d)\n", 
 										path, current->pid, 
 										get_source_ip(sock), get_source_port(sock),
 										destination_ip, destination_port, 
@@ -314,7 +314,7 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 	{
 		if(!absolute_path_mode)
 		{
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
+			printk(KERN_DEBUG MODULE_NAME ": %s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
 										current->comm, current->pid,
 										ntohs(((struct sockaddr_in *)addr)->sin_port), 
 										get_current_uid());
@@ -324,7 +324,7 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
 
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
+			printk(KERN_DEBUG MODULE_NAME ": %s[%d] UDP bind (any IP address):%d (uid=%d)\n", 
 											path, current->pid,
 										 	ntohs(((struct sockaddr_in *)addr)->sin_port), 
 										 	get_current_uid());		
@@ -334,7 +334,7 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 	{
 		if(!absolute_path_mode)
 		{
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
+			printk(KERN_DEBUG MODULE_NAME ": %s[%d] UDP bind %s:%d (uid=%d)\n", current->comm, current->pid, ip, 
 											ntohs(((struct sockaddr_in6 *)addr)->sin6_port), 
 											get_current_uid());
 		}
@@ -343,7 +343,7 @@ asmlinkage static int netlog_sys_bind(int sockfd, const struct sockaddr *addr, i
 			char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
 			path = exe_from_mm(current->mm, buffer, sizeof(buffer));
 		
-			printk(KERN_INFO MODULE_NAME ": %s[%d] UDP bind %s:%d (uid=%d)\n", path, current->pid, ip,
+			printk(KERN_DEBUG MODULE_NAME ": %s[%d] UDP bind %s:%d (uid=%d)\n", path, current->pid, ip,
 											ntohs(((struct sockaddr_in6 *)addr)->sin6_port), 
 											get_current_uid());		
 		}
