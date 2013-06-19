@@ -680,7 +680,7 @@ int plant_probe(u32 probe)
 			if (err)
 				goto unlock;
 		}
-		loaded_probes |= 1 << PROBE_UDP_CONNECT;
+		loaded_probes |= 1 << PROBE_UDP_CLOSE;
  	}
 
 unlock:
