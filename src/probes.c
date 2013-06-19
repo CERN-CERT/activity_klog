@@ -430,39 +430,47 @@ static void unplant_tcp_connect(void)
 {
   	unregister_jprobe(&stream_connect_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted stream connect pre handler probe\n");
+	stream_connect_jprobe.kp.addr = NULL;
 
 	unregister_kretprobe(&stream_connect_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted stream connect post handler probe\n");
+	stream_connect_kretprobe.kp.addr = NULL;
 }
 
 static void unplant_udp_connect(void)
 {
   	unregister_jprobe(&dgram_connect_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted dgram connect pre handler probe\n");
+	dgram_connect_jprobe.kp.addr = NULL;
 
 	unregister_kretprobe(&dgram_connect_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted dgram connect post handler probe\n");
+	dgram_connect_kretprobe.kp.addr = NULL;
 }
 
 static void unplant_tcp_accept(void)
 {
 	unregister_kretprobe(&accept_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted accept post handler probe\n");
+	accept_kretprobe.kp.addr = NULL;
 }
 
 static void unplant_close(void)
 {
 	unregister_jprobe(&close_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted close pre handler probe\n");
+	close_jprobe.kp.addr = NULL;
 }
 
 static void unplant_udp_bind(void)
 {
 	unregister_kretprobe(&bind_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted bind post handler probe\n");
+	bind_kretprobe.kp.addr = NULL;
 
   	unregister_jprobe(&bind_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted bind pre handler probe\n");
+	bind_jprobe.kp.addr = NULL;
 }
 
 void unplant_probe(u32 probe)
