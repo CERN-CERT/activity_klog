@@ -13,5 +13,6 @@
 int plant_probe(u32);
 void unplant_probe(u32);
 void unplant_all(void);
+int probe_status(u32);
 
 #endif /* __NETLOG_PROBES__ */

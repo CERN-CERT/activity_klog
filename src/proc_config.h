@@ -3,6 +3,7 @@
 
 #define PROC_DIR_NAME MODULE_NAME
 #define PROC_WHITELIST_NAME "whitelist"
+#define PROC_PROBES_NAME "probes"
 
 int create_proc(void);
 void destroy_proc(void);
