@@ -75,21 +75,19 @@ static int __init netlog_init(void)
 		return err;
 	}
 
-#if WHITELISTING
-
-	err = create_proc_config();
+	err = create_proc();
 
 	if(err < 0)
 	{
-		printk(KERN_INFO MODULE_NAME ":\t[-] Creation of proc file for configuring connection whitelisting failed\n");
+		printk(KERN_INFO MODULE_NAME ":\t[-] Creation of proc files failed\n");
 	}
 	else
 	{
-		printk(KERN_INFO MODULE_NAME ":\t[+] Created %s proc file for configuring connection whitelisting\n", PROC_CONFIG_NAME);
+		printk(KERN_INFO MODULE_NAME ":\t[+] Created proc files for configuration\n");
 	}
 
+#if WHITELISTING
 	set_whitelist_from_array(connections_to_whitelist, whitelist_length);
-
 #endif
 
 	if(absolute_path_mode)
@@ -116,7 +114,7 @@ static void __exit netlog_exit(void)
 	destroy_netlog_dev();
 	#if WHITELISTING
 
-	destroy_proc_config();
+	destroy_proc();
 	destroy_whitelist();
 
 	#endif

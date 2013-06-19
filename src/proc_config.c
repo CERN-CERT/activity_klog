@@ -22,9 +22,17 @@ struct user_data {
 #define STATE_READ 0
 #define STATE_WRITE 1
 
-static struct proc_dir_entry *netlog_proc_file;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
+  #define REMOVE_PROC(name, parent, pointer) remove_proc_entry(name, parent);
+#else
+  #define REMOVE_PROC(name, parent, pointer) proc_remove(pointer);
+#endif
 
-ssize_t netlog_proc_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
+static struct proc_dir_entry *netlog_dir = NULL;
+static struct proc_dir_entry *netlog_whitelist_file = NULL;
+
+#ifdef WHITELISTING
+ssize_t netlog_whitelist_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
 {
 	struct user_data* data = file->private_data;
 	size_t current_size;
@@ -56,7 +64,7 @@ ssize_t netlog_proc_write(struct file *file, const char __user *buf, size_t coun
 	return count;
 }
 
-static ssize_t netlog_proc_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
+static ssize_t netlog_whitelist_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
 {
 	struct user_data* data = file->private_data;
 	size_t to_be_copied;
@@ -76,7 +84,7 @@ static ssize_t netlog_proc_read(struct file *file, char __user *buf, size_t coun
 }
 
 
-static int netlog_proc_open(struct inode *inode, struct file *file)
+static int netlog_whitelist_open(struct inode *inode, struct file *file)
 {
 	struct user_data *data;
 	int err = 0;
@@ -113,7 +121,7 @@ static int netlog_proc_open(struct inode *inode, struct file *file)
 }
 
 
-static int netlog_proc_release(struct inode *inode, struct file *file)
+static int netlog_whitelist_release(struct inode *inode, struct file *file)
 {
         struct user_data *data = file->private_data;
 	int ret = 0;
@@ -134,35 +142,54 @@ static int netlog_proc_release(struct inode *inode, struct file *file)
 	return ret;
 }
 
-const struct file_operations netlog_proc_ops = {
+const struct file_operations netlog_whitelist_ops = {
 	.owner = THIS_MODULE,
-	.open = netlog_proc_open,
-	.read  = netlog_proc_read,
-	.write = netlog_proc_write,
-	.release = netlog_proc_release,
+	.open = netlog_whitelist_open,
+	.read  = netlog_whitelist_read,
+	.write = netlog_whitelist_write,
+	.release = netlog_whitelist_release,
 };
+#endif /* WHITELISTING */
 
-int create_proc_config(void)
+int create_proc(void)
 {
-	netlog_proc_file = proc_create(PROC_CONFIG_NAME, S_IFREG | S_IRUSR | S_IWUSR, NULL, &netlog_proc_ops);
-	if(netlog_proc_file == NULL)
-		return -ENOMEM;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
-	netlog_proc_file->uid = 0;
-	netlog_proc_file->gid = 0;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 20, 0)
+	netlog_dir = proc_mkdir(PROC_DIR_NAME, NULL);
 #else
-	proc_set_user(netlog_proc_file, 0, 0);
+	netlog_dir = proc_mkdir_mode(PROC_DIR_NAME, S_IFDIR | S_IRUSR | S_IXUSR, NULL);
 #endif
+	if(netlog_dir == NULL)
+		return -ENOMEM;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 20, 0)
+	netlog_dir->mode = S_IFDIR | S_IRUSR | S_IXUSR;
+#endif
+
+#if WHITELISTING
+	netlog_whitelist_file = proc_create(PROC_WHITELIST_NAME, S_IFREG | S_IRUSR | S_IWUSR, netlog_dir, &netlog_whitelist_ops);
+	if(netlog_whitelist_file == NULL)
+		goto clean;
+  #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
+	netlog_whitelist_file->uid = 0;
+	netlog_whitelist_file->gid = 0;
+  #else
+	proc_set_user(netlog_whitelist_file, 0, 0);
+  #endif
+#endif /* WHITELISTING */
+
 	return 0;
+clean:
+	destroy_proc();
+	return -ENOMEM;
 }
 
-void destroy_proc_config(void)
+void destroy_proc(void)
 {
-	if(netlog_proc_file != NULL)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
-		remove_proc_entry(PROC_CONFIG_NAME, NULL);
-#else
-		proc_remove(netlog_proc_file);
-#endif
+	if(netlog_dir != NULL) {
+#if WHITELISTING
+		if(netlog_whitelist_file != NULL)
+			REMOVE_PROC(PROC_WHITELIST_NAME, netlog_dir, netlog_whitelist_file)
+#endif /* WHITELISTING */
+		REMOVE_PROC(PROC_DIR_NAME, NULL, netlog_dir)
+	}
 }
 
