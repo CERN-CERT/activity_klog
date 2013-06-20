@@ -50,12 +50,12 @@ static DEFINE_SPINLOCK(log_lock);
 static DECLARE_WAIT_QUEUE_HEAD(log_wait);
 
 /* Get the path of a log */
-static char *log_path(struct netlog_log *log)
+static char *log_path(struct netlog_log *log) __must_hold(log_lock)
 {
 	return ((char*)log) + sizeof(struct netlog_log);
 }
 
-static u32 next_record(u32 idx)
+static u32 next_record(u32 idx) __must_hold(log_lock)
 {
 	size_t *len;
 
@@ -210,7 +210,7 @@ static loff_t netlog_log_llseek(struct file *file, loff_t offset, int whence)
 	return 0;
 }
 
-static inline const char* log_protocol(struct netlog_log *log)
+static inline const char* log_protocol(struct netlog_log *log) __must_hold(log_lock)
 {
 	switch(log->protocol) {
 		case PROTO_TCP:

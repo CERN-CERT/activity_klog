@@ -115,9 +115,8 @@ fail:
 }
 
 static int
-is_already_whitelisted(struct white_process *new_row)
+is_already_whitelisted(struct white_process *new_row) __must_hold(access_whitelist_spinlock)
 {
-	/* Must be run with access_whitelist_spinlock locked ! */
 	struct white_process *row = whitelist;
 
 	while (row != NULL) {
@@ -133,9 +132,8 @@ is_already_whitelisted(struct white_process *new_row)
 }
 
 static void
-purge_whitelist(void)
+purge_whitelist(void) __must_hold(access_whitelist_spinlock)
 {
-	/* Must be run with access_whitelist_spinlock locked ! */
 	struct white_process *current_row;
 	struct white_process *next_row;
 
@@ -163,9 +161,8 @@ destroy_whitelist(void)
 }
 
 static void
-add_whiterow(char *raw)
+add_whiterow(char *raw) __must_hold(access_whitelist_spinlock)
 {
-	/* Must be run with access_whitelist_spinlock locked ! */
 	struct white_process *new_row;
 	if (raw == NULL)
 		return;

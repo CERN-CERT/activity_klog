@@ -426,7 +426,7 @@ static struct jprobe bind_jprobe =
 /*     Planting/unplanting probes       */
 /****************************************/
 
-static void unplant_tcp_connect(void)
+static void unplant_tcp_connect(void) __must_hold(probe_lock)
 {
   	unregister_jprobe(&stream_connect_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted stream connect pre handler probe\n");
@@ -437,7 +437,7 @@ static void unplant_tcp_connect(void)
 	stream_connect_kretprobe.kp.addr = NULL;
 }
 
-static void unplant_udp_connect(void)
+static void unplant_udp_connect(void) __must_hold(probe_lock)
 {
   	unregister_jprobe(&dgram_connect_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted dgram connect pre handler probe\n");
@@ -448,21 +448,21 @@ static void unplant_udp_connect(void)
 	dgram_connect_kretprobe.kp.addr = NULL;
 }
 
-static void unplant_tcp_accept(void)
+static void unplant_tcp_accept(void) __must_hold(probe_lock)
 {
 	unregister_kretprobe(&accept_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted accept post handler probe\n");
 	accept_kretprobe.kp.addr = NULL;
 }
 
-static void unplant_close(void)
+static void unplant_close(void) __must_hold(probe_lock)
 {
 	unregister_jprobe(&close_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted close pre handler probe\n");
 	close_jprobe.kp.addr = NULL;
 }
 
-static void unplant_udp_bind(void)
+static void unplant_udp_bind(void) __must_hold(probe_lock)
 {
 	unregister_kretprobe(&bind_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted bind post handler probe\n");
@@ -506,7 +506,7 @@ void unplant_all(void)
 	unplant_probe((1 << (PROBES_NUMBER + 1)) - 1);
 }
 
-static int plant_tcp_connect(void)
+static int plant_tcp_connect(void) __must_hold(probe_lock)
 {
 	int err;
 
@@ -537,7 +537,7 @@ static int plant_tcp_connect(void)
 	return 0;
 }
 
-static int plant_udp_connect(void)
+static int plant_udp_connect(void) __must_hold(probe_lock)
 {
 	int err;
 
@@ -568,7 +568,7 @@ static int plant_udp_connect(void)
 	return 0;
 }
 
-static int plant_tcp_accept(void)
+static int plant_tcp_accept(void) __must_hold(probe_lock)
 {
 	int err;
 
@@ -587,7 +587,7 @@ static int plant_tcp_accept(void)
 	return 0;
 }
 
-static int plant_close(void)
+static int plant_close(void) __must_hold(probe_lock)
 {
 	int err;
 
@@ -606,7 +606,7 @@ static int plant_close(void)
 	return 0;
 }
 
-static int plant_udp_bind(void)
+static int plant_udp_bind(void) __must_hold(probe_lock)
 {
 	int err;
 
