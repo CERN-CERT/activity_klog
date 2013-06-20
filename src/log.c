@@ -44,10 +44,10 @@ static u64 log_next_seq;
 static u32 log_next_idx;
 
 /* Buffer protection */
-DEFINE_SPINLOCK(log_lock);
+static DEFINE_SPINLOCK(log_lock);
 
 /* Poll queue */
-DECLARE_WAIT_QUEUE_HEAD(log_wait);
+static DECLARE_WAIT_QUEUE_HEAD(log_wait);
 
 /* Get the path of a log */
 static char *log_path(struct netlog_log *log)
@@ -68,7 +68,7 @@ static u32 next_record(u32 idx)
 }
 
 /* Small tool */
-void copy_ip(void *dst, const void *src, unsigned short family)
+static void copy_ip(void *dst, const void *src, unsigned short family)
 {
 	switch(family)
 	{
@@ -438,7 +438,7 @@ static int netlog_log_release(struct inode *inode, struct file *file)
 }
 
 
-const struct file_operations netlog_log_fops = {
+static const struct file_operations netlog_log_fops = {
 	.owner = THIS_MODULE,
 	.open = netlog_log_open,
 	.read = netlog_log_read,

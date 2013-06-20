@@ -9,6 +9,7 @@
 #include "whitelist.h"
 #include "proc_config.h"
 #include "probes.h"
+#include "internal.h"
 #include "log.h"
 #include "netlog.h"
 
@@ -44,7 +45,7 @@ MODULE_PARM_DESC(absolute_path_mode, " Boolean parameter for absolute path mode.
                                      "\t\tboth whiltelisting and log will only contain the process name\n"
                                      "\t\tinstead of the complete path\n");
 
-int probes = DEFAULT_PROBES;
+static int probes = DEFAULT_PROBES;
 
 module_param(probes, int, 0);
 MODULE_PARM_DESC(probes, " Integer paramter describing which prbes should be loaded\n");
@@ -52,7 +53,7 @@ MODULE_PARM_DESC(probes, " Integer paramter describing which prbes should be loa
 #if WHITELISTING
 
 static int whitelist_length = 0;
-static char *connections_to_whitelist[MAX_WHITELIST_SIZE] = {'\0'};
+static char *connections_to_whitelist[MAX_WHITELIST_SIZE] = {NULL};
 
 module_param_array(connections_to_whitelist, charp, &whitelist_length, 0000);
 MODULE_PARM_DESC(connections_to_whitelist, " An array of strings that contains the connections that " MODULE_NAME " will ignore.\n"

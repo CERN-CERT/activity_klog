@@ -57,7 +57,7 @@ static const struct probe_proc {
 /*****************/
 
 #ifdef WHITELISTING
-ssize_t netlog_whitelist_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
+static ssize_t netlog_whitelist_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
 {
 	struct user_data* data = file->private_data;
 	size_t current_size;
@@ -167,7 +167,7 @@ static int netlog_whitelist_release(struct inode *inode, struct file *file)
 	return ret;
 }
 
-const struct file_operations netlog_whitelist_ops = {
+static const struct file_operations netlog_whitelist_ops = {
 	.owner = THIS_MODULE,
 	.open = netlog_whitelist_open,
 	.read  = netlog_whitelist_read,
@@ -180,7 +180,7 @@ const struct file_operations netlog_whitelist_ops = {
 /*     Probes    */
 /*****************/
 
-ssize_t netlog_probe_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
+static ssize_t netlog_probe_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
 {
 	const struct probe_proc *data = file->private_data;
 	char buffer[2];
@@ -254,7 +254,7 @@ static int netlog_probe_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-const struct file_operations netlog_probe_ops = {
+static const struct file_operations netlog_probe_ops = {
 	.owner = THIS_MODULE,
 	.open = netlog_probe_open,
 	.read  = netlog_probe_read,

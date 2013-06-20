@@ -30,8 +30,8 @@
 /*          Variables           */
 /********************************/
 
-u32 loaded_probes = 0;
-DEFINE_SPINLOCK(probe_lock);
+static u32 loaded_probes = 0;
+static DEFINE_SPINLOCK(probe_lock);
 
 
 /********************************/
@@ -304,7 +304,7 @@ asmlinkage static int pre_bind(int sockfd, const struct sockaddr *addr, int addr
 	return 0;
 }
 
-int signal_that_will_cause_exit(int trap_number)
+static int signal_that_will_cause_exit(int trap_number)
 {
 	switch(trap_number)
 	{
@@ -320,7 +320,7 @@ int signal_that_will_cause_exit(int trap_number)
 	}
 }
 
-int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
+static int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
 {
 	if(signal_that_will_cause_exit(trap_number))
 	{

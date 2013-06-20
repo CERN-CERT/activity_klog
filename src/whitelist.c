@@ -31,10 +31,10 @@ struct white_process {
 /* |i<${ip}>|p<${port}>\n */
 #define ROW_MAX_SIZE (9 + INET6_ADDRSTRLEN + 6)
 
-struct white_process *whitelist = NULL;
+static struct white_process *whitelist = NULL;
 
 /* Lock on the whitelist */
-DEFINE_SPINLOCK(access_whitelist_spinlock);
+static DEFINE_SPINLOCK(access_whitelist_spinlock);
 
 static struct white_process*
 whiterow_from_string(char *str)
