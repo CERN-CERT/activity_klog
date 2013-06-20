@@ -2,7 +2,7 @@
 %define debug_package %{nil}
 
 Name:		netlog
-Version:	1.30
+Version:	1.31
 Release:	1%{?dist}
 
 Summary:	Kernel module for logging network connections details
