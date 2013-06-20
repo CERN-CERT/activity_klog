@@ -86,6 +86,9 @@ ${RPM_BUILD_ROOT}/etc/sysconfig/modules/%{name}.modules
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Thu Jun 20 2013 Vincent Brillault <vincent.brillault@cern.ch> - 1.31
+- Use log level KERN_DEBUG in order to filter out logs on the console
+
 * Tue Sep 19 2012 Panos Sakkos <panos.sakkos@cern.ch> - 1.30
 - Updated version to 1.30, which introduces the "On the fly whitelisting" feature.
 
