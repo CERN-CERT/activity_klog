@@ -671,7 +671,7 @@ int plant_probe(u32 probe)
 	if (new_probes & (1 << PROBE_UDP_CONNECT)) {
 		err = plant_udp_connect();
 		if (err)
-			return err;
+			goto unlock;
 		loaded_probes |= 1 << PROBE_UDP_CONNECT;
  	}
 
