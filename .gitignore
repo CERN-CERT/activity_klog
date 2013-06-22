@@ -2,6 +2,8 @@
 
 # Vi swap files
 .*.swp
+# Backup files
+*~
 
 *.tgz
 *.tar.gz
