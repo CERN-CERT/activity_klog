@@ -26,3 +26,9 @@ size_t print_ipv4(char *buf, const struct in_addr *ip4);
 size_t print_ipv6(char *buf, const struct in6_addr *ip6);
 
 #endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
+#ifndef __must_hold
+#define __must_hold(x)
+#endif
+#endif
