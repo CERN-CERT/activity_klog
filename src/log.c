@@ -226,7 +226,8 @@ static ssize_t netlog_log_read(struct file *file, char __user *buf, size_t count
 {
 	struct user_data *data = file->private_data;
 	struct netlog_log *record;
-	u64 usec;
+	u64 ts;
+	unsigned long rem_nsec;
 	unsigned long flags;
 	size_t len;
 	ssize_t err, ret;
@@ -272,13 +273,13 @@ static ssize_t netlog_log_read(struct file *file, char __user *buf, size_t count
 
 	/* Now we are good to go (locked, with something to print */
 	/* Fill the header */
-	usec = record->nsec;
-	do_div(usec, 1000);
-	len = sprintf(data->buf, "%u,%llu,%llu,-;",
-	              (LOG_FACILITY << 3) | LOG_LEVEL,
-	              data->log_curr_seq, usec);
+	ts = record->nsec;
+	rem_nsec = do_div(ts, 1000000000);
+	len = sprintf(data->buf, "<%u>1 - - %s - - - [%5lu.%06lu]: ",
+	              (LOG_FACILITY << 3) | LOG_LEVEL, MODULE_NAME,
+                      (unsigned long)ts, rem_nsec / 1000);
 
-	len += sprintf(data->buf + len, "%s: %.*s[%d] %s ", MODULE_NAME,
+	len += sprintf(data->buf + len, "%.*s[%d] %s ",
 	               (int)record->path_len, log_path(record),
 	               record->pid, log_protocol(record));
 	switch(record->family) {
