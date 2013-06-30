@@ -414,8 +414,8 @@ static int netlog_log_open(struct inode *inode, struct file *file)
 
 	/* Get current state */
 	spin_lock_irqsave(&log_lock, flags);
-	data->log_curr_seq = log_first_seq;
-	data->log_curr_idx = log_first_idx;
+	data->log_curr_seq = log_next_seq;
+	data->log_curr_idx = log_next_idx;
 	spin_unlock_irqrestore(&log_lock, flags);
 
 
