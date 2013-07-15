@@ -9,20 +9,22 @@ $(name)-y := $(src_files:.c=.o)
 ccflags-y  += -D'MODULE_NAME="netlog"'
 
 kernel_version = $(shell uname -r)
+kernel_build= /lib/modules/${kernel_version}/build
+kernel_install = /lib/modules/${kernel_version}/kernel/arch/x86/kernel
 
 all: build
 
 .PHONY: build install clean
 
-build: clean
-	make -C /lib/modules/${kernel_version}/build M=$(PWD) modules CONFIG_DEBUG_SECTION_MISMATCH=y
+build:
+	make -C ${kernel_build} M=$(PWD) modules CONFIG_DEBUG_SECTION_MISMATCH=y
 
 install: build
-	-mkdir -p /lib/modules/${kernel_version}/kernel/arch/x86/kernel/
-	cp $(name).ko /lib/modules/${kernel_version}/kernel/arch/x86/kernel/
-	depmod /lib/modules/${kernel_version}/kernel/arch/x86/kernel/$(name).ko
+	-mkdir -p ${kernel_install}
+	cp $(name).ko ${kernel_install}/
+	depmod ${kernel_install}/$(name).ko
 
 clean:
-	[ -d /lib/modules/${kernel_version}/build ] && \
-	make -C /lib/modules/${kernel_version}/build M=$(PWD) clean
+	[ -d ${kernel_build} ] && \
+	make -C ${kernel_build} M=$(PWD) clean
 
