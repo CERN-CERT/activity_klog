@@ -473,12 +473,10 @@ static void unplant_udp_bind(void) __must_hold(probe_lock)
 	bind_jprobe.kp.addr = NULL;
 }
 
-void unplant_probe(u32 probe)
+static void unplant_probe_locked(u32 probe) __must_hold(probe_lock)
 {
-	unsigned long flags;
 	u32 removed_probes;
 
-	spin_lock_irqsave(&probe_lock, flags);
 	removed_probes = loaded_probes & probe;
 	loaded_probes ^= removed_probes;
 
@@ -497,8 +495,20 @@ void unplant_probe(u32 probe)
 
 	if (removed_probes & (1 << PROBE_UDP_BIND))
 		unplant_udp_bind();
+}
 
+void unplant_probe(u32 probe)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&probe_lock, flags);
+	unplant_probe_locked(probe);
 	spin_unlock_irqrestore(&probe_lock, flags);
+}
+
+static void unplant_all_locked(void) __must_hold(probe_lock)
+{
+	unplant_probe_locked((1 << (PROBES_NUMBER + 1)) - 1);
 }
 
 void unplant_all(void)
@@ -515,7 +525,7 @@ static int plant_tcp_connect(void) __must_hold(probe_lock)
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant stream connect pre handler\n");
-		unplant_all();
+		unplant_all_locked();
 
 		return -CONNECT_PROBE_FAILED;
 	}
@@ -527,7 +537,7 @@ static int plant_tcp_connect(void) __must_hold(probe_lock)
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant stream connect post handler\n");
-		unplant_all();
+		unplant_all_locked();
 
 		return -CONNECT_PROBE_FAILED;
 	}
@@ -546,7 +556,7 @@ static int plant_udp_connect(void) __must_hold(probe_lock)
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant dgram connect pre handler\n");
-		unplant_all();
+		unplant_all_locked();
 
 		return -CONNECT_PROBE_FAILED;
 	}
@@ -558,7 +568,7 @@ static int plant_udp_connect(void) __must_hold(probe_lock)
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant dgram connect post handler\n");
-		unplant_all();
+		unplant_all_locked();
 
 		return -CONNECT_PROBE_FAILED;
 	}
@@ -577,7 +587,7 @@ static int plant_tcp_accept(void) __must_hold(probe_lock)
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant accept post handler\n");
-		unplant_all();
+		unplant_all_locked();
 
 		return -ACCEPT_PROBE_FAILED;
 	}
@@ -596,7 +606,7 @@ static int plant_close(void) __must_hold(probe_lock)
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant close pre handler\n");
-		unplant_all();
+		unplant_all_locked();
 
 		return -CLOSE_PROBE_FAILED;
 	}
@@ -615,7 +625,7 @@ static int plant_udp_bind(void) __must_hold(probe_lock)
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant bind pre handler\n");
-		unplant_all();
+		unplant_all_locked();
 
 		return -BIND_PROBE_FAILED;
 	}
@@ -627,7 +637,7 @@ static int plant_udp_bind(void) __must_hold(probe_lock)
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant bind post handler\n");
-		unplant_all();
+		unplant_all_locked();
 
 		return -BIND_PROBE_FAILED;
 	}
