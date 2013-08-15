@@ -272,26 +272,34 @@ int create_proc(void)
 	int i;
 
 	MKDIR_PROC_MODE(PROC_DIR_NAME, NULL, netlog_dir, S_IFDIR | S_IRUSR | S_IXUSR)
-	if(netlog_dir == NULL)
+	if(netlog_dir == NULL) {
+		printk(KERN_ERR MODULE_NAME ":\t[-] Unable to create /proc/"PROC_DIR_NAME"/\n");
 		return -ENOMEM;
+	}
 
 	for (i = 0; i < PROBES_NUMBER; ++i)
 		netlog_probes[i] = NULL;
 
 	MKDIR_PROC_MODE(PROC_PROBES_NAME, netlog_dir, netlog_probes_dir, S_IFDIR | S_IRUSR | S_IXUSR)
-	if (netlog_probes_dir == NULL)
+	if (netlog_probes_dir == NULL) {
+		printk(KERN_ERR MODULE_NAME ":\t[-] Unable to create /proc/"PROC_DIR_NAME"/"PROC_PROBES_NAME"/\n");
 		goto clean;
+	}
 
 	for (i = 0; i < PROBES_NUMBER; ++i) {
 		netlog_probes[i] = proc_create_data(probe_list[i].name,  S_IFREG | S_IRUSR | S_IWUSR, netlog_probes_dir, &netlog_probe_ops, (void*)&probe_list[i]);
-		if (netlog_probes[i] == NULL)
+		if (netlog_probes[i] == NULL) {
+			printk(KERN_ERR MODULE_NAME ":\t[-] Unable to create /proc/"PROC_DIR_NAME"/"PROC_PROBES_NAME"/%s\n", probe_list[i].name);
 			goto clean;
+		}
 	}
 
 #if WHITELISTING
 	netlog_whitelist_file = proc_create(PROC_WHITELIST_NAME, S_IFREG | S_IRUSR | S_IWUSR, netlog_dir, &netlog_whitelist_ops);
-	if(netlog_whitelist_file == NULL)
+	if(netlog_whitelist_file == NULL) {
+		printk(KERN_ERR MODULE_NAME ":\t[-] Unable to create /proc/"PROC_DIR_NAME"/"PROC_WHITELIST_NAME"\n");
 		goto clean;
+	}
   #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
 	netlog_whitelist_file->uid = 0;
 	netlog_whitelist_file->gid = 0;
@@ -300,6 +308,7 @@ int create_proc(void)
   #endif
 #endif /* WHITELISTING */
 
+	printk(KERN_INFO MODULE_NAME ":\t[+] Created /proc/"PROC_DIR_NAME"/ for control\n");
 	return 0;
 clean:
 	destroy_proc();
@@ -311,6 +320,7 @@ void destroy_proc(void)
 	int i;
 
 	if(netlog_dir != NULL) {
+		printk(KERN_INFO MODULE_NAME ":\t[+] Destroying /proc/"PROC_DIR_NAME"/\n");
 		for (i = 0; i < PROBES_NUMBER; ++i)
 			if (netlog_probes[i] != NULL)
 				REMOVE_PROC(probe_list[i].name, netlog_probes_dir, netlog_probes[i])

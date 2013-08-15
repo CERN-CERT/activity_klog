@@ -482,6 +482,8 @@ int init_netlog_dev(void)
 		err = PTR_ERR(dev);
 		goto clean_cdev;
 	}
+
+	printk(KERN_INFO MODULE_NAME ":\t[+]Created /dev/"MODULE_NAME" for logs\n");
 	return 0;
 
 clean_cdev:
@@ -495,6 +497,7 @@ clean_class:
 
 void destroy_netlog_dev(void)
 {
+	printk(KERN_INFO MODULE_NAME ":\t[+]Removing /dev/"MODULE_NAME"\n");
 	device_destroy(netlog_class, netlog_dev);
 	cdev_del(&netlog_c_dev);
 	unregister_chrdev_region(netlog_dev, 1);

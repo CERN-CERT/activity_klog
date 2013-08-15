@@ -428,10 +428,12 @@ static struct jprobe bind_jprobe =
 
 static void unplant_tcp_connect(void) __must_hold(probe_lock)
 {
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanting stream connect pre handler probe\n");
   	unregister_jprobe(&stream_connect_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted stream connect pre handler probe\n");
 	stream_connect_jprobe.kp.addr = NULL;
 
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanting stream connect post handler probe\n");
 	unregister_kretprobe(&stream_connect_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted stream connect post handler probe\n");
 	stream_connect_kretprobe.kp.addr = NULL;
@@ -439,10 +441,12 @@ static void unplant_tcp_connect(void) __must_hold(probe_lock)
 
 static void unplant_udp_connect(void) __must_hold(probe_lock)
 {
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanting dgram connect pre handler probe\n");
   	unregister_jprobe(&dgram_connect_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted dgram connect pre handler probe\n");
 	dgram_connect_jprobe.kp.addr = NULL;
 
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanting dgram connect post handler probe\n");
 	unregister_kretprobe(&dgram_connect_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted dgram connect post handler probe\n");
 	dgram_connect_kretprobe.kp.addr = NULL;
@@ -450,6 +454,7 @@ static void unplant_udp_connect(void) __must_hold(probe_lock)
 
 static void unplant_tcp_accept(void) __must_hold(probe_lock)
 {
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanting accept post handler probe\n");
 	unregister_kretprobe(&accept_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted accept post handler probe\n");
 	accept_kretprobe.kp.addr = NULL;
@@ -457,6 +462,7 @@ static void unplant_tcp_accept(void) __must_hold(probe_lock)
 
 static void unplant_close(void) __must_hold(probe_lock)
 {
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanting close pre handler probe\n");
 	unregister_jprobe(&close_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted close pre handler probe\n");
 	close_jprobe.kp.addr = NULL;
@@ -464,10 +470,12 @@ static void unplant_close(void) __must_hold(probe_lock)
 
 static void unplant_udp_bind(void) __must_hold(probe_lock)
 {
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanting bind post handler probe\n");
 	unregister_kretprobe(&bind_kretprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted bind post handler probe\n");
 	bind_kretprobe.kp.addr = NULL;
 
+	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanting bind pre handler probe\n");
   	unregister_jprobe(&bind_jprobe);
 	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted bind pre handler probe\n");
 	bind_jprobe.kp.addr = NULL;
@@ -524,7 +532,7 @@ static int plant_tcp_connect(void) __must_hold(probe_lock)
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant stream connect pre handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant stream connect pre handler (%i)\n", err);
 		unplant_all_locked();
 
 		return -CONNECT_PROBE_FAILED;
@@ -536,7 +544,7 @@ static int plant_tcp_connect(void) __must_hold(probe_lock)
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant stream connect post handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant stream connect post handler (%i)\n", err);
 		unplant_all_locked();
 
 		return -CONNECT_PROBE_FAILED;
@@ -555,7 +563,7 @@ static int plant_udp_connect(void) __must_hold(probe_lock)
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant dgram connect pre handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant dgram connect pre handler (%i)\n", err);
 		unplant_all_locked();
 
 		return -CONNECT_PROBE_FAILED;
@@ -567,7 +575,7 @@ static int plant_udp_connect(void) __must_hold(probe_lock)
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant dgram connect post handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant dgram connect post handler (%i)\n", err);
 		unplant_all_locked();
 
 		return -CONNECT_PROBE_FAILED;
@@ -586,7 +594,7 @@ static int plant_tcp_accept(void) __must_hold(probe_lock)
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant accept post handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant accept post handler (%i)\n", err);
 		unplant_all_locked();
 
 		return -ACCEPT_PROBE_FAILED;
@@ -605,7 +613,7 @@ static int plant_close(void) __must_hold(probe_lock)
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant close pre handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant close pre handler (%i)\n", err);
 		unplant_all_locked();
 
 		return -CLOSE_PROBE_FAILED;
@@ -624,7 +632,7 @@ static int plant_udp_bind(void) __must_hold(probe_lock)
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant bind pre handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant bind pre handler (%i)\n", err);
 		unplant_all_locked();
 
 		return -BIND_PROBE_FAILED;
@@ -636,7 +644,7 @@ static int plant_udp_bind(void) __must_hold(probe_lock)
 
 	if(err < 0)
 	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant bind post handler\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to plant bind post handler (%i)\n", err);
 		unplant_all_locked();
 
 		return -BIND_PROBE_FAILED;
