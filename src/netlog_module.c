@@ -85,7 +85,10 @@ static int __init netlog_init(void)
 
 	if(err < 0)
 	{
-		printk(KERN_INFO MODULE_NAME ":\t[-] Creation of proc files failed\n");
+		printk(KERN_ERR MODULE_NAME ":\t[-] Creation of proc files failed\n");
+		destroy_netlog_dev();
+		unplant_all();
+		return err;
 	}
 	else
 	{
