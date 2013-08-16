@@ -155,7 +155,7 @@ static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 
 static struct socket *match_socket[PID_MAX_LIMIT] = {NULL};
 
-static int stream_pre_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
+static int pre_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
 {
 	if (likely(current != NULL))
 		match_socket[current->pid] = sock;
@@ -164,7 +164,7 @@ static int stream_pre_connect(struct socket *sock, struct sockaddr *addr, int ad
 	return 0;
 }
 
-static int stream_post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
+static int post_inet_stream_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct socket *sock;
 
@@ -182,7 +182,7 @@ static int stream_post_connect(struct kretprobe_instance *ri, struct pt_regs *re
 	return 0;
 }
 
-static int dgram_pre_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
+static int pre_inet_dgram_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
 {
 	if (likely(current != NULL))
 		match_socket[current->pid] = sock;
@@ -191,7 +191,7 @@ static int dgram_pre_connect(struct socket *sock, struct sockaddr *addr, int add
 	return 0;
 }
 
-static int dgram_post_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
+static int post_inet_dgram_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct socket *sock;
 
@@ -209,13 +209,13 @@ static int dgram_post_connect(struct kretprobe_instance *ri, struct pt_regs *reg
 	return 0;
 }
 
-/* post_accept probe is called right after the accept system call returns.
+/* post_sys_accept probe is called right after the accept system call returns.
  * In the return register is placed the socket file descriptor. So with the
  * user of regs_register_status we can get the socket file descriptor and log
  * the data that we want for the socket.
  */
 
-static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
+static int post_sys_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct socket *sock;
 	int err;
@@ -233,7 +233,7 @@ static int post_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	return 0;
 }
 
-asmlinkage static long netlog_sys_close(unsigned int fd)
+asmlinkage static long pre_sys_close(unsigned int fd)
 {
 	struct socket *sock;
 	int err;
@@ -264,7 +264,7 @@ out:
 	return 0;
 }
 
-static int post_bind(struct kretprobe_instance *ri, struct pt_regs *regs)
+static int post_sys_bind(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct socket *sock;
 	sock = match_socket[current->pid];
@@ -283,7 +283,7 @@ static int post_bind(struct kretprobe_instance *ri, struct pt_regs *regs)
 }
 
 /* UDP protocol is connectionless protocol, so we probe the bind system call */
-asmlinkage static int pre_bind(int sockfd, const struct sockaddr *addr, int addrlen)
+asmlinkage static int pre_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
 {
 	int err;
 	struct socket *sock;
@@ -332,7 +332,7 @@ static int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number
 
 static struct jprobe stream_connect_jprobe =
 {
-	.entry = (kprobe_opcode_t *) stream_pre_connect,
+	.entry = (kprobe_opcode_t *) pre_inet_stream_connect,
 	.kp =
 	{
 		.symbol_name = "inet_stream_connect",
@@ -342,7 +342,7 @@ static struct jprobe stream_connect_jprobe =
 
 static struct kretprobe stream_connect_kretprobe =
 {
-        .handler = stream_post_connect,
+        .handler = post_inet_stream_connect,
         .maxactive = 16 * NR_CPUS,
         .kp =
         {
@@ -353,7 +353,7 @@ static struct kretprobe stream_connect_kretprobe =
 
 static struct jprobe dgram_connect_jprobe =
 {
-	.entry = (kprobe_opcode_t *) dgram_pre_connect,
+	.entry = (kprobe_opcode_t *) pre_inet_dgram_connect,
 	.kp =
 	{
 		.symbol_name = "inet_dgram_connect",
@@ -363,7 +363,7 @@ static struct jprobe dgram_connect_jprobe =
 
 static struct kretprobe dgram_connect_kretprobe =
 {
-        .handler = dgram_post_connect,
+        .handler = post_inet_dgram_connect,
         .maxactive = 16 * NR_CPUS,
         .kp =
         {
@@ -374,7 +374,7 @@ static struct kretprobe dgram_connect_kretprobe =
 
 static struct kretprobe accept_kretprobe =
 {
-	.handler = post_accept,
+	.handler = post_sys_accept,
 	.maxactive = 16 * NR_CPUS,
         .kp =
         {
@@ -389,7 +389,7 @@ static struct kretprobe accept_kretprobe =
 
 static struct jprobe close_jprobe =
 {
-	.entry = (kprobe_opcode_t *) netlog_sys_close,
+	.entry = (kprobe_opcode_t *) pre_sys_close,
 	.kp =
 	{
 		.symbol_name = "sys_close",
@@ -399,7 +399,7 @@ static struct jprobe close_jprobe =
 
 static struct kretprobe bind_kretprobe =
 {
-	.handler = post_bind,
+	.handler = post_sys_bind,
 	.maxactive = 16 * NR_CPUS,
         .kp =
         {
@@ -410,7 +410,7 @@ static struct kretprobe bind_kretprobe =
 
 static struct jprobe bind_jprobe =
 {
-	.entry = (kprobe_opcode_t *) pre_bind,
+	.entry = (kprobe_opcode_t *) pre_sys_bind,
 	.kp =
 	{
 		.symbol_name = "sys_bind",
