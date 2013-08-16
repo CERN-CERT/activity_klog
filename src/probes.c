@@ -147,11 +147,9 @@ static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 /*           PROBES               */
 /**********************************/
 
-/* The next two probes are for the connect system call. We need to associate the process that
- * requested the connection with the socket file descriptor that the kernel returned.
- * The socket file descriptor is available only after the system call returns.
- * Though we need to be able to get the pointer to the socket struct that was given as a parameter
- * to connect and log its contents. We cannot have a process requesting two connects in the same time,
+/* Some of the probes are grouped by 2: one probe before the syscall and one afterwards.
+ * In those cases the socket file descriptor is only complete after the call and only available before the call.
+ * A single process (thread) can be in a single system call at a time
  * because when a system call is called, the process is suspended until its end of execution.
  */
 
@@ -266,12 +264,10 @@ out:
 	return 0;
 }
 
-static struct socket *match_bind[PID_MAX_LIMIT] = {NULL};
-
 static int post_bind(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct socket *sock;
-	sock = match_bind[current->pid];
+	sock = match_socket[current->pid];
 
 	if (likely(sock != NULL)) {
 		if (likely(sock->sk != NULL) &&
@@ -282,7 +278,7 @@ static int post_bind(struct kretprobe_instance *ri, struct pt_regs *regs)
 		sockfd_put(sock);
 	}
 
-	match_bind[current->pid] = NULL;
+	match_socket[current->pid] = NULL;
 	return 0;
 }
 
@@ -298,7 +294,7 @@ asmlinkage static int pre_bind(int sockfd, const struct sockaddr *addr, int addr
 	sock = sockfd_lookup(sockfd, &err);
 
 	if (likely(sock != NULL))
-		match_bind[current->pid] = sock;
+		match_socket[current->pid] = sock;
 
 	jprobe_return();
 	return 0;
