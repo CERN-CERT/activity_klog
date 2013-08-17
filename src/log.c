@@ -49,6 +49,8 @@ static DEFINE_SPINLOCK(log_lock);
 /* Poll queue */
 static DECLARE_WAIT_QUEUE_HEAD(log_wait);
 
+static char first_read = 1;
+
 /* Get the path of a log */
 static char *log_path(struct netlog_log *log) __must_hold(log_lock)
 {
@@ -414,8 +416,14 @@ static int netlog_log_open(struct inode *inode, struct file *file)
 
 	/* Get current state */
 	spin_lock_irqsave(&log_lock, flags);
-	data->log_curr_seq = log_next_seq;
-	data->log_curr_idx = log_next_idx;
+	if (first_read) {
+		data->log_curr_seq = log_first_seq;
+		data->log_curr_idx = log_first_idx;
+		first_read = 0;
+	} else {
+		data->log_curr_seq = log_next_seq;
+		data->log_curr_idx = log_next_idx;
+	}
 	spin_unlock_irqrestore(&log_lock, flags);
 
 
