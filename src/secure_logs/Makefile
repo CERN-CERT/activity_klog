@@ -1,0 +1,30 @@
+#
+# Variables needed to build the kernel module
+#
+name      = secure_log
+src_files = log.c 
+
+obj-m += $(name).o
+$(name)-y := $(src_files:.c=.o)
+ccflags-y  += -D'MODULE_NAME="secure_log"'
+
+kernel_version = $(shell uname -r)
+kernel_build= /lib/modules/${kernel_version}/build
+kernel_install = /lib/modules/${kernel_version}/kernel/arch/x86/kernel
+
+all: build
+
+.PHONY: build install clean
+
+build:
+	make -C ${kernel_build} M=$(PWD) modules CONFIG_DEBUG_SECTION_MISMATCH=y
+
+install: build
+	-mkdir -p ${kernel_install}
+	cp $(name).ko ${kernel_install}/
+	depmod ${kernel_install}/$(name).ko
+
+clean:
+	[ -d ${kernel_build} ] && \
+	make -C ${kernel_build} M=$(PWD) clean
+
