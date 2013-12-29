@@ -64,7 +64,8 @@ static ssize_t netlog_whitelist_write(struct file *file, const char __user *buf,
 	char *current_buf;
 
 	if (unlikely(data == NULL) ||
-	    unlikely(data->buf == NULL))
+	    unlikely(data->buf == NULL) ||
+	    unlikely(data->state != STATE_WRITE))
 		return -EBADF;
 
 	current_size = data->size;
@@ -92,22 +93,34 @@ static ssize_t netlog_whitelist_write(struct file *file, const char __user *buf,
 static ssize_t netlog_whitelist_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
 {
 	struct user_data* data = file->private_data;
-	size_t to_be_copied;
+	ssize_t ret;
 
 	if (unlikely(data == NULL) ||
-	    unlikely(data->buf == NULL))
+	    unlikely(data->buf == NULL) ||
+	    unlikely(data->state != STATE_READ))
 		return -EBADF;
 
-	if (data->pos >= data->size)
-		return 0;
-
-	to_be_copied = min(count, data->size - data->pos);
-	if (unlikely(copy_to_user(buf, data->buf, to_be_copied)))
-		return -EFAULT;
-	data->pos += to_be_copied;
-	return to_be_copied;
+	file->private_data = data->buf;
+	ret = seq_read(file, buf, count, offset);
+	file->private_data = data;
+	return ret;
 }
 
+static loff_t netlog_whitelist_lseek(struct file *file, loff_t offset, int origin)
+{
+	struct user_data* data = file->private_data;
+	loff_t ret;
+
+	if (unlikely(data == NULL) ||
+	    unlikely(data->buf == NULL) ||
+	    unlikely(data->state != STATE_READ))
+		return -EBADF;
+
+	file->private_data = data->buf;
+	ret = seq_lseek(file, offset, origin);
+	file->private_data = data;
+	return ret;
+}
 
 static int netlog_whitelist_open(struct inode *inode, struct file *file)
 {
@@ -117,21 +130,23 @@ static int netlog_whitelist_open(struct inode *inode, struct file *file)
 	data = kmalloc(sizeof(struct user_data), GFP_KERNEL);
 	if (unlikely(data == NULL))
 		return -ENOMEM;
-	data->buf = kmalloc(BUFFER_STEP ,GFP_KERNEL);
-	if (unlikely(data->buf == NULL)) {
-		kfree(data);
-		return -ENOMEM;
-	}
-	data->size = BUFFER_STEP;
 	data->pos = 0;
 
 	switch(file->f_flags & O_ACCMODE) {
 		case O_RDONLY:
 			data->state = STATE_READ;
-			data->size = dump_whitelist(&data->buf, BUFFER_STEP);
+			err = seq_open(file, &whitelist_file);
+			data->buf = file->private_data;
+			data->size = 0;
 			break;
 		case O_WRONLY:
 			data->state = STATE_WRITE;
+			data->buf = kmalloc(BUFFER_STEP, GFP_KERNEL);
+			if (unlikely(data->buf == NULL)) {
+				kfree(data);
+				return -ENOMEM;
+			}
+			data->size = BUFFER_STEP;
 			break;
 		default:
 			err = -EINVAL;
@@ -139,7 +154,6 @@ static int netlog_whitelist_open(struct inode *inode, struct file *file)
 	}
 	file->private_data = data;
 	if (err != 0) {
-		kfree(data->buf);
 		kfree(data);
 	}
 	return err;
@@ -148,14 +162,17 @@ static int netlog_whitelist_open(struct inode *inode, struct file *file)
 
 static int netlog_whitelist_release(struct inode *inode, struct file *file)
 {
-        struct user_data *data = file->private_data;
+    struct user_data *data = file->private_data;
 	int ret = 0;
 
-	if (unlikely(data == NULL) || unlikely(data->buf == NULL))
+	if (unlikely(data == NULL) ||
+	    unlikely(data->buf == NULL))
 		return 0;
 
 	switch(data->state) {
 		case STATE_READ:
+			file->private_data = data->buf;
+			seq_release(inode, file);
 			break;
 		case STATE_WRITE:
 			data->buf[data->pos] = '\0';
@@ -171,6 +188,7 @@ static const struct file_operations netlog_whitelist_ops = {
 	.owner = THIS_MODULE,
 	.open = netlog_whitelist_open,
 	.read  = netlog_whitelist_read,
+	.llseek = netlog_whitelist_lseek,
 	.write = netlog_whitelist_write,
 	.release = netlog_whitelist_release,
 };
