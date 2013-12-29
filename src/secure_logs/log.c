@@ -659,11 +659,7 @@ init_secure_dev(void)
 	if (err < 0)
 		goto clean_chrdev_region;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-	dev = device_create(secure_class, NULL, secure_dev,  MODULE_NAME);
-#else
 	dev = device_create(secure_class, NULL, secure_dev, NULL, MODULE_NAME);
-#endif
 	if (IS_ERR(dev)) {
 		err = PTR_ERR(dev);
 		goto clean_cdev;
