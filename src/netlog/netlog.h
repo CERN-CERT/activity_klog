@@ -24,16 +24,6 @@
 #define CLOSE_PROBE_FAILED 3
 #define BIND_PROBE_FAILED 4
 
-/* Size of the buffer containing the logs */
-#define LOG_BUF_LEN (1 << 20)
-
-/* Log facility and level for our devicde */
-#define LOG_FACILITY 0
-#define LOG_LEVEL    6
-
-/* Device name (in /dev/log) */
-#define NELOG_DEVICE_NAME MODULE_NAME
-
 /* Separator for the whitelisting */
 #define FIELD_SEPARATOR '|'
 

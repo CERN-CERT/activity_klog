@@ -10,7 +10,6 @@
 #include "proc_config.h"
 #include "probes.h"
 #include "internal.h"
-#include "log.h"
 #include "netlog.h"
 
 /*******************************/
@@ -70,23 +69,15 @@ static int __init netlog_init(void)
 
 	printk(KERN_INFO MODULE_NAME ": Light monitoring tool for inet connections by CERN Security Team\n");
 
-	err = init_netlog_dev();
-	if(err < 0)
-		return err;
-
 	err = plant_probe(probes);
 	if(err < 0)
-	{
-		destroy_netlog_dev();
 		return err;
-	}
 
 	err = create_proc();
 
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME ":\t[-] Creation of proc files failed\n");
-		destroy_netlog_dev();
 		unplant_all();
 		return err;
 	}
@@ -120,7 +111,6 @@ static int __init netlog_init(void)
 static void __exit netlog_exit(void)
 {
 	unplant_all();
-	destroy_netlog_dev();
 	#if WHITELISTING
 
 	destroy_proc();

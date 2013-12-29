@@ -18,14 +18,6 @@
 #include "retro-compat.h"
 #include "internal.h"
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
-	#define get_current_uid() current->uid
-	#define call_d_path(file, buffer, length) d_path(file->f_dentry, file->f_vfsmnt, buffer, length);
-#else
-	#define get_current_uid() current_uid()
-	#define call_d_path(file, buffer, length) d_path(&file->f_path, buffer, length);
-#endif
-
 /********************************/
 /*          Variables           */
 /********************************/
@@ -40,58 +32,27 @@ static DEFINE_SPINLOCK(probe_lock);
 
 static char *path_from_mm(struct mm_struct *mm, char *buffer, int length)
 {
-        char *p = NULL;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-        struct vm_area_struct *vma;
+	char *p = NULL;
+	if (unlikely(mm == NULL))
+		return NULL;
 
-        if(unlikely(mm == NULL))
-        {
-                return NULL;
-        }
+	down_read(&mm->mmap_sem);
 
-        vma = mm->mmap;
-
-        while(vma)
-        {
-                if((vma->vm_flags & VM_EXECUTABLE) && vma->vm_file)
-                {
-                        break;
-                }
-
-                vma = vma->vm_next;
-        }
-
-        if(vma && vma->vm_file)
-        {
-                p = call_d_path(vma->vm_file, buffer, length);
-
-                if(IS_ERR(p))
-                {
-                        p = NULL;
-                }
-        }
-#else
-        if (unlikely(mm == NULL))
-                return NULL;
-
-        down_read(&mm->mmap_sem);
-
-        if (unlikely(mm->exe_file == NULL)) {
+	if (unlikely(mm->exe_file == NULL)) {
 		p = NULL;
 	} else {
-                p = call_d_path(mm->exe_file, buffer, length);
-                if(IS_ERR(p))
-                        p = NULL;
-        }
+		p = d_path(&mm->exe_file->f_path, buffer, length);
+		if(IS_ERR(p))
+			p = NULL;
+	}
 
-        up_read(&mm->mmap_sem);
-#endif
-        return p;
+	up_read(&mm->mmap_sem);
+	return p;
 }
 
 static char *get_path(char *buffer, size_t len)
 {
-        if(!absolute_path_mode)
+	if(!absolute_path_mode)
 		return current->comm;
 	else
 		return path_from_mm(current->mm, buffer, len);
@@ -139,8 +100,8 @@ static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 		return;
 #endif
 
-        store_record(current->pid, get_current_uid(), path, action, protocol,
-	             family, src_ip, src_port, dst_ip, dst_port);
+	store_netlog_record(path, action, protocol,
+	                    family, src_ip, src_port, dst_ip, dst_port);
 }
 
 /**********************************/
