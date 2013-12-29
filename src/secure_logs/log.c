@@ -338,58 +338,75 @@ __must_hold(log_lock)
 	}
 }
 
+#define UPDATE_POINTERS(change, remaining, len) \
+	if (change >= remaining) {                  \
+		/* Output truncated */                  \
+		return -1;                              \
+	}                                           \
+	len += change;                              \
+	remaining -= change;
+
+
 static ssize_t
 netlog_print(struct netlog_log *record, char* data, size_t len)
 __must_hold(log_lock)
 {
-	// TODO: fix buffer overflow
-	len += sprintf(data + len, "%.*s %s ",
-				   (int)record->path_len, get_netlog_path(record),
-				   netlog_protocol(record));
+	size_t remaining = USER_BUFFER_SIZE - len;
+	int change;
+
+	change = snprintf(data + len, remaining, "netlog ");
+	UPDATE_POINTERS(change, remaining, len)
+	change = snprintf(data + len, remaining, "%.*s %s ",
+	                 (int)record->path_len, get_netlog_path(record),
+	                 netlog_protocol(record));
+	UPDATE_POINTERS(change, remaining, len)
 	switch(record->family) {
 		case AF_INET:
-			len += sprintf(data + len, "%pI4:%d",
-						   &record->src.ip4, record->src_port);
+			change = snprintf(data + len, remaining, "%pI4:%d",
+			                 &record->src.ip4, record->src_port);
 			break;
 		case AF_INET6:
-			len += sprintf(data + len, "[%pI6c]:%d",
-						   &record->src.ip6, record->src_port);
+			change = snprintf(data + len, remaining, "[%pI6c]:%d",
+			                 &record->src.ip6, record->src_port);
 			break;
 		default:
-			len += sprintf(data + len, "Unknown");
+			change = snprintf(data + len, remaining, "Unknown");
 			break;
 	}
+	UPDATE_POINTERS(change, remaining, len)
 	switch(record->action) {
 		case ACTION_CONNECT:
-			len += sprintf(data + len, " -> ");
+			change = snprintf(data + len, remaining, " -> ");
 			break;
 		case ACTION_ACCEPT:
-			len += sprintf(data + len, " <- ");
+			change = snprintf(data + len, remaining, " <- ");
 			break;
 		case ACTION_CLOSE:
-			len += sprintf(data + len, " <!> ");
+			change = snprintf(data + len, remaining, " <!> ");
 			break;
 		case ACTION_BIND:
-			len += sprintf(data + len, " BIND ");
+			change = snprintf(data + len, remaining, " BIND ");
 			goto out;
 		default:
-			len += sprintf(data + len, " UNK ");
+			change = snprintf(data + len, remaining, " UNK ");
 			goto out;
 	}
+	UPDATE_POINTERS(change, remaining, len)
 	switch(record->family) {
 		case AF_INET:
-			len += sprintf(data + len, "%pI4:%d",
+			change = snprintf(data + len, remaining, "%pI4:%d",
 						   &record->dst.ip4, record->dst_port);
 			break;
 		case AF_INET6:
-			len += sprintf(data + len, "[%pI6c]:%d",
+			change = snprintf(data + len, remaining, "[%pI6c]:%d",
 						   &record->dst.ip6, record->dst_port);
 			break;
 		default:
-			len += sprintf(data + len, "Unknown");
+			change = snprintf(data + len, remaining, "Unknown");
 			break;
 	}
 out:
+	UPDATE_POINTERS(change, remaining, len)
 	return len;
 }
 
@@ -398,7 +415,16 @@ static ssize_t
 execlog_print(struct execlog_log *record, char* data, size_t len)
 __must_hold(log_lock)
 {
+	size_t remaining = USER_BUFFER_SIZE - len;
+	int change;
 
+	change = snprintf(data + len, remaining, "execlog ");
+	UPDATE_POINTERS(change, remaining, len)
+
+	change = snprintf(data + len, remaining, "%.*s %.*s",
+	                  (int) record->path_len, get_execlog_path(record),
+	                  (int) record->argv_len, get_execlog_argv(record));
+	UPDATE_POINTERS(change, remaining, len)
 	return len;
 }
 
@@ -470,20 +496,19 @@ secure_log_read(struct file *file, char __user *buf, size_t count, loff_t *offse
 	/* Print the content */
 	switch(record->type) {
 		case LOG_NETWORK_INTERACTION:
-			len = netlog_print((struct netlog_log*)record, data->buf, len);
+			ret = netlog_print((struct netlog_log*)record, data->buf, len);
 			break;
 		case LOG_EXECUTION:
-			len = execlog_print((struct execlog_log*)record, data->buf, len);
+			ret = execlog_print((struct execlog_log*)record, data->buf, len);
 			break;
 		default:
-			len += sprintf(data->buf + len, "Unknown entry");
+			ret = len + sprintf(data->buf + len, "Unknown entry");
 	}
-
-	if (len < 0) {
-		ret = -EFAULT;
-		/* Unlock */
-		spin_unlock_irqrestore(&log_lock, flags);
-		goto out;
+	if (ret < 0) {
+		sprintf(data->buf + (USER_BUFFER_SIZE - 7), "TRUNC");
+		len = USER_BUFFER_SIZE - 2;
+	} else {
+		len = ret;
 	}
 	len += sprintf(data->buf + len, "\n");
 
