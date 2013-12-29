@@ -178,8 +178,8 @@ __must_hold(log_lock)
 
 
 void
-store_netlog_record(const char* path, u8 action,
-                    u8 protocol, unsigned short family,
+store_netlog_record(const char* path, enum secure_log_action action,
+                    enum secure_log_protocol protocol, unsigned short family,
                     const void *src_ip, int src_port,
                     const void *dst_ip, int dst_port)
 {
