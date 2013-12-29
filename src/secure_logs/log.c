@@ -422,9 +422,6 @@ __must_hold(log_lock)
 	size_t remaining = USER_BUFFER_SIZE - len;
 	int change;
 
-	change = snprintf(data + len, remaining, "execlog ");
-	UPDATE_POINTERS(change, remaining, len)
-
 	change = snprintf(data + len, remaining, "%.*s %.*s",
 	                  (int) record->path_len, get_execlog_path(record),
 	                  (int) record->argv_len, get_execlog_argv(record));
