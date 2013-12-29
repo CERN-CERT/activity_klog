@@ -253,7 +253,7 @@ store_execlog_record(const char* path,
 	if (unlikely(argv_size > (LOG_BUF_LEN >> 5) ||
 				 argv_size > INT_MAX)) {
 		printk(KERN_INFO MODULE_NAME ": Warning, troncating argv (size %zu > %i)\n", argv_size, min((LOG_BUF_LEN >> 5), INT_MAX));
-		path_len = min((LOG_BUF_LEN >> 5), INT_MAX);
+		argv_size = min((LOG_BUF_LEN >> 5), INT_MAX);
 	}
 	record_size = sizeof(struct execlog_log) + path_len + argv_size;
 
