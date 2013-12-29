@@ -262,7 +262,7 @@ store_execlog_record(const char* path,
 	find_new_record_place(record_size);
 	record = (struct execlog_log*)(log_buf + log_next_idx);
 	/* Store basic information */
-	init_log_header(&(record->header), LOG_NETWORK_INTERACTION);
+	init_log_header(&(record->header), LOG_EXECUTION);
 	record->header.len = record_size;
 
 	/* Store advanced information */
