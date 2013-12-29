@@ -6,6 +6,7 @@
 #include <linux/tty.h>
 #include <linux/version.h>
 #include "log.h"
+#include "sparse_compat.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vincent Brillault <vincent.brillault@cern.ch>");

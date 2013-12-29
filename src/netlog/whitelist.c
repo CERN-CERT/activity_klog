@@ -9,6 +9,7 @@
 #include "netlog.h"
 #include "internal.h"
 #include "retro-compat.h"
+#include "sparse_compat.h"
 
 #define BUFFER_STEP 4096
 #define BUFFER_MAX  4096000
