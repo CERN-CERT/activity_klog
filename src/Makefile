@@ -1,12 +1,9 @@
 #
 # Variables needed to build the kernel module
 #
-name      = netlog
-src_files = retro-compat.c probes.c whitelist.c log.c proc_config.c netlog_module.c 
 
-obj-m += $(name).o
-$(name)-y := $(src_files:.c=.o)
-ccflags-y  += -D'MODULE_NAME="netlog"'
+obj-m += secure_logs/
+obj-m += netlog/
 
 kernel_version = $(shell uname -r)
 kernel_build= /lib/modules/${kernel_version}/build
