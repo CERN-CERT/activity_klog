@@ -43,7 +43,7 @@ static int execlog_do_execve(char *filename, char __user *__user *__argv, char _
         }
         *argv_current_end = '\0';
 
-        store_execlog_record(filename, argv_buffer, argv_size);
+        store_execlog_record(filename, argv_buffer, argv_current_end - argv_buffer + 1);
 free:
         kfree(argv_buffer);
 out:
