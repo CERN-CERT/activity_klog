@@ -1,0 +1,6 @@
+name      = execlog
+src_files = execlog_module.c
+ 
+obj-m += $(name).o
+$(name)-y := $(src_files:.c=.o)
+ccflags-y  += -D'MODULE_NAME="$(name)"' -I$(src)/../secure_logs

@@ -4,6 +4,7 @@
 
 obj-m += secure_logs/
 obj-m += netlog/
+obj-m += execlog/
 
 kernel_version = $(shell uname -r)
 kernel_build= /lib/modules/${kernel_version}/build
