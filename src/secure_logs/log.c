@@ -7,7 +7,10 @@
 #include <linux/version.h>
 #include "log.h"
 
-MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Vincent Brillault <vincent.brillault@cern.ch>");
+MODULE_DESCRIPTION("Create a new logging device, /dev/"MODULE_NAME" in order to decouple some logs from the console");
+MODULE_VERSION("0.1");
 
 /* Log structures of records stored the buffer */
 struct sec_log
