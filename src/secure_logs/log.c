@@ -428,6 +428,18 @@ __must_hold(log_lock)
 	return len;
 }
 
+static inline char *
+get_module_name(enum secure_log_type type)
+{
+	switch(type) {
+		case LOG_NETWORK_INTERACTION:
+			return "netlog";
+		case LOG_EXECUTION:
+			return "execlog";
+		default:
+			return "unknown";
+	}
+}
 
 static ssize_t
 secure_log_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
@@ -482,8 +494,8 @@ secure_log_read(struct file *file, char __user *buf, size_t count, loff_t *offse
 	/* Fill the syslog header */
 	ts = record->nsec;
 	rem_nsec = do_div(ts, 1000000000);
-	len = sprintf(data->buf, "<%u>1 - - "MODULE_NAME" - - - [%5lu.%06lu]: ",
-	              (LOG_FACILITY << 3) | LOG_LEVEL,
+	len = sprintf(data->buf, "<%u>1 - - %s - - - [%5lu.%06lu]: ",
+	              (LOG_FACILITY << 3) | LOG_LEVEL, get_module_name(record->type),
 	              (unsigned long)ts, rem_nsec / 1000);
 
 	/* Fill the common header */
