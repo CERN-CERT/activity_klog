@@ -3,7 +3,7 @@
 #include <linux/version.h>
 #include <linux/inet.h>
 #include <linux/err.h>
-#include <linux/spinlock.h>
+#include <linux/rwlock.h>
 #include "whitelist.h"
 #include "proc_config.h"
 #include "netlog.h"
@@ -34,7 +34,7 @@ struct white_process {
 static struct white_process *whitelist = NULL;
 
 /* Lock on the whitelist */
-static DEFINE_SPINLOCK(access_whitelist_spinlock);
+static DEFINE_RWLOCK(whitelist_rwlock);
 
 static struct white_process*
 whiterow_from_string(char *str)
@@ -115,7 +115,7 @@ fail:
 }
 
 static int
-is_already_whitelisted(struct white_process *new_row) __must_hold(access_whitelist_spinlock)
+is_already_whitelisted(struct white_process *new_row) __must_hold(whitelist_rwlock)
 {
 	struct white_process *row = whitelist;
 
@@ -132,7 +132,7 @@ is_already_whitelisted(struct white_process *new_row) __must_hold(access_whiteli
 }
 
 static void
-purge_whitelist(void) __must_hold(access_whitelist_spinlock)
+purge_whitelist(void) __must_hold(whitelist_rwlock)
 {
 	struct white_process *current_row;
 	struct white_process *next_row;
@@ -153,15 +153,15 @@ destroy_whitelist(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&access_whitelist_spinlock, flags);
+	write_lock_irqsave(&whitelist_rwlock, flags);
 
 	purge_whitelist();
 
-	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
+	write_unlock_irqrestore(&whitelist_rwlock, flags);
 }
 
 static void
-add_whiterow(char *raw) __must_hold(access_whitelist_spinlock)
+add_whiterow(char *raw) __must_hold(whitelist_rwlock)
 {
 	struct white_process *new_row;
 	if (raw == NULL)
@@ -187,14 +187,14 @@ set_whitelist_from_array(char **raw_array, int raw_len)
 	int i;
 	unsigned long flags;
 
-	spin_lock_irqsave(&access_whitelist_spinlock, flags);
+	write_lock_irqsave(&whitelist_rwlock, flags);
 
 	purge_whitelist();
 
 	for (i = 0; i < raw_len; ++i)
 		add_whiterow(raw_array[i]);
 
-	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
+	write_unlock_irqrestore(&whitelist_rwlock, flags);
 }
 
 const static char *list_delims = ",\n";
@@ -205,13 +205,13 @@ set_whitelist_from_string(char *raw_list)
 	char *raw;
 	unsigned long flags;
 
-	spin_lock_irqsave(&access_whitelist_spinlock, flags);
+	write_lock_irqsave(&whitelist_rwlock, flags);
 
 	while ((raw = strsep(&raw_list, list_delims)) != NULL)
 		if (likely(*raw != '\0' && *raw != '\n'))
 			add_whiterow(raw);
 
-	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
+	write_unlock_irqrestore(&whitelist_rwlock, flags);
 }
 
 int
@@ -230,7 +230,7 @@ is_whitelisted(const char *path, unsigned short family, const void *ip, int port
 
 	/*Check if the execution path and the ip and port are whitelisted*/
 
-	spin_lock_irqsave(&access_whitelist_spinlock, flags);
+	read_lock_irqsave(&whitelist_rwlock, flags);
 
 	row = whitelist;
 	while (row != NULL) {
@@ -256,12 +256,12 @@ is_whitelisted(const char *path, unsigned short family, const void *ip, int port
 		row = row->next;
 	}
 
-	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
+	read_unlock_irqrestore(&whitelist_rwlock, flags);
 
 	return NOT_WHITELISTED;
 
 whitelisted:
-	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
+	read_unlock_irqrestore(&whitelist_rwlock, flags);
 
 	return WHITELISTED;
 }
@@ -278,7 +278,7 @@ dump_whitelist(char **buf, size_t len)
 		return 0;
 
 	pos = 0;
-	spin_lock_irqsave(&access_whitelist_spinlock, flags);
+	read_lock_irqsave(&whitelist_rwlock, flags);
 	row = whitelist;
 	while (row != NULL) {
 		curr_len = len;
@@ -316,6 +316,6 @@ dump_whitelist(char **buf, size_t len)
 		row = row->next;
 	}
 out:
-	spin_unlock_irqrestore(&access_whitelist_spinlock, flags);
+	read_unlock_irqrestore(&whitelist_rwlock, flags);
 	return pos;
 }
