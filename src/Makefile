@@ -18,9 +18,7 @@ build:
 	make -C ${kernel_build} M=$(PWD) modules CONFIG_DEBUG_SECTION_MISMATCH=y
 
 install: build
-	-mkdir -p ${kernel_install}
-	cp $(name).ko ${kernel_install}/
-	depmod ${kernel_install}/$(name).ko
+	make -C ${kernel_build} M=$(PWD) modules_install CONFIG_DEBUG_SECTION_MISMATCH=y
 
 clean:
 	[ -d ${kernel_build} ] && \
