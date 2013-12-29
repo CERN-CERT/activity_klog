@@ -3,7 +3,7 @@
 #include <linux/version.h>
 #include <linux/inet.h>
 #include <linux/err.h>
-#include <linux/rwlock.h>
+#include <linux/spinlock.h>
 #include "whitelist.h"
 #include "proc_config.h"
 #include "netlog.h"

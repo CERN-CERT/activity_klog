@@ -15,6 +15,7 @@
 #include "netlog.h"
 #include "log.h"
 #include "probes.h"
+#include "sparse_compat.h"
 #include "retro-compat.h"
 #include "internal.h"
 
