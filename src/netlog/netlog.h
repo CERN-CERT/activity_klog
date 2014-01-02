@@ -27,10 +27,4 @@
 /* Separator for the whitelisting */
 #define FIELD_SEPARATOR '|'
 
-/* Old linux makefiles seem broken */
-#include <linux/version.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 20)
-#define MODULE_NAME "netlog"
-#endif
-
 #endif /* __NETLOG__ */
