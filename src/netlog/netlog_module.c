@@ -12,16 +12,6 @@
 #include "internal.h"
 #include "netlog.h"
 
-/*******************************/
-/* Kernel Versionning handling */
-/*******************************/
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
-	#define get_current_uid() current->uid
-#else
-	#define get_current_uid() current_uid()
-#endif
-
 /****************************************************************/
 /* Kernel module information (submitted at the end of the file) */
 /****************************************************************/
