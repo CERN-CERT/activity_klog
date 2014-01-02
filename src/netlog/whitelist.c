@@ -14,6 +14,8 @@
 #define BUFFER_STEP 4096
 #define BUFFER_MAX  4096000
 
+#define IP_RAW_SIZE 16
+
 /* Whitelist */
 struct white_process {
 	struct white_process *next;
@@ -22,7 +24,7 @@ struct white_process {
 	union {
 		struct in_addr ip4;
 		struct in6_addr ip6;
-		u8 raw[16];
+		u8 raw[IP_RAW_SIZE];
 	} ip;
 	size_t path_len;
 	char path[];
@@ -64,7 +66,7 @@ whiterow_from_string(char *str)
 	/* Initialize */
 	new_row->next = NULL;
 	new_row->port = NO_PORT;
-	memset(new_row->ip.raw, 0, 16);
+	memset(new_row->ip.raw, 0, IP_RAW_SIZE);
 	new_row->family = AF_UNSPEC;
 
 	/* Fill it with the path */
@@ -124,7 +126,7 @@ is_already_whitelisted(struct white_process *new_row) __must_hold(whitelist_rwlo
 		if (new_row->port == row->port &&
 		    new_row->family == row->family &&
 		    new_row->path_len == row->path_len &&
-		    (memcmp(new_row->ip.raw, row->ip.raw, 16) == 0) &&
+		    (memcmp(new_row->ip.raw, row->ip.raw, IP_RAW_SIZE) == 0) &&
 		    (memcmp(new_row->path, row->path, new_row->path_len) == 0))
 			return 1;
 		row = row->next;
