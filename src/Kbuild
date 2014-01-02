@@ -1,0 +1,4 @@
+obj-m += secure_logs/
+obj-m += netlog/
+obj-m += execlog/
+

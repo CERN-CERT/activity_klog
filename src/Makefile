@@ -2,10 +2,6 @@
 # Variables needed to build the kernel module
 #
 
-obj-m += secure_logs/
-obj-m += netlog/
-obj-m += execlog/
-
 kernel_version = $(shell uname -r)
 kernel_build= /lib/modules/${kernel_version}/build
 kernel_install = /lib/modules/${kernel_version}/kernel/arch/x86/kernel
