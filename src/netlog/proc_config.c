@@ -176,7 +176,6 @@ static int netlog_whitelist_release(struct inode *inode, struct file *file)
 			break;
 		case STATE_WRITE:
 			data->buf[data->pos] = '\0';
-			destroy_whitelist();
 			set_whitelist_from_string(data->buf);
 			kfree(data->buf);
 			break;

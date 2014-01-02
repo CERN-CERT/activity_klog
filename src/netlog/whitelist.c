@@ -208,6 +208,8 @@ set_whitelist_from_string(char *raw_list)
 
 	write_lock_irqsave(&whitelist_rwlock, flags);
 
+	purge_whitelist();
+
 	while ((raw = strsep(&raw_list, list_delims)) != NULL)
 		if (likely(*raw != '\0' && *raw != '\n'))
 			add_whiterow(raw);
