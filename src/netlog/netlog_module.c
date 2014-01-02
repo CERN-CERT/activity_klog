@@ -27,13 +27,6 @@
 /*      MODULE PARAMETERS         */
 /**********************************/
 
-int absolute_path_mode = 1;
-
-module_param(absolute_path_mode, int, 0);
-MODULE_PARM_DESC(absolute_path_mode, " Boolean parameter for absolute path mode. If disabled,\n"
-                                     "\t\tboth whiltelisting and log will only contain the process name\n"
-                                     "\t\tinstead of the complete path\n");
-
 static int probes = DEFAULT_PROBES;
 
 module_param(probes, int, 0);
@@ -79,15 +72,6 @@ static int __init netlog_init(void)
 #if WHITELISTING
 	set_whitelist_from_array(connections_to_whitelist, whitelist_length);
 #endif
-
-	if(absolute_path_mode)
-	{
-		printk(KERN_INFO MODULE_NAME ":\t[+] Absolute path mode is enabled. The logs will contain the absolute execution path\n");
-	}
-	else
-	{
-		printk(KERN_INFO MODULE_NAME ":\t[-] Absolute path mode is disabled. The logs will contain the process name\n");
-	}
 
 	printk(KERN_INFO MODULE_NAME ":\t[+] Deployed\n");
 

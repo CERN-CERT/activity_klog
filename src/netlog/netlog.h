@@ -4,10 +4,10 @@
 /* Probes enabled by default (all) */
 #define DEFAULT_PROBES 0xFFFFFFFF
 
-/* In absolute_path_mode mode, probes need to resolve those absolute path.
+/* Probes need to resolve those absolute path.
  * For memory reason, those path lentgh must be bounded.
  */
-#define MAX_ABSOLUTE_EXEC_PATH 950
+#define MAX_EXEC_PATH 950
 
 
 /* Set to non-zero value in order to compile the whitelisting code*/

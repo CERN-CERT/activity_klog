@@ -222,11 +222,11 @@ is_whitelisted(const char *path, unsigned short family, const void *ip, int port
 	unsigned long flags;
 	struct white_process *row;
 
-	path_len = strnlen(path, MAX_ABSOLUTE_EXEC_PATH);
+	path_len = strnlen(path, MAX_EXEC_PATH);
 
 	/*Empty or paths greater than our limit are not whitelisted*/
 	if(unlikely(path_len == 0) ||
-	   unlikely(path_len == MAX_ABSOLUTE_EXEC_PATH))
+	   unlikely(path_len == MAX_EXEC_PATH))
 		return NOT_WHITELISTED;
 
 	/*Check if the execution path and the ip and port are whitelisted*/

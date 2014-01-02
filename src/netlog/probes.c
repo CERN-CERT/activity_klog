@@ -51,27 +51,19 @@ static char *path_from_mm(struct mm_struct *mm, char *buffer, int length)
 	return p;
 }
 
-static char *get_path(char *buffer, size_t len)
-{
-	if(!absolute_path_mode)
-		return current->comm;
-	else
-		return path_from_mm(current->mm, buffer, len);
-}
-
 static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 {
 	/* sock & sock->sk need to be non null */
 
-	char buffer[MAX_ABSOLUTE_EXEC_PATH + 1], *path;
+	char buffer[MAX_EXEC_PATH + 1], *path;
 	unsigned short family;
 	const void *dst_ip;
 	const void *src_ip;
 	int dst_port;
 	int src_port;
 
-	path = get_path(buffer, MAX_ABSOLUTE_EXEC_PATH);
-	buffer[MAX_ABSOLUTE_EXEC_PATH] = '\0';
+	path = path_from_mm(current->mm, buffer, MAX_EXEC_PATH);
+	buffer[MAX_EXEC_PATH] = '\0';
 	if(unlikely(path == NULL))
 		return;
 
