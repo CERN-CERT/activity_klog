@@ -52,30 +52,20 @@ out:
         return 0;
 }
 
-static int signal_that_will_cause_exit(int trap_number)
+static int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
 {
+
         switch(trap_number)
         {
                 case SIGABRT:
                 case SIGSEGV:
                 case SIGQUIT:
                 //TODO Other signals that we need to handle?
-                        return 1;
-                        break;
+                        printk(KERN_ERR KBUILD_MODNAME ": fault handler: Detected fault %d from inside probes.", trap_number);
+                        return 0;
                 default:
                         return 0;
-                        break;
         }
-}
-
-static int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
-{
-        if(signal_that_will_cause_exit(trap_number))
-        {
-                printk(KERN_ERR KBUILD_MODNAME ": fault handler: Detected fault %d from inside probes.", trap_number);
-        }
-
-        return 0;
 }
 
 /*************************************/
