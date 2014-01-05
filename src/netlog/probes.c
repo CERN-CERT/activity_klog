@@ -611,9 +611,9 @@ unlock:
 int probe_status(u32 probe)
 {
 	unsigned long flags;
-        int ret;
+	int ret;
 
-        spin_lock_irqsave(&probe_lock, flags);
+	spin_lock_irqsave(&probe_lock, flags);
 	ret = !!(probe & loaded_probes);
 	spin_unlock_irqrestore(&probe_lock, flags);
 	return ret;
