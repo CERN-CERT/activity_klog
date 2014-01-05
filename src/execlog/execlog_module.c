@@ -3,6 +3,7 @@
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include "log.h"
+#include "../lib/probes_helper.h"
 
 /**********************************/
 /*           PROBES               */
@@ -52,22 +53,6 @@ out:
         return 0;
 }
 
-static int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
-{
-
-        switch(trap_number)
-        {
-                case SIGABRT:
-                case SIGSEGV:
-                case SIGQUIT:
-                //TODO Other signals that we need to handle?
-                        printk(KERN_ERR KBUILD_MODNAME ": fault handler: Detected fault %d from inside probes.", trap_number);
-                        return 0;
-                default:
-                        return 0;
-        }
-}
-
 /*************************************/
 /*         probe definitions        */
 /*************************************/
@@ -92,18 +77,11 @@ static int __init plant_probes(void)
 
         printk(KERN_INFO KBUILD_MODNAME ": Light monitoring tool for execve by CERN Security Team\n");
 
-        err = register_jprobe(&execve_jprobe);
-
+        err = plant_jprobe(&execve_jprobe);
         if(err < 0)
-        {
-                printk(KERN_ERR KBUILD_MODNAME ":\t[-] Failed to plant execve pre handler\n");
                 return -1;
-        }
-
-        printk(KERN_INFO KBUILD_MODNAME ":\t[+] Planted execve pre handler\n");
 
         printk(KERN_INFO KBUILD_MODNAME ":\t[+] Deployed\n");
-
         return 0;
 }
 
@@ -113,8 +91,7 @@ static int __init plant_probes(void)
 
 static void __exit unplant_probes(void)
 {
-        unregister_jprobe(&execve_jprobe);
-        printk(KERN_INFO KBUILD_MODNAME ":\t[+] Unplanted execve pre handler probe\n");
+        unplant_jprobe(&execve_jprobe);
 }
 
 /************************************/

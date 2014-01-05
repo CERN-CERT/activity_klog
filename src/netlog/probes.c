@@ -18,6 +18,7 @@
 #include "sparse_compat.h"
 #include "retro-compat.h"
 #include "internal.h"
+#include "../lib/probes_helper.h"
 
 /********************************/
 /*          Variables           */
@@ -255,21 +256,6 @@ asmlinkage static int pre_sys_bind(int sockfd, const struct sockaddr *addr, int 
 	return 0;
 }
 
-static int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
-{
-	switch(trap_number)
-	{
-		case SIGABRT:
-		case SIGSEGV:
-		case SIGQUIT:
-			//TODO Other signals that we need to handle?
-			printk(KERN_ERR MODULE_NAME ": fault handler: Detected fault %d from inside probes.", trap_number);
-			return 0;
-		default:
-			return 0;
-	}
-}
-
 
 /*************************************/
 /*         probe definitions        */
@@ -368,22 +354,6 @@ static struct jprobe bind_jprobe =
 /*     Planting/unplanting probes       */
 /****************************************/
 
-static void unplant_jprobe(struct jprobe * probe) __must_hold(probe_lock)
-{
-	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanting jprobe on %s\n", probe->kp.symbol_name);
-	unregister_jprobe(probe);
-	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted jprobe on %s\n", probe->kp.symbol_name);
-	probe->kp.addr = NULL;
-}
-
-static void unplant_kretprobe(struct kretprobe * probe) __must_hold(probe_lock)
-{
-	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanting kretprobe on %s\n", probe->kp.symbol_name);
-	unregister_kretprobe(probe);
-	printk(KERN_INFO MODULE_NAME ":\t[+] Unplanted kretprobe on %s\n", probe->kp.symbol_name);
-	probe->kp.addr = NULL;
-}
-
 static void unplant_tcp_connect(void) __must_hold(probe_lock)
 {
 	unplant_jprobe(&stream_connect_jprobe);
@@ -448,34 +418,6 @@ void unplant_probe(u32 probe)
 void unplant_all(void)
 {
 	unplant_probe((1 << (PROBES_NUMBER + 1)) - 1);
-}
-
-static int plant_jprobe(struct jprobe * probe) __must_hold(probe_lock)
-{
-	int err;
-
-	printk(KERN_INFO MODULE_NAME ":\t[+] Planting jprobe on %s\n", probe->kp.symbol_name);
-	err = register_jprobe(probe);
-	if (err < 0)
-		printk(KERN_INFO MODULE_NAME ":\t[-] Failed to planted jprobe on %s: %i\n", probe->kp.symbol_name, err);
-	else
-		printk(KERN_INFO MODULE_NAME ":\t[+] Planted jprobe on %s\n", probe->kp.symbol_name);
-
-	return err;
-}
-
-static int plant_kretprobe(struct kretprobe * probe) __must_hold(probe_lock)
-{
-	int err;
-
-	printk(KERN_INFO MODULE_NAME ":\t[+] Planting kretprobe on %s\n", probe->kp.symbol_name);
-	err = register_kretprobe(probe);
-	if (err < 0)
-		printk(KERN_INFO MODULE_NAME ":\t[-] Failed to planted kretprobe on %s: %i\n", probe->kp.symbol_name, err);
-	else
-		printk(KERN_INFO MODULE_NAME ":\t[+] Planted kretprobe on %s\n", probe->kp.symbol_name);
-
-	return err;
 }
 
 static int plant_tcp_connect(void) __must_hold(probe_lock)

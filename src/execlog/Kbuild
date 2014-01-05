@@ -1,5 +1,5 @@
 name      = execlog
-src_files = execlog_module.c
+src_files = execlog_module.c ../lib/probes_helper.c
  
 obj-m += $(name).o
 $(name)-y := $(src_files:.c=.o)
