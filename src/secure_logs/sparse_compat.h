@@ -1,3 +1,5 @@
+#include <linux/version.h>
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
 #ifndef __must_hold
 #define __must_hold(x)
