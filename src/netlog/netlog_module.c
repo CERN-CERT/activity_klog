@@ -84,13 +84,12 @@ static int __init netlog_init(void)
 
 static void __exit netlog_exit(void)
 {
-	unplant_all();
-	#if WHITELISTING
-
 	destroy_proc();
-	destroy_whitelist();
+	unplant_all();
 
-	#endif
+#if WHITELISTING
+	destroy_whitelist();
+#endif
 }
 
 
