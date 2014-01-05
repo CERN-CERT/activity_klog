@@ -54,7 +54,11 @@ static int __init netlog_init(void)
 
 	err = plant_probe(probes);
 	if(err < 0)
+	{
+		printk(KERN_ERR MODULE_NAME ":\t[-] Unable to plant all probes\n");
+		unplant_all();
 		return err;
+	}
 
 	err = create_proc();
 
