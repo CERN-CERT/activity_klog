@@ -52,6 +52,7 @@ static const struct probe_proc {
 	{ "udp_close",   1 << PROBE_UDP_CLOSE},
 };
 
+
 /*****************/
 /*   Whitelist   */
 /*****************/
@@ -159,7 +160,6 @@ static int netlog_whitelist_open(struct inode *inode, struct file *file)
 	return err;
 }
 
-
 static int netlog_whitelist_release(struct inode *inode, struct file *file)
 {
     struct user_data *data = file->private_data;
@@ -255,7 +255,6 @@ static ssize_t netlog_probe_read(struct file *file, char __user *buf, size_t cou
 	return 2;
 }
 
-
 static int netlog_probe_open(struct inode *inode, struct file *file)
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
@@ -265,7 +264,6 @@ static int netlog_probe_open(struct inode *inode, struct file *file)
 #endif
 	return 0;
 }
-
 
 static int netlog_probe_release(struct inode *inode, struct file *file)
 {
@@ -351,4 +349,3 @@ void destroy_proc(void)
 		REMOVE_PROC(PROC_DIR_NAME, NULL, netlog_dir)
 	}
 }
-

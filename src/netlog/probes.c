@@ -97,6 +97,7 @@ static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 	                    family, src_ip, src_port, dst_ip, dst_port);
 }
 
+
 /**********************************/
 /*           PROBES               */
 /**********************************/
@@ -269,6 +270,7 @@ static int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number
 	}
 }
 
+
 /*************************************/
 /*         probe definitions        */
 /*************************************/
@@ -360,6 +362,7 @@ static struct jprobe bind_jprobe =
 		.fault_handler = handler_fault,
 	},
 };
+
 
 /****************************************/
 /*     Planting/unplanting probes       */

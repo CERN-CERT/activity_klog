@@ -61,7 +61,6 @@ static int __init netlog_init(void)
 	}
 
 	err = create_proc();
-
 	if(err < 0)
 	{
 		printk(KERN_ERR MODULE_NAME ":\t[-] Creation of proc files failed\n");
@@ -69,16 +68,13 @@ static int __init netlog_init(void)
 		return err;
 	}
 	else
-	{
 		printk(KERN_INFO MODULE_NAME ":\t[+] Created proc files for configuration\n");
-	}
 
 #if WHITELISTING
 	set_whitelist_from_array(connections_to_whitelist, whitelist_length);
 #endif
 
 	printk(KERN_INFO MODULE_NAME ":\t[+] Deployed\n");
-
 	return 0;
 }
 
