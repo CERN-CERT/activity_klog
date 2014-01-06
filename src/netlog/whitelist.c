@@ -285,9 +285,6 @@ __acquires(whitelist_rwlock)
 		row = row->next;
 		++curr_pos;
 	}
-	if (row == NULL) {
-		return ERR_PTR(EFAULT);
-	}
 	return row;
 }
 
