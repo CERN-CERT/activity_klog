@@ -13,6 +13,26 @@ MODULE_AUTHOR("Vincent Brillault <vincent.brillault@cern.ch>");
 MODULE_DESCRIPTION("Create a new logging device, /dev/"MODULE_NAME" in order to decouple some logs from the console");
 MODULE_VERSION("0.1");
 
+/*
+ * This kernel module is heavily inspired from linux/kernel/printk.c of the Linux kernel.
+ * Here is the original copyright notice on that file:
+ ******
+ *  Copyright (C) 1991, 1992  Linus Torvalds
+ *
+ * Modified to make sys_syslog() more flexible: added commands to
+ * return the last 4k of kernel messages, regardless of whether
+ * they've been read or not.  Added option to suppress kernel printk's
+ * to the console.  Added hook for sending the console messages
+ * elsewhere, in preparation for a serial line console (someday).
+ * Ted Ts'o, 2/11/93.
+ * Modified for sysctl support, 1/8/97, Chris Horn.
+ * Fixed SMP synchronization, 08/08/99, Manfred Spraul
+ *     manfred@colorfullife.com
+ * Rewrote bits to get rid of console_lock
+ *      01Mar01 Andrew Morton
+ ******
+ */
+
 /* Log structures of records stored the buffer */
 struct sec_log
 {
