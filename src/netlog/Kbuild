@@ -3,4 +3,4 @@ src_files = probes.c whitelist.c proc_config.c netlog_module.c ../lib/probes_hel
  
 obj-m += $(name).o
 $(name)-y := $(src_files:.c=.o)
-ccflags-y  += -D'MODULE_NAME="$(name)"' -I$(src)/../secure_logs
+ccflags-y  += -D'MODULE_NAME="$(name)"' -I$(src)/../secure_log

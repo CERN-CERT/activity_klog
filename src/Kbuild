@@ -1,4 +1,4 @@
-obj-m += secure_logs/
+obj-m += secure_log/
 obj-m += netlog/
 obj-m += execlog/
 
