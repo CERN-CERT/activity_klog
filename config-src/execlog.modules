@@ -1,0 +1,7 @@
+# Configuration file for netlog
+# Add to the connections_to_whitelist the connection strings that describe the connections that you want to whitelist
+# For more, see the documentation
+# For example:
+# modprobe netlog connections_to_whitelist="/usr/sbin/skype","/usr/bin/ssh|i<127.0.0.1>","/usr/bin/sshd|i<127.0.0.1>|p<22>"
+
+modprobe netlog
