@@ -200,7 +200,7 @@ set_whitelist_from_array(char **raw_array, int raw_len)
 	write_unlock_irqrestore(&whitelist_rwlock, flags);
 }
 
-const static char *list_delims = ",\n";
+static const char *list_delims = ",\n";
 
 void
 set_whitelist_from_string(char *raw_list)
