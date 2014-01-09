@@ -2,6 +2,7 @@
 #include <linux/module.h>
 #include <linux/unistd.h>
 #include "sparse_compat.h"
+#include "probes_helper.h"
 
 int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
 {
