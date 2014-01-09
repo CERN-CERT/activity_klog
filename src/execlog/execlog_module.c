@@ -13,7 +13,8 @@ static int execlog_do_execve(char *filename, char __user *__user *__argv, char _
 {
         char __user *__user *__argv_pointer;
         char __user *__argv_content;
-        size_t argv_size, argv_written;
+        size_t argv_size;
+        long argv_written;
         char *argv_buffer, *argv_current_end;
 
         /* Find total argv_size */
@@ -22,6 +23,12 @@ static int execlog_do_execve(char *filename, char __user *__user *__argv, char _
         while (get_user(__argv_content, __argv_pointer) == 0 && __argv_content != NULL) {
                 argv_size += strlen_user(__argv_content) + 1;
                 ++__argv_pointer;
+        }
+
+        /* strncpy can only take a long as it input, check for potential overflow */
+        if (unlikely(argv_size > LONG_MAX)) {
+                //TODO: we should probably log this failure somewhere
+                argv_size = LONG_MAX;
         }
 
         /* Allocate memory for copying the argv from userspace */
