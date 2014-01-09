@@ -10,11 +10,11 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vincent Brillault <vincent.brillault@cern.ch>");
-MODULE_DESCRIPTION("Create a new logging device, /dev/"MODULE_NAME" in order to decouple some logs from the console");
+MODULE_DESCRIPTION("Create a new logging device, /dev/"MODULE_NAME);
 MODULE_VERSION("0.1");
 
 /*
- * This kernel module is heavily inspired from linux/kernel/printk.c of the Linux kernel.
+ * This kernel module is heavily inspired from linux/kernel/printk.c
  * Here is the original copyright notice on that file:
  ******
  *  Copyright (C) 1991, 1992  Linus Torvalds
@@ -34,8 +34,7 @@ MODULE_VERSION("0.1");
  */
 
 /* Log structures of records stored the buffer */
-struct sec_log
-{
+struct sec_log {
 	size_t len /** Total size of the record, including the strings at the end */;
 	u64 nsec   /** Timestamp of the activity */;
 	pid_t pid  /** PID responsible for the activity */;
@@ -44,12 +43,11 @@ struct sec_log
 	uid_t euid /** EUID responsible for the activity */;
 	uid_t gid  /** GID responsible for the activity */;
 	uid_t egid /** EGID responsible for the activity */;
-	char tty[64] /** TTY, if existant, used by the program responsible for the activity, '\0' otherwise */ ;
+	char tty[64] /** TTY, if existant, used by the program responsible for the activity, '\0' otherwise */;
 	enum secure_log_type type /** Type of this record (for cast)*/;
 };
 
-struct netlog_log
-{
+struct netlog_log {
 	struct sec_log header    /** Mandatory header */;
 	size_t path_len          /** Length of the path of the executable responsible for the activity, including the tailing '\0'. The string is accessible via get_netlog_path */;
 	enum secure_log_protocol protocol /** Network protocol used (currently supported: UDP & TCP */;
@@ -69,8 +67,7 @@ struct netlog_log
 	} dst                    /** Destination address (distant) */;
 };
 
-struct execlog_log
-{
+struct execlog_log {
 	struct sec_log header /** Mandatory header */;
 	size_t path_len       /** Length of the path of the executable, including the tailing '\0'. The string is accessible via get_netlog_path */;
 	size_t argv_len       /** Length of the arguments given to the executable including the tailing '\0'. The string is accessible via get_netlog_argv. MUST be set after the 'path_len' */;
@@ -98,26 +95,32 @@ static DECLARE_WAIT_QUEUE_HEAD(log_wait);
 
 static char first_read = 1;
 
+/* Device identifiers */
+struct device *dev;
+static dev_t secure_dev;
+static struct cdev secure_c_dev;
+static struct class *secure_class;
+
 /* Get the path of a log */
 static char *
 get_netlog_path(struct netlog_log *log)
 __must_hold(log_lock)
 {
-	return ((char*)log) + sizeof(struct netlog_log);
+	return ((char *)log) + sizeof(struct netlog_log);
 }
 
 static char *
 get_execlog_path(struct execlog_log *log)
 __must_hold(log_lock)
 {
-	return ((char*)log) + sizeof(struct execlog_log);
+	return ((char *)log) + sizeof(struct execlog_log);
 }
 
 static char *
 get_execlog_argv(struct execlog_log *log)
 __must_hold(log_lock)
 {
-	return ((char*)log) + sizeof(struct execlog_log) + log->path_len;
+	return ((char *)log) + sizeof(struct execlog_log) + log->path_len;
 }
 
 static u32
@@ -126,7 +129,7 @@ __must_hold(log_lock)
 {
 	size_t *len;
 
-	len = &((struct sec_log*)(log_buf + idx))->len;
+	len = &((struct sec_log *)(log_buf + idx))->len;
 	if (*len == 0) {
 		/* We need to wrap around */
 		return 0;
@@ -138,16 +141,15 @@ __must_hold(log_lock)
 static void
 copy_ip(void *dst, const void *src, unsigned short family)
 {
-	switch(family)
-	{
-		case AF_INET:
-			memcpy(dst, src, sizeof(struct in_addr));
-			break;
-		case AF_INET6:
-			memcpy(dst, src, sizeof(struct in6_addr));
-			break;
-		default:
-			break;
+	switch (family) {
+	case AF_INET:
+		memcpy(dst, src, sizeof(struct in_addr));
+		break;
+	case AF_INET6:
+		memcpy(dst, src, sizeof(struct in6_addr));
+		break;
+	default:
+		break;
 	}
 }
 
@@ -195,17 +197,17 @@ __must_hold(log_lock)
 		 * is log_first_idx, thus we must wrap around.
 		 * Add an empty size_t to indicate the wrap around
 		 */
-		*((size_t*)(log_buf + log_next_idx)) = 0;
+		*((size_t *)(log_buf + log_next_idx)) = 0;
 		log_next_idx = 0;
 	}
 }
 
 
 void
-store_netlog_record(const char* path, enum secure_log_action action,
-                    enum secure_log_protocol protocol, unsigned short family,
-                    const void *src_ip, int src_port,
-                    const void *dst_ip, int dst_port)
+store_netlog_record(const char *path, enum secure_log_action action,
+		    enum secure_log_protocol protocol, unsigned short family,
+		    const void *src_ip, int src_port,
+		    const void *dst_ip, int dst_port)
 {
 	struct netlog_log *record;
 	size_t path_len, record_size;
@@ -213,8 +215,9 @@ store_netlog_record(const char* path, enum secure_log_action action,
 
 	path_len = strlen(path) + 1;
 	if (unlikely(path_len > (LOG_BUF_LEN >> 4) ||
-				 path_len > INT_MAX)) {
-		printk(KERN_INFO MODULE_NAME ": Warning, troncating path (size %zu > %i)\n", path_len, min((LOG_BUF_LEN >> 4), INT_MAX));
+		     path_len > INT_MAX)) {
+		dev_warn(dev, "troncating path (size %zu > %i)\n",
+			 path_len, min((LOG_BUF_LEN >> 4), INT_MAX));
 		path_len = min((LOG_BUF_LEN >> 4), INT_MAX);
 	}
 	record_size = sizeof(struct netlog_log) + path_len;
@@ -222,7 +225,7 @@ store_netlog_record(const char* path, enum secure_log_action action,
 	spin_lock_irqsave(&log_lock, flags);
 
 	find_new_record_place(record_size);
-	record = (struct netlog_log*)(log_buf + log_next_idx);
+	record = (struct netlog_log *)(log_buf + log_next_idx);
 	/* Store basic information */
 	init_log_header(&(record->header), LOG_NETWORK_INTERACTION);
 	record->header.len = record_size;
@@ -257,8 +260,8 @@ EXPORT_SYMBOL(store_netlog_record);
 
 
 void
-store_execlog_record(const char* path,
-                     const char* argv, size_t argv_size)
+store_execlog_record(const char *path,
+		     const char *argv, size_t argv_size)
 {
 	struct execlog_log *record;
 	size_t path_len, record_size;
@@ -266,13 +269,15 @@ store_execlog_record(const char* path,
 
 	path_len = strlen(path) + 1;
 	if (unlikely(path_len > (LOG_BUF_LEN >> 5) ||
-				 path_len > INT_MAX)) {
-		printk(KERN_INFO MODULE_NAME ": Warning, troncating path (size %zu > %i)\n", path_len, min((LOG_BUF_LEN >> 5), INT_MAX));
+		     path_len > INT_MAX)) {
+		dev_warn(dev, "Troncating path (size %zu > %i)\n",
+			 path_len, min((LOG_BUF_LEN >> 5), INT_MAX));
 		path_len = min((LOG_BUF_LEN >> 5), INT_MAX);
 	}
 	if (unlikely(argv_size > (LOG_BUF_LEN >> 5) ||
-				 argv_size > INT_MAX)) {
-		printk(KERN_INFO MODULE_NAME ": Warning, troncating argv (size %zu > %i)\n", argv_size, min((LOG_BUF_LEN >> 5), INT_MAX));
+		     argv_size > INT_MAX)) {
+		dev_warn(dev, "Troncating argv (size %zu > %i)\n",
+			 argv_size, min((LOG_BUF_LEN >> 5), INT_MAX));
 		argv_size = min((LOG_BUF_LEN >> 5), INT_MAX);
 	}
 	record_size = sizeof(struct execlog_log) + path_len + argv_size;
@@ -280,7 +285,7 @@ store_execlog_record(const char* path,
 	spin_lock_irqsave(&log_lock, flags);
 
 	find_new_record_place(record_size);
-	record = (struct execlog_log*)(log_buf + log_next_idx);
+	record = (struct execlog_log *)(log_buf + log_next_idx);
 	/* Store basic information */
 	init_log_header(&(record->header), LOG_EXECUTION);
 	record->header.len = record_size;
@@ -303,11 +308,10 @@ store_execlog_record(const char* path,
 EXPORT_SYMBOL(store_execlog_record);
 
 
-struct user_data
-{
+struct user_data {
 	u64 log_curr_seq;
 	u32 log_curr_idx;
-	struct mutex lock;
+	struct mutex lock /** Lock when reading (only one read a at time) */;
 	char buf[USER_BUFFER_SIZE];
 };
 
@@ -328,19 +332,19 @@ secure_log_llseek(struct file *file, loff_t offset, int whence)
 	/* Set the 'offset' to the desired value */
 	spin_lock_irqsave(&log_lock, flags);
 	switch (whence) {
-		case SEEK_SET:
-			data->log_curr_seq = log_first_seq;
-			data->log_curr_idx = log_first_idx;
-			break;
-		case SEEK_CUR:
-			break;
-		case SEEK_END:
-			data->log_curr_seq = log_next_seq;
-			data->log_curr_idx = log_next_idx;
-			break;
-		default:
-			spin_unlock_irqrestore(&log_lock, flags);
-			return -EINVAL;
+	case SEEK_SET:
+		data->log_curr_seq = log_first_seq;
+		data->log_curr_idx = log_first_idx;
+		break;
+	case SEEK_CUR:
+		break;
+	case SEEK_END:
+		data->log_curr_seq = log_next_seq;
+		data->log_curr_idx = log_next_idx;
+		break;
+	default:
+		spin_unlock_irqrestore(&log_lock, flags);
+		return -EINVAL;
 	}
 	spin_unlock_irqrestore(&log_lock, flags);
 
@@ -352,118 +356,121 @@ static inline const char *
 netlog_protocol(struct netlog_log *log)
 __must_hold(log_lock)
 {
-	switch(log->protocol) {
-		case PROTO_TCP:
-			return "TCP";
-		case PROTO_UDP:
-			return "UDP";
-		default:
-			return "UNK";
+	switch (log->protocol) {
+	case PROTO_TCP:
+		return "TCP";
+	case PROTO_UDP:
+		return "UDP";
+	default:
+		return "UNK";
 	}
 }
 
 #define UPDATE_POINTERS(change, remaining, len) \
-	if (change >= remaining) {                  \
-		/* Output truncated */                  \
-		return -1;                              \
-	}                                           \
-	len += change;                              \
-	remaining -= change;
+do {						\
+	if (change >= remaining) {		\
+		/* Output truncated */		\
+		return -1;			\
+	}					\
+	len += change;				\
+	remaining -= change;                    \
+} while (0)
 
 
 static ssize_t
-netlog_print(struct netlog_log *record, char* data, size_t len)
+netlog_print(struct netlog_log *record, char *data, size_t len)
 __must_hold(log_lock)
 {
 	size_t remaining = USER_BUFFER_SIZE - len;
 	int change;
 
 	change = snprintf(data + len, remaining, "netlog ");
-	UPDATE_POINTERS(change, remaining, len)
+	UPDATE_POINTERS(change, remaining, len);
 	change = snprintf(data + len, remaining, "%.*s %s ",
-	                 (int)record->path_len, get_netlog_path(record),
-	                 netlog_protocol(record));
-	UPDATE_POINTERS(change, remaining, len)
-	switch(record->family) {
-		case AF_INET:
-			change = snprintf(data + len, remaining, "%pI4:%d",
-			                 &record->src.ip4, record->src_port);
-			break;
-		case AF_INET6:
-			change = snprintf(data + len, remaining, "[%pI6c]:%d",
-			                 &record->src.ip6, record->src_port);
-			break;
-		default:
-			change = snprintf(data + len, remaining, "Unknown");
-			break;
+			  (int)record->path_len, get_netlog_path(record),
+			  netlog_protocol(record));
+	UPDATE_POINTERS(change, remaining, len);
+	switch (record->family) {
+	case AF_INET:
+		change = snprintf(data + len, remaining, "%pI4:%d",
+				  &record->src.ip4, record->src_port);
+		break;
+	case AF_INET6:
+		change = snprintf(data + len, remaining, "[%pI6c]:%d",
+				  &record->src.ip6, record->src_port);
+		break;
+	default:
+		change = snprintf(data + len, remaining, "Unknown");
+		break;
 	}
-	UPDATE_POINTERS(change, remaining, len)
-	switch(record->action) {
-		case ACTION_CONNECT:
-			change = snprintf(data + len, remaining, " -> ");
-			break;
-		case ACTION_ACCEPT:
-			change = snprintf(data + len, remaining, " <- ");
-			break;
-		case ACTION_CLOSE:
-			change = snprintf(data + len, remaining, " <!> ");
-			break;
-		case ACTION_BIND:
-			change = snprintf(data + len, remaining, " BIND ");
-			goto out;
-		default:
-			change = snprintf(data + len, remaining, " UNK ");
-			goto out;
+	UPDATE_POINTERS(change, remaining, len);
+	switch (record->action) {
+	case ACTION_CONNECT:
+		change = snprintf(data + len, remaining, " -> ");
+		break;
+	case ACTION_ACCEPT:
+		change = snprintf(data + len, remaining, " <- ");
+		break;
+	case ACTION_CLOSE:
+		change = snprintf(data + len, remaining, " <!> ");
+		break;
+	case ACTION_BIND:
+		change = snprintf(data + len, remaining, " BIND ");
+		goto out;
+	default:
+		change = snprintf(data + len, remaining, " UNK ");
+		goto out;
 	}
-	UPDATE_POINTERS(change, remaining, len)
-	switch(record->family) {
-		case AF_INET:
-			change = snprintf(data + len, remaining, "%pI4:%d",
-						   &record->dst.ip4, record->dst_port);
-			break;
-		case AF_INET6:
-			change = snprintf(data + len, remaining, "[%pI6c]:%d",
-						   &record->dst.ip6, record->dst_port);
-			break;
-		default:
-			change = snprintf(data + len, remaining, "Unknown");
-			break;
+	UPDATE_POINTERS(change, remaining, len);
+	switch (record->family) {
+	case AF_INET:
+		change = snprintf(data + len, remaining, "%pI4:%d",
+				&record->dst.ip4, record->dst_port);
+		break;
+	case AF_INET6:
+		change = snprintf(data + len, remaining, "[%pI6c]:%d",
+				&record->dst.ip6, record->dst_port);
+		break;
+	default:
+		change = snprintf(data + len, remaining, "Unknown");
+		break;
 	}
 out:
-	UPDATE_POINTERS(change, remaining, len)
+	UPDATE_POINTERS(change, remaining, len);
 	return len;
 }
 
 
 static ssize_t
-execlog_print(struct execlog_log *record, char* data, size_t len)
+execlog_print(struct execlog_log *record, char *data, size_t len)
 __must_hold(log_lock)
 {
 	size_t remaining = USER_BUFFER_SIZE - len;
 	int change;
 
 	change = snprintf(data + len, remaining, "%.*s %.*s",
-	                  (int) record->path_len, get_execlog_path(record),
-	                  (int) record->argv_len, get_execlog_argv(record));
-	UPDATE_POINTERS(change, remaining, len)
+			  (int) record->path_len, get_execlog_path(record),
+			  (int) record->argv_len, get_execlog_argv(record));
+	UPDATE_POINTERS(change, remaining, len);
 	return len;
 }
 
 static inline char *
 get_module_name(enum secure_log_type type)
 {
-	switch(type) {
-		case LOG_NETWORK_INTERACTION:
-			return "netlog";
-		case LOG_EXECUTION:
-			return "execlog";
-		default:
-			return "unknown";
+	switch (type) {
+	case LOG_NETWORK_INTERACTION:
+		return "netlog";
+	case LOG_EXECUTION:
+		return "execlog";
+	default:
+		return "unknown";
 	}
 }
 
 static ssize_t
-secure_log_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
+secure_log_read(struct file *file, char __user *buf, size_t count,
+		loff_t *offset)
 {
 	struct user_data *data = file->private_data;
 	struct sec_log *record;
@@ -493,7 +500,8 @@ secure_log_read(struct file *file, char __user *buf, size_t count, loff_t *offse
 
 		/* We need to wait, unlock */
 		spin_unlock_irqrestore(&log_lock, flags);
-		ret = wait_event_interruptible(log_wait, data->log_curr_seq != log_next_seq);
+		ret = wait_event_interruptible(log_wait,
+				data->log_curr_seq != log_next_seq);
 		if (ret)
 			goto out;
 		spin_lock_irqsave(&log_lock, flags);
@@ -510,32 +518,35 @@ secure_log_read(struct file *file, char __user *buf, size_t count, loff_t *offse
 	}
 
 	/* Get the current record */
-	record = (struct sec_log*)(log_buf + data->log_curr_idx);
+	record = (struct sec_log *)(log_buf + data->log_curr_idx);
 
 	/* Fill the syslog header */
 	ts = record->nsec;
 	rem_nsec = do_div(ts, 1000000000);
 	len = sprintf(data->buf, "<%u>1 - - %s - - - [%5lu.%06lu]: ",
-	              (LOG_FACILITY << 3) | LOG_LEVEL, get_module_name(record->type),
-	              (unsigned long)ts, rem_nsec / 1000);
+			(LOG_FACILITY << 3) | LOG_LEVEL,
+			get_module_name(record->type),
+			(unsigned long)ts, rem_nsec / 1000);
 
 	/* Fill the common header */
-	len += sprintf(data->buf + len, "p:%d, s:%d, u/g:%d/%d, eu/g:%d/%d, t:%s, ",
-	               record->pid, record->sid,
-	               record->uid, record->gid,
-	               record->euid, record->egid,
-	               record->tty);
+	len += sprintf(data->buf + len,
+			"p:%d, s:%d, u/g:%d/%d, eu/g:%d/%d, t:%s, ",
+			record->pid, record->sid,
+			record->uid, record->gid,
+			record->euid, record->egid,
+			record->tty);
 
 	/* Print the content */
-	switch(record->type) {
-		case LOG_NETWORK_INTERACTION:
-			ret = netlog_print((struct netlog_log*)record, data->buf, len);
-			break;
-		case LOG_EXECUTION:
-			ret = execlog_print((struct execlog_log*)record, data->buf, len);
-			break;
-		default:
-			ret = len + sprintf(data->buf + len, "Unknown entry");
+	switch (record->type) {
+	case LOG_NETWORK_INTERACTION:
+		ret = netlog_print((struct netlog_log *)record, data->buf, len);
+		break;
+	case LOG_EXECUTION:
+		ret = execlog_print((struct execlog_log *)record,
+				data->buf, len);
+		break;
+	default:
+		ret = len + sprintf(data->buf + len, "Unknown entry");
 	}
 	if (ret < 0) {
 		sprintf(data->buf + (USER_BUFFER_SIZE - 7), "TRUNC");
@@ -604,7 +615,7 @@ secure_log_open(struct inode *inode, struct file *file)
 	unsigned long flags;
 
 	/* Allocate private data */
-	data = kmalloc(sizeof(struct user_data), GFP_KERNEL);
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (unlikely(data == NULL))
 		return -ENOMEM;
 
@@ -655,17 +666,10 @@ static const struct file_operations secure_log_fops = {
 };
 
 
-/* Device identifiers */
-static dev_t secure_dev;
-static struct cdev secure_c_dev;
-static struct class *secure_class;
-
-
 static int __init
 init_secure_dev(void)
 {
 	int err;
-	struct device *dev;
 
 	secure_class = class_create(THIS_MODULE, MODULE_NAME);
 	if (IS_ERR(secure_class))
@@ -686,7 +690,7 @@ init_secure_dev(void)
 		goto clean_cdev;
 	}
 
-	printk(KERN_INFO MODULE_NAME ":\t[+]Created /dev/"MODULE_NAME" for logs\n");
+	dev_info(dev, "\t[+]Created /dev/"MODULE_NAME" for logs\n");
 	return 0;
 
 clean_cdev:
@@ -703,7 +707,7 @@ module_init(init_secure_dev);
 static void __exit
 destroy_secure_dev(void)
 {
-	printk(KERN_INFO MODULE_NAME ":\t[+]Removing /dev/"MODULE_NAME"\n");
+	dev_info(dev, "\t[+]Removing /dev/"MODULE_NAME"\n");
 	device_destroy(secure_class, secure_dev);
 	cdev_del(&secure_c_dev);
 	unregister_chrdev_region(secure_dev, 1);

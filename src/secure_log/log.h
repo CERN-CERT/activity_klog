@@ -6,8 +6,7 @@
 /**
  * Type of a secure log
  */
-enum secure_log_type
-{
+enum secure_log_type {
 	LOG_NETWORK_INTERACTION  /** High level network interaction log */ = 0,
 	LOG_EXECUTION			/** Execve (file execution) with arguments log */,
 };
@@ -16,8 +15,7 @@ enum secure_log_type
 /**
  * Which protocol was used ?
  */
-enum secure_log_protocol
-{
+enum secure_log_protocol {
 	PROTO_TCP = 0,
 	PROTO_UDP,
 };
@@ -25,8 +23,7 @@ enum secure_log_protocol
 /**
  * What was the network action ?
  */
-enum secure_log_action
-{
+enum secure_log_action {
 	ACTION_CONNECT,
 	ACTION_ACCEPT,
 	ACTION_CLOSE,
@@ -44,13 +41,12 @@ enum secure_log_action
 #define USER_BUFFER_SIZE 8000
 
 void
-store_netlog_record(const char* path, enum secure_log_action action,
-                    enum secure_log_protocol protocol, unsigned short family,
-                    const void *src_ip, int src_port,
-                    const void *dst_ip, int dst_port);
+store_netlog_record(const char *path, enum secure_log_action action,
+		    enum secure_log_protocol protocol, unsigned short family,
+		    const void *src_ip, int src_port,
+		    const void *dst_ip, int dst_port);
 
 void
-store_execlog_record(const char* path,
-                     const char* argv, size_t argv_size);
+store_execlog_record(const char *path, const char *argv, size_t argv_size);
 
 #endif /* __SECURE_LOG__ */
