@@ -33,13 +33,26 @@ static int execlog_do_execve(char *filename, char __user *__user *__argv, char _
         __argv_pointer = __argv;
         argv_current_end = argv_buffer;
         while (get_user(__argv_content, __argv_pointer) == 0 && __argv_content != NULL) {
+                /* Get at max argv_size bytes from __argv_content */
                 argv_written = strncpy_from_user(argv_current_end, __argv_content, argv_size);
                 if (unlikely(argv_written < 0)) {
+                        //TODO: we should probably log this failure somewhere
                         goto free;
                 }
+                /* Update the pointer and remaining size
+                 * strncpy_from_user guaranties that argv_written <= argv_size, i-e argv_size will not loop (unsigned) */
                 argv_current_end += argv_written;
-                *(argv_current_end++) = ' ';
-                argv_size -= (argv_written + 1);
+                argv_size -= argv_written;
+                /* As we calculated the size before, this should never occur, except if userspace is malicious */
+                if (unlikely(argv_size == 0))
+                        break;
+                /* Add separator ' ' between arguments
+                 * Previous check guaranties that argv_size >= 1, thus will not loop (unsigned) afterwards */
+                //TODO: Should we have a better separator ?
+                *argv_current_end = ' ';
+                ++argv_current_end;
+                --argv_size;
+                /* Next iteration */
                 ++__argv_pointer;
         }
         *argv_current_end = '\0';
