@@ -40,8 +40,8 @@ static struct proc_dir_entry *netlog_whitelist_file = NULL;
 static struct proc_dir_entry *netlog_probes_dir = NULL;
 static struct proc_dir_entry *netlog_probes[PROBES_NUMBER];
 
-static const struct probe_proc {
-        const char *name;
+static struct probe_proc {
+	const char *name;
 	u32 mask;
 } probe_list[] = {
 	{ "tcp_connect", 1 << PROBE_TCP_CONNECT },
