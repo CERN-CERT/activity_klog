@@ -61,7 +61,7 @@ static struct probe_proc {
 static ssize_t netlog_whitelist_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
 {
 	struct user_data* data = file->private_data;
-	size_t current_size;
+	size_t new_size;
 	char *current_buf;
 
 	if (unlikely(data == NULL) ||
@@ -69,20 +69,22 @@ static ssize_t netlog_whitelist_write(struct file *file, const char __user *buf,
 	    unlikely(data->state != STATE_WRITE))
 		return -EBADF;
 
-	current_size = data->size;
-	while (count > data->size - data->pos - 1) {
-		data->size += 4096;
+	new_size = data->size;
+	while (new_size < count + data->pos + 1) {
+		if (new_size > BUFFER_MAX - 4096)
+			return -ENOMEM;
+		new_size += 4096;
 	}
-	if (current_size != data->size) {
-		if (data->size > BUFFER_MAX)
+	if (new_size != data->size) {
+		if (new_size > BUFFER_MAX)
 			return -ENOMEM;
 		current_buf = data->buf;
-		data->buf = krealloc(data->buf, data->size, GFP_KERNEL);
+		data->buf = krealloc(data->buf, new_size, GFP_KERNEL);
 		if (data->buf == NULL) {
 			data->buf = current_buf;
-			data->size = current_size;
 			return -ENOMEM;
 		}
+		data->size = new_size;
 	}
 
 	if (unlikely(copy_from_user(data->buf, buf, count)))
