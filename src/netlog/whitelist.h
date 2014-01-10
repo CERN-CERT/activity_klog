@@ -12,7 +12,7 @@
 void set_whitelist_from_array(char **raw_array, int raw_len);
 void set_whitelist_from_string(char *raw_list);
 
-extern struct seq_operations whitelist_file;
+extern const struct seq_operations whitelist_file;
 
 int is_whitelisted(const char *path, unsigned short family, const void *ip, int port);
 

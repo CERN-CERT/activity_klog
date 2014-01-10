@@ -44,7 +44,7 @@ static char *path_from_mm(struct mm_struct *mm, char *buffer, int length)
 		p = NULL;
 	} else {
 		p = d_path(&mm->exe_file->f_path, buffer, length);
-		if(IS_ERR(p))
+		if (IS_ERR(p))
 			p = NULL;
 	}
 
@@ -65,37 +65,36 @@ static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 
 	path = path_from_mm(current->mm, buffer, MAX_EXEC_PATH);
 	buffer[MAX_EXEC_PATH] = '\0';
-	if(unlikely(path == NULL))
+	if (unlikely(path == NULL))
 		return;
 
 	/* Get everything */
 	family = sock->sk->sk_family;
 	dst_port = ntohs(inet_sk(sock->sk)->DPORT);
 	src_port = ntohs(inet_sk(sock->sk)->SPORT);
-	switch(family)
-	{
-		case AF_INET:
-			dst_ip = &inet_sk(sock->sk)->DADDR;
-			src_ip = &inet_sk(sock->sk)->SADDR;
-			break;
-		case AF_INET6:
-			dst_ip = &inet6_sk(sock->sk)->daddr;
-			src_ip = &inet6_sk(sock->sk)->saddr;
-			break;
-		default:
-			dst_ip = NULL;
-			src_ip = NULL;
-			break;
+	switch (family) {
+	case AF_INET:
+		dst_ip = &inet_sk(sock->sk)->DADDR;
+		src_ip = &inet_sk(sock->sk)->SADDR;
+		break;
+	case AF_INET6:
+		dst_ip = &inet6_sk(sock->sk)->daddr;
+		src_ip = &inet6_sk(sock->sk)->saddr;
+		break;
+	default:
+		dst_ip = NULL;
+		src_ip = NULL;
+		break;
 	}
 
 #if WHITELISTING
 	/* Are we whitelisted ? */
-	if(is_whitelisted(path, family, dst_ip, dst_port))
+	if (is_whitelisted(path, family, dst_ip, dst_port))
 		return;
 #endif
 
 	store_netlog_record(path, action, protocol,
-	                    family, src_ip, src_port, dst_ip, dst_port);
+			    family, src_ip, src_port, dst_ip, dst_port);
 }
 
 
@@ -130,7 +129,7 @@ static int post_inet_stream_connect(struct kretprobe_instance *ri, struct pt_reg
 	    likely(sock != NULL) &&
 	    likely(sock->sk != NULL) &&
 	    likely(sock->sk->sk_family == AF_INET ||
-	           sock->sk->sk_family == AF_INET6) &&
+		   sock->sk->sk_family == AF_INET6) &&
 	    likely(sock->sk->sk_protocol == IPPROTO_TCP))
 		log_if_not_whitelisted(sock, PROTO_TCP, ACTION_CONNECT);
 
@@ -157,7 +156,7 @@ static int post_inet_dgram_connect(struct kretprobe_instance *ri, struct pt_regs
 	    likely(sock != NULL) &&
 	    likely(sock->sk != NULL) &&
 	    likely(sock->sk->sk_family == AF_INET ||
-	           sock->sk->sk_family == AF_INET6) &&
+		   sock->sk->sk_family == AF_INET6) &&
 	    likely(sock->sk->sk_protocol == IPPROTO_UDP))
 		log_if_not_whitelisted(sock, PROTO_UDP, ACTION_CONNECT);
 
@@ -181,7 +180,7 @@ static int post_sys_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	if (likely(sock != NULL)) {
 		if (likely(sock->sk != NULL) &&
 		    likely(sock->sk->sk_family == AF_INET ||
-		           sock->sk->sk_family == AF_INET6) &&
+			   sock->sk->sk_family == AF_INET6) &&
 		    likely(sock->sk->sk_protocol == IPPROTO_TCP))
 			log_if_not_whitelisted(sock, PROTO_TCP, ACTION_ACCEPT);
 		sockfd_put(sock);
@@ -200,7 +199,7 @@ asmlinkage static long pre_sys_close(unsigned int fd)
 	    unlikely(sock == NULL) ||
 	    unlikely(sock->sk == NULL) ||
 	    likely(sock->sk->sk_family != AF_INET &&
-	           sock->sk->sk_family != AF_INET6))
+		   sock->sk->sk_family != AF_INET6))
 		goto out;
 
 	if ((loaded_probes & (1 << PROBE_TCP_CLOSE)) &&
@@ -208,12 +207,12 @@ asmlinkage static long pre_sys_close(unsigned int fd)
 	    likely(inet_sk(sock->sk)->DPORT != 0))
 		log_if_not_whitelisted(sock, PROTO_TCP, ACTION_CLOSE);
 	else if ((loaded_probes & (1 << PROBE_UDP_CLOSE)) &&
-	         sock->sk->sk_protocol == IPPROTO_UDP &&
-	         inet_sk(sock->sk)->SPORT != 0)
+		 sock->sk->sk_protocol == IPPROTO_UDP &&
+		 inet_sk(sock->sk)->SPORT != 0)
 		log_if_not_whitelisted(sock, PROTO_UDP, ACTION_CLOSE);
 
 out:
-	if(likely(sock != NULL))
+	if (likely(sock != NULL))
 		sockfd_put(sock);
 
 	jprobe_return();
@@ -228,7 +227,7 @@ static int post_sys_bind(struct kretprobe_instance *ri, struct pt_regs *regs)
 	if (likely(sock != NULL)) {
 		if (likely(sock->sk != NULL) &&
 		    likely(sock->sk->sk_family == AF_INET ||
-		           sock->sk->sk_family == AF_INET6) &&
+			   sock->sk->sk_family == AF_INET6) &&
 		    likely(sock->sk->sk_protocol == IPPROTO_UDP))
 			log_if_not_whitelisted(sock, PROTO_UDP, ACTION_BIND);
 		sockfd_put(sock);
@@ -261,89 +260,73 @@ asmlinkage static int pre_sys_bind(int sockfd, const struct sockaddr *addr, int 
 /*         probe definitions        */
 /*************************************/
 
-static struct jprobe stream_connect_jprobe =
-{
-	.entry = (kprobe_opcode_t *) pre_inet_stream_connect,
-	.kp =
-	{
+static struct jprobe stream_connect_jprobe = {
+	.entry = (kprobe_opcode_t *)pre_inet_stream_connect,
+	.kp = {
 		.symbol_name = "inet_stream_connect",
 		.fault_handler = handler_fault,
 	},
 };
 
-static struct kretprobe stream_connect_kretprobe =
-{
-        .handler = post_inet_stream_connect,
-        .maxactive = 16 * NR_CPUS,
-        .kp =
-        {
-        	.symbol_name = "inet_stream_connect",
+static struct kretprobe stream_connect_kretprobe = {
+	.handler = post_inet_stream_connect,
+	.maxactive = 16 * NR_CPUS,
+	.kp = {
+		.symbol_name = "inet_stream_connect",
 		.fault_handler = handler_fault,
-        },
+	},
 };
 
-static struct jprobe dgram_connect_jprobe =
-{
-	.entry = (kprobe_opcode_t *) pre_inet_dgram_connect,
-	.kp =
-	{
+static struct jprobe dgram_connect_jprobe = {
+	.entry = (kprobe_opcode_t *)pre_inet_dgram_connect,
+	.kp = {
 		.symbol_name = "inet_dgram_connect",
 		.fault_handler = handler_fault,
 	},
 };
 
-static struct kretprobe dgram_connect_kretprobe =
-{
-        .handler = post_inet_dgram_connect,
-        .maxactive = 16 * NR_CPUS,
-        .kp =
-        {
-        	.symbol_name = "inet_dgram_connect",
+static struct kretprobe dgram_connect_kretprobe = {
+	.handler = post_inet_dgram_connect,
+	.maxactive = 16 * NR_CPUS,
+	.kp = {
+		.symbol_name = "inet_dgram_connect",
 		.fault_handler = handler_fault,
-        },
+	},
 };
 
-static struct kretprobe accept_kretprobe =
-{
+static struct kretprobe accept_kretprobe = {
 	.handler = post_sys_accept,
 	.maxactive = 16 * NR_CPUS,
-        .kp =
-        {
+	.kp = {
 		#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
-        	.symbol_name = "sys_accept",
-        	#else
-        	.symbol_name = "sys_accept4",
+		.symbol_name = "sys_accept",
+		#else
+		.symbol_name = "sys_accept4",
 		#endif
 		.fault_handler = handler_fault,
-        },
+	},
 };
 
-static struct jprobe close_jprobe =
-{
-	.entry = (kprobe_opcode_t *) pre_sys_close,
-	.kp =
-	{
+static struct jprobe close_jprobe = {
+	.entry = (kprobe_opcode_t *)pre_sys_close,
+	.kp = {
 		.symbol_name = "sys_close",
 		.fault_handler = handler_fault,
 	}
 };
 
-static struct kretprobe bind_kretprobe =
-{
+static struct kretprobe bind_kretprobe = {
 	.handler = post_sys_bind,
 	.maxactive = 16 * NR_CPUS,
-        .kp =
-        {
+	.kp = {
 		.symbol_name = "sys_bind",
 		.fault_handler = handler_fault,
-        },
+	},
 };
 
-static struct jprobe bind_jprobe =
-{
-	.entry = (kprobe_opcode_t *) pre_sys_bind,
-	.kp =
-	{
+static struct jprobe bind_jprobe = {
+	.entry = (kprobe_opcode_t *)pre_sys_bind,
+	.kp = {
 		.symbol_name = "sys_bind",
 		.fault_handler = handler_fault,
 	},
@@ -398,7 +381,7 @@ static void unplant_probe_locked(u32 probe) __must_hold(probe_lock)
 	if (removed_probes & ((1 << PROBE_TCP_CLOSE) | (1 << PROBE_UDP_CLOSE))) {
 		if (!(loaded_probes & ((1 << PROBE_TCP_CLOSE) | (1 << PROBE_UDP_CLOSE))))
 			unplant_close();
- 	}
+	}
 	if (removed_probes & (1 << PROBE_UDP_CONNECT))
 		unplant_udp_connect();
 
@@ -481,12 +464,11 @@ static int plant_udp_bind(void) __must_hold(probe_lock)
 	int err;
 
 	err = plant_jprobe(&bind_jprobe);
-	if(err < 0)
+	if (err < 0)
 		return -BIND_PROBE_FAILED;
 
 	err = plant_kretprobe(&bind_kretprobe);
-	if(err < 0)
-	{
+	if (err < 0) {
 		unplant_jprobe(&bind_jprobe);
 		return -BIND_PROBE_FAILED;
 	}
@@ -508,14 +490,14 @@ int plant_probe(u32 probe)
 		if (err)
 			goto unlock;
 		loaded_probes |= 1 << PROBE_TCP_CONNECT;
- 	}
+	}
 
 	if (new_probes & (1 << PROBE_TCP_ACCEPT)) {
 		err = plant_tcp_accept();
 		if (err)
 			goto unlock;
 		loaded_probes |= 1 << PROBE_TCP_ACCEPT;
- 	}
+	}
 
 	if (new_probes & (1 << PROBE_TCP_CLOSE)) {
 		if (!(loaded_probes & (1 << PROBE_UDP_CLOSE))) {
@@ -524,20 +506,20 @@ int plant_probe(u32 probe)
 				goto unlock;
 		}
 		loaded_probes |= 1 << PROBE_TCP_CLOSE;
- 	}
+	}
 	if (new_probes & (1 << PROBE_UDP_CONNECT)) {
 		err = plant_udp_connect();
 		if (err)
 			goto unlock;
 		loaded_probes |= 1 << PROBE_UDP_CONNECT;
- 	}
+	}
 
 	if (new_probes & (1 << PROBE_UDP_BIND)) {
 		err = plant_udp_bind();
 		if (err)
 			goto unlock;
 		loaded_probes |= 1 << PROBE_UDP_BIND;
- 	}
+	}
 
 	if (new_probes & (1 << PROBE_UDP_CLOSE)) {
 		if (!(loaded_probes & (1 << PROBE_TCP_CLOSE))) {
@@ -546,7 +528,7 @@ int plant_probe(u32 probe)
 				goto unlock;
 		}
 		loaded_probes |= 1 << PROBE_UDP_CLOSE;
- 	}
+	}
 
 unlock:
 	spin_unlock_irqrestore(&probe_lock, flags);

@@ -86,27 +86,27 @@ whiterow_from_string(char *str)
 			--slen;
 		if (unlikely(slen <= 0))
 			goto fail;
-		switch(temp) {
-			 case 'i':
-				if (in4_pton(str, slen, new_row->ip.raw, -1, NULL) == 1)
-					new_row->family = AF_INET;
-				else if (in6_pton(str, slen, new_row->ip.raw, -1, NULL) == 1)
-					new_row->family = AF_INET6;
-				else
-					goto fail;
-				break;
-			case 'p':
-				temp = *(str + slen);
-				*(str + slen) = '\0';
-				ret = kstrtoint(str, 0, &new_row->port);
-				*(str + slen) = temp;
-				if (unlikely(ret))
-					goto fail;
-				if (unlikely(new_row->port < 1 || new_row->port > 65535))
-					goto fail;
-				break;
-			default:
+		switch (temp) {
+		case 'i':
+			if (in4_pton(str, slen, new_row->ip.raw, -1, NULL) == 1)
+				new_row->family = AF_INET;
+			else if (in6_pton(str, slen, new_row->ip.raw, -1, NULL) == 1)
+				new_row->family = AF_INET6;
+			else
 				goto fail;
+			break;
+		case 'p':
+			temp = *(str + slen);
+			*(str + slen) = '\0';
+			ret = kstrtoint(str, 0, &new_row->port);
+			*(str + slen) = temp;
+			if (unlikely(ret))
+				goto fail;
+			if (unlikely(new_row->port < 1 || new_row->port > 65535))
+				goto fail;
+			break;
+		default:
+			goto fail;
 		}
 	}
 
@@ -140,7 +140,7 @@ purge_whitelist(void) __must_hold(whitelist_rwlock)
 	struct white_process *current_row;
 	struct white_process *next_row;
 
-	printk(KERN_INFO MODULE_NAME ":\t[+] Cleared whitelist\n");
+	pr_info("\t[+] Cleared whitelist\n");
 
 	current_row = whitelist;
 	while (current_row != NULL) {
@@ -172,13 +172,13 @@ add_whiterow(char *raw) __must_hold(whitelist_rwlock)
 
 	new_row = whiterow_from_string(raw);
 	if (new_row == NULL) {
-		printk(KERN_ERR MODULE_NAME ":\t[-] Failed to whitelist %s\n", raw);
+		pr_err("\t[-] Failed to whitelist %s\n", raw);
 		kfree(new_row);
 	} else if (is_already_whitelisted(new_row)) {
-		printk(KERN_ERR MODULE_NAME ":\t[-] Duplicate whitelist %s\n", raw);
+		pr_err("\t[-] Duplicate whitelist %s\n", raw);
 		kfree(new_row);
 	} else {
-		printk(KERN_INFO MODULE_NAME ":\t[+] Whitelisted %s\n", raw);
+		pr_info("\t[+] Whitelisted %s\n", raw);
 		new_row->next = whitelist;
 		whitelist = new_row;
 	}
@@ -229,8 +229,8 @@ is_whitelisted(const char *path, unsigned short family, const void *ip, int port
 	path_len = strnlen(path, MAX_EXEC_PATH);
 
 	/*Empty or paths greater than our limit are not whitelisted*/
-	if(unlikely(path_len == 0) ||
-	   unlikely(path_len == MAX_EXEC_PATH))
+	if (unlikely(path_len == 0) ||
+	    unlikely(path_len == MAX_EXEC_PATH))
 		return NOT_WHITELISTED;
 
 	/*Check if the execution path and the ip and port are whitelisted*/
@@ -240,21 +240,21 @@ is_whitelisted(const char *path, unsigned short family, const void *ip, int port
 	row = whitelist;
 	while (row != NULL) {
 		if ((row->port == NO_PORT || row->port == port) &&
-		     row->path_len == path_len && (memcmp(row->path, path, path_len) == 0)) {
+		    row->path_len == path_len && (memcmp(row->path, path, path_len) == 0)) {
 			if (row->family == AF_UNSPEC)
 				goto whitelisted;
 			if (row->family == family) {
 				switch (row->family) {
-					case AF_INET:
-						if (memcmp(&row->ip.ip4, ip, sizeof(struct in_addr)) == 0)
-							goto whitelisted;
-						break;
-					case AF_INET6:
-						if (memcmp(&row->ip.ip6, ip, sizeof(struct in6_addr)) == 0)
-							goto whitelisted;
-						break;
-					default:
-						break;
+				case AF_INET:
+					if (memcmp(&row->ip.ip4, ip, sizeof(struct in_addr)) == 0)
+						goto whitelisted;
+					break;
+				case AF_INET6:
+					if (memcmp(&row->ip.ip6, ip, sizeof(struct in6_addr)) == 0)
+						goto whitelisted;
+					break;
+				default:
+					break;
 				}
 			}
 		}
@@ -296,12 +296,12 @@ __releases(whitelist_rwlock)
 }
 
 static void *
-whitelist_file_next (struct seq_file *m, void* v, loff_t *pos)
+whitelist_file_next(struct seq_file *m, void *v, loff_t *pos)
 __must_hold(whitelist_rwlock)
 {
 	struct white_process *row;
 
-	row = (struct white_process*) v;
+	row = (struct white_process *)v;
 	if (unlikely(v == NULL))
 		return NULL;
 	++(*pos);
@@ -315,22 +315,22 @@ __must_hold(whitelist_rwlock)
 	int ret;
 	struct white_process *row;
 
-	row = (struct white_process*) v;
+	row = (struct white_process *)v;
 	if (unlikely(v == NULL))
 		return -1;
 	ret = seq_printf(m, "%.*s", (int) row->path_len, row->path);
 	if (ret != 0)
 		return ret;
-	switch(row->family) {
-		case AF_INET:
-			ret = seq_printf(m, "|i<%pI4>", &row->ip.ip4);
-			break;
-		case AF_INET6:
-			ret = seq_printf(m, "|i<%pI6c>", &row->ip.ip6);
-			break;
-		default:
-			ret = 0;
-			break;
+	switch (row->family) {
+	case AF_INET:
+		ret = seq_printf(m, "|i<%pI4>", &row->ip.ip4);
+		break;
+	case AF_INET6:
+		ret = seq_printf(m, "|i<%pI6c>", &row->ip.ip6);
+		break;
+	default:
+		ret = 0;
+		break;
 	}
 	if (ret != 0)
 		return ret;
@@ -342,7 +342,7 @@ __must_hold(whitelist_rwlock)
 	return seq_putc(m, '\n');
 }
 
-struct seq_operations whitelist_file = {
+const struct seq_operations whitelist_file = {
 	.start = &whitelist_file_start,
 	.next = &whitelist_file_next,
 	.stop = &whitelist_file_stop,

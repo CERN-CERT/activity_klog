@@ -16,11 +16,12 @@
 /* Kernel module information (submitted at the end of the file) */
 /****************************************************************/
 
-#define MOD_AUTHORS "Panos Sakkos <panos.sakkos@cern.ch>, Vincent Brillault <vincent.brillault@cern.ch";
+#define MOD_AUTHORS "Panos Sakkos <panos.sakkos@cern.ch>," \
+		    "Vincent Brillault <vincent.brillault@cern.ch";
 #define MOD_DESC "netlog logs information about every internet connection\n" \
-                 "\t\tfrom and to the machine that is installed. This information\n" \
-                 "\t\tis source/destination ips and ports, process name and pid,\n" \
-                 "\t\tuid and the protocol (TCP/UDP)."
+		 "\t\tfrom and to the machine that is installed. This information\n" \
+		 "\t\tis source/destination ips and ports, process name and pid,\n" \
+		 "\t\tuid and the protocol (TCP/UDP)."
 #define MOD_LICENSE "GPL"
 
 /**********************************/
@@ -34,7 +35,7 @@ MODULE_PARM_DESC(probes, " Integer paramter describing which prbes should be loa
 
 #if WHITELISTING
 
-static int whitelist_length = 0;
+static int whitelist_length;
 static char *connections_to_whitelist[MAX_WHITELIST_SIZE] = {NULL};
 
 module_param_array(connections_to_whitelist, charp, &whitelist_length, 0000);
@@ -50,31 +51,29 @@ static int __init netlog_init(void)
 {
 	int err;
 
-	printk(KERN_INFO MODULE_NAME ": Light monitoring tool for inet connections by CERN Security Team\n");
+	pr_info("Light monitoring tool for inet connections by CERN Security Team\n");
 
 	err = plant_probe(probes);
-	if(err < 0)
-	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Unable to plant all probes\n");
+	if (err < 0) {
+		pr_info("\t[-] Unable to plant all probes\n");
 		unplant_all();
 		return err;
 	}
 
 	err = create_proc();
-	if(err < 0)
-	{
-		printk(KERN_ERR MODULE_NAME ":\t[-] Creation of proc files failed\n");
+	if (err < 0) {
+		pr_info("\t[-] Creation of proc files failed\n");
 		unplant_all();
 		return err;
+	} else {
+		pr_info("\t[+] Created proc files for configuration\n");
 	}
-	else
-		printk(KERN_INFO MODULE_NAME ":\t[+] Created proc files for configuration\n");
 
 #if WHITELISTING
 	set_whitelist_from_array(connections_to_whitelist, whitelist_length);
 #endif
 
-	printk(KERN_INFO MODULE_NAME ":\t[+] Deployed\n");
+	pr_info("\t[+] Deployed\n");
 	return 0;
 }
 
