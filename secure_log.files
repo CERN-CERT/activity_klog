@@ -1,3 +1,4 @@
 %defattr(644,root,root,755)
 /etc/depmod.d/secure_log.conf
 /lib/modules/%2-%1/extra/secure_log
+%{_datadir}/selinux/*/secure_log.pp

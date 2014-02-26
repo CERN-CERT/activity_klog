@@ -26,6 +26,8 @@ dist: clean
 		| gzip > $(NAME)-$(VERSION).tgz
 	@(cd config-src && git archive --format=tar --prefix=config/ $(VERSION)) \
 		| gzip > $(NAME)-config-$(VERSION).tgz
+	@(cd SELinux && git archive --format=tar --prefix=SELinux/ $(VERSION)) \
+		| gzip > $(NAME)-selinux-$(VERSION).tgz
 
 srpm: dist
 	$(rpmbuild) --define "dist $(DIST)" --define "_sourcedir ${PWD}" --define "_srcrpmdir ${PWD}" -bs ${NAME}.spec
