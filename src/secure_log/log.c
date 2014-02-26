@@ -14,7 +14,7 @@ MODULE_DESCRIPTION("Create a new logging device, /dev/"MODULE_NAME);
 MODULE_VERSION("0.2");
 
 static int simple_format;
-module_param(simple_format, int, 0);
+module_param(simple_format, int, 0664);
 MODULE_PARM_DESC(simple_format, "Use a simpler out format than syslog RFC, only valid for new open call on the device\n");
 
 
@@ -652,7 +652,9 @@ secure_log_open(struct inode *inode, struct file *file)
 	mutex_init(&data->lock);
 
 	/* Set the format */
+	kparam_block_sysfs_write(simple_format);
 	data->simple_format = simple_format;
+	kparam_unblock_sysfs_write(simple_format);
 
 	/* Get current state */
 	spin_lock_irqsave(&log_lock, flags);
