@@ -392,8 +392,6 @@ __must_hold(log_lock)
 	size_t remaining = USER_BUFFER_SIZE - len;
 	int change;
 
-	change = snprintf(data + len, remaining, "netlog ");
-	UPDATE_POINTERS(change, remaining, len);
 	change = snprintf(data + len, remaining, "%.*s %s ",
 			  (int)record->path_len, get_netlog_path(record),
 			  netlog_protocol(record));
