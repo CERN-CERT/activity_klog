@@ -119,6 +119,10 @@ do
 done
 /usr/sbin/hardlink -cv %{buildroot}%{_datadir}/selinux
 
+# Udev rule
+mkdir -p  ${RPM_BUILD_ROOT}/etc/udev/rules.d/
+install -m0644 config/secure_log.udev ${RPM_BUILD_ROOT}/etc/udev/rules.d/99-securelog.rules
+
 %post secure_log
 for selinuxvariant in %{selinux_variants}; do
 	/usr/sbin/semodule -s ${selinuxvariant} -i \
