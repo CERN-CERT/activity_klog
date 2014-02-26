@@ -154,6 +154,7 @@ copy_ip(void *dst, const void *src, unsigned short family)
 	}
 }
 
+static const char null_tty[] = "NULL tty";
 
 static inline void
 init_log_header(struct sec_log *record, enum secure_log_type type)
@@ -168,6 +169,8 @@ init_log_header(struct sec_log *record, enum secure_log_type type)
 		record->ppid = 0;
 	record->sid  = task_session_vnr(current);
 	tty_name(current->signal->tty, record->tty);
+	if (memcmp(record->tty, null_tty, sizeof(null_tty) - 1) == 0)
+		record->tty[4] = '\0';
 	record->type = type;
 }
 
