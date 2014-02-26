@@ -1,1 +1,13 @@
 policy_module(secure_log, 0.0.1)
+
+type securelog_device_t;
+dev_node(securelog_device_t)
+
+optional_policy(`
+	gen_require(`
+		type syslogd_t;
+	')
+
+	dev_read_secure_log(syslogd_t)
+
+')
