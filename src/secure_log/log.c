@@ -38,7 +38,8 @@ struct sec_log {
 	size_t len /** Total size of the record, including the strings at the end */;
 	u64 nsec   /** Timestamp of the activity */;
 	pid_t pid  /** PID responsible for the activity */;
-	pid_t sid  /** SID responsible for the activity */;
+	pid_t sid  /** SID of the PID responsible for the activity */;
+	pid_t ppid /** PID of the parent of the PID responsible for the activity */;
 	uid_t uid  /** UID responsible for the activity */;
 	uid_t euid /** EUID responsible for the activity */;
 	uid_t gid  /** GID responsible for the activity */;
@@ -161,6 +162,10 @@ init_log_header(struct sec_log *record, enum secure_log_type type)
 	current_uid_gid(&record->uid, &record->gid);
 	current_euid_egid(&record->euid, &record->egid);
 	record->pid  = current->pid;
+	if (likely(current->real_parent != NULL))
+		record->ppid = current->real_parent->pid;
+	else
+		record->ppid = 0;
 	record->sid  = task_session_vnr(current);
 	tty_name(current->signal->tty, record->tty);
 	record->type = type;
@@ -530,8 +535,8 @@ secure_log_read(struct file *file, char __user *buf, size_t count,
 
 	/* Fill the common header */
 	len += sprintf(data->buf + len,
-			"p:%d, s:%d, u/g:%d/%d, eu/g:%d/%d, t:%s, ",
-			record->pid, record->sid,
+			"p:%d s:%d pp:%d u/g:%d/%d eu/g:%d/%d t:%s ",
+			record->pid, record->sid, record->ppid,
 			record->uid, record->gid,
 			record->euid, record->egid,
 			record->tty);
