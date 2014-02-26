@@ -333,9 +333,9 @@ secure_log_llseek(struct file *file, loff_t offset, int whence)
 	if (unlikely(data == NULL))
 		return -EBADF;
 
-	/* We do not support custom offset */
+	/* Support rsyslog file reader: accept but ignore custom seeks */
 	if (unlikely(offset != 0))
-		return -ESPIPE;
+		return 0;
 
 	/* Set the 'offset' to the desired value */
 	spin_lock_irqsave(&log_lock, flags);
