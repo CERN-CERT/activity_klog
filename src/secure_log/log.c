@@ -11,7 +11,12 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vincent Brillault <vincent.brillault@cern.ch>");
 MODULE_DESCRIPTION("Create a new logging device, /dev/"MODULE_NAME);
-MODULE_VERSION("0.1");
+MODULE_VERSION("0.2");
+
+static int simple_format;
+module_param(simple_format, int, 0);
+MODULE_PARM_DESC(simple_format, "Use a simpler out format than syslog RFC, only valid for new open call on the device\n");
+
 
 /*
  * This kernel module is heavily inspired from linux/kernel/printk.c
@@ -319,6 +324,7 @@ EXPORT_SYMBOL(store_execlog_record);
 struct user_data {
 	u64 log_curr_seq;
 	u32 log_curr_idx;
+	u8  simple_format;
 	struct mutex lock /** Lock when reading (only one read a at time) */;
 	char buf[USER_BUFFER_SIZE];
 };
@@ -562,13 +568,20 @@ secure_log_read(struct file *file, char __user *buf, size_t count,
 	/* Get the current record */
 	record = (struct sec_log *)(log_buf + data->log_curr_idx);
 
-	/* Fill the syslog header */
 	ts = record->nsec;
 	rem_nsec = do_div(ts, 1000000000);
-	len = sprintf(data->buf, "<%u>1 - - %s - - - [%5lu.%06lu]: ",
-			(LOG_FACILITY << 3) | LOG_LEVEL,
-			get_module_name(record->type),
-			(unsigned long)ts, rem_nsec / 1000);
+	if (data->simple_format == 0) {
+		/* Fill the syslog header */
+		len = sprintf(data->buf, "<%u>1 - - %s - - - [%5lu.%06lu]: ",
+			      (LOG_FACILITY << 3) | LOG_LEVEL,
+			      get_module_name(record->type),
+			      (unsigned long)ts, rem_nsec / 1000);
+	} else {
+		/* Use a simpler header */
+		len = sprintf(data->buf, "%s [%5lu.%06lu]: ",
+			      get_module_name(record->type),
+			      (unsigned long)ts, rem_nsec / 1000);
+	}
 
 	len = secure_log_read_fill_record(data->buf, len, record);
 
@@ -637,6 +650,9 @@ secure_log_open(struct inode *inode, struct file *file)
 
 	/* Initialize read mutex */
 	mutex_init(&data->lock);
+
+	/* Set the format */
+	data->simple_format = simple_format;
 
 	/* Get current state */
 	spin_lock_irqsave(&log_lock, flags);
