@@ -13,7 +13,8 @@ Vendor:		CERN, http://cern.ch/linux
 BuildRoot:	%{_tmppath}/%{name}-%{version}-buildroot
 BuildRequires:	sed, redhat-rpm-config
 BuildRequires:	%kernel_module_package_buildreqs
-BuildRequires: hardlink
+BuildRequires:	checkpolicy, selinux-policy-devel
+BuildRequires:	hardlink
 ExclusiveArch:	i686 x86_64
 
 Source0:	%{name}-%{version}.tgz
