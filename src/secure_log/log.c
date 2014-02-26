@@ -474,6 +474,42 @@ get_module_name(enum secure_log_type type)
 	}
 }
 
+static inline size_t
+secure_log_read_fill_record(char *buf, size_t len, struct sec_log *record)
+__must_hold(log_lock)
+{
+	ssize_t ret;
+
+	/* Fill the common header */
+	len += sprintf(buf + len,
+		       "p:%d s:%d pp:%d u/g:%d/%d eu/g:%d/%d t:%s ",
+		       record->pid, record->sid, record->ppid,
+		       record->uid, record->gid,
+		       record->euid, record->egid,
+		       record->tty);
+
+	/* Print the content */
+	switch (record->type) {
+	case LOG_NETWORK_INTERACTION:
+		ret = netlog_print((struct netlog_log *)record, buf, len);
+		break;
+	case LOG_EXECUTION:
+		ret = execlog_print((struct execlog_log *)record, buf, len);
+		break;
+	default:
+		ret = len + sprintf(buf + len, "Unknown entry");
+	}
+	if (ret < 0) {
+		sprintf(buf + (USER_BUFFER_SIZE - 7), "TRUNC");
+		len = USER_BUFFER_SIZE - 2;
+	} else {
+		len = ret;
+	}
+	len += sprintf(buf + len, "\n");
+
+	return len;
+}
+
 static ssize_t
 secure_log_read(struct file *file, char __user *buf, size_t count,
 		loff_t *offset)
@@ -534,33 +570,7 @@ secure_log_read(struct file *file, char __user *buf, size_t count,
 			get_module_name(record->type),
 			(unsigned long)ts, rem_nsec / 1000);
 
-	/* Fill the common header */
-	len += sprintf(data->buf + len,
-			"p:%d s:%d pp:%d u/g:%d/%d eu/g:%d/%d t:%s ",
-			record->pid, record->sid, record->ppid,
-			record->uid, record->gid,
-			record->euid, record->egid,
-			record->tty);
-
-	/* Print the content */
-	switch (record->type) {
-	case LOG_NETWORK_INTERACTION:
-		ret = netlog_print((struct netlog_log *)record, data->buf, len);
-		break;
-	case LOG_EXECUTION:
-		ret = execlog_print((struct execlog_log *)record,
-				data->buf, len);
-		break;
-	default:
-		ret = len + sprintf(data->buf + len, "Unknown entry");
-	}
-	if (ret < 0) {
-		sprintf(data->buf + (USER_BUFFER_SIZE - 7), "TRUNC");
-		len = USER_BUFFER_SIZE - 2;
-	} else {
-		len = ret;
-	}
-	len += sprintf(data->buf + len, "\n");
+	len = secure_log_read_fill_record(data->buf, len, record);
 
 	/* Prepare for next iteration */
 	data->log_curr_idx = next_record(data->log_curr_idx);
