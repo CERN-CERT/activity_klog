@@ -102,7 +102,7 @@ static DECLARE_WAIT_QUEUE_HEAD(log_wait);
 static char first_read = 1;
 
 /* Device identifiers */
-struct device *dev;
+static struct device *dev;
 static dev_t secure_dev;
 static struct cdev secure_c_dev;
 static struct class *secure_class;
