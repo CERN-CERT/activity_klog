@@ -3,7 +3,7 @@
 
 Name:		activity_klog
 Version:	2.1
-Release:	1%{?dist}
+Release:	2%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
@@ -147,6 +147,11 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Wed Feb 26 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.1_rc2
+- Add SELinux support
+- Add Rsyslog support for secure_log (simpler format)
+- Bugfixes
+
 * Tue Jan 07 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.1_rc1
 - Import of a major rewrite from fork github.com/Feandil
 - Rewrite of spec file (multiple packages)
