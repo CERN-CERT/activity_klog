@@ -163,12 +163,12 @@ destroy_whitelist(void)
 	write_unlock_irqrestore(&whitelist_rwlock, flags);
 }
 
-static void
-add_whiterow(char *raw) __must_hold(whitelist_rwlock)
+static struct white_process *
+add_whiterow(struct white_process *last, char *raw) __must_hold(whitelist_rwlock)
 {
 	struct white_process *new_row;
 	if (raw == NULL)
-		return;
+		return last;
 
 	new_row = whiterow_from_string(raw);
 	if (new_row == NULL) {
@@ -179,9 +179,14 @@ add_whiterow(char *raw) __must_hold(whitelist_rwlock)
 		kfree(new_row);
 	} else {
 		pr_info("\t[+] Whitelisted %s\n", raw);
-		new_row->next = whitelist;
-		whitelist = new_row;
+		if (last == NULL)
+			whitelist = new_row;
+		else
+			last->next = new_row;
+		new_row->next = NULL;
+		last = new_row;
 	}
+	return last;
 }
 
 void
@@ -189,13 +194,14 @@ set_whitelist_from_array(char **raw_array, int raw_len)
 {
 	int i;
 	unsigned long flags;
+	struct white_process *last = NULL;
 
 	write_lock_irqsave(&whitelist_rwlock, flags);
 
 	purge_whitelist();
 
 	for (i = 0; i < raw_len; ++i)
-		add_whiterow(raw_array[i]);
+		last = add_whiterow(last, raw_array[i]);
 
 	write_unlock_irqrestore(&whitelist_rwlock, flags);
 }
@@ -207,6 +213,7 @@ set_whitelist_from_string(char *raw_list)
 {
 	char *raw;
 	unsigned long flags;
+	struct white_process *last = NULL;
 
 	write_lock_irqsave(&whitelist_rwlock, flags);
 
@@ -214,7 +221,7 @@ set_whitelist_from_string(char *raw_list)
 
 	while ((raw = strsep(&raw_list, list_delims)) != NULL)
 		if (likely(*raw != '\0' && *raw != '\n'))
-			add_whiterow(raw);
+			last = add_whiterow(last, raw);
 
 	write_unlock_irqrestore(&whitelist_rwlock, flags);
 }
