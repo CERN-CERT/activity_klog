@@ -322,7 +322,7 @@ int create_proc(void)
 	netlog_whitelist_file->uid = 0;
 	netlog_whitelist_file->gid = 0;
   #else
-	proc_set_user(netlog_whitelist_file, 0, 0);
+	proc_set_user(netlog_whitelist_file, KUIDT_INIT(0), KGIDT_INIT(0));
   #endif
 #endif /* WHITELISTING */
 
