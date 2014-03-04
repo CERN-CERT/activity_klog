@@ -34,13 +34,15 @@ module_param(probes, int, 0);
 MODULE_PARM_DESC(probes, " Integer paramter describing which prbes should be loaded\n");
 
 #if WHITELISTING
-
-static int whitelist_length;
-static char *connections_to_whitelist[MAX_WHITELIST_SIZE] = {NULL};
-
-module_param_array(connections_to_whitelist, charp, &whitelist_length, 0000);
-MODULE_PARM_DESC(connections_to_whitelist, " An array of strings that contains the connections that " MODULE_NAME " will ignore.\n"
-					    "\t\tThe format of the string must be '/absolute/executable/path ip_address-port'");
+# if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+module_param_call(whitelist, &whitelist_param_set, &whitelist_param_get, NULL, 0600);
+# else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+module_param_cb(whitelist, &whitelist_param, NULL, 0600);
+# endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
+MODULE_PARM_DESC(whitelist, " A coma separated list of strings that contains"
+		 " the connections that " MODULE_NAME " will ignore.\n"
+		 " The format of the string must be '${executable}|i<${ip}>|<${port}>'."
+		 " The ip and port parts are optional.");
 #endif
 
 /************************************/
@@ -68,10 +70,6 @@ static int __init netlog_init(void)
 	} else {
 		pr_info("\t[+] Created proc files for configuration\n");
 	}
-
-#if WHITELISTING
-	set_whitelist_from_array(connections_to_whitelist, whitelist_length);
-#endif
 
 	pr_info("\t[+] Deployed\n");
 	return 0;

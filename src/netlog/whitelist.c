@@ -1,5 +1,6 @@
 #include <net/ip.h>
 #include <linux/mm.h>
+#include <linux/moduleparam.h>
 #include <linux/version.h>
 #include <linux/inet.h>
 #include <linux/err.h>
@@ -206,25 +207,6 @@ set_whitelist_from_array(char **raw_array, int raw_len)
 	write_unlock_irqrestore(&whitelist_rwlock, flags);
 }
 
-static const char *list_delims = ",\n";
-
-void
-set_whitelist_from_string(char *raw_list)
-{
-	char *raw;
-	unsigned long flags;
-	struct white_process *last = NULL;
-
-	write_lock_irqsave(&whitelist_rwlock, flags);
-
-	purge_whitelist();
-
-	while ((raw = strsep(&raw_list, list_delims)) != NULL)
-		if (likely(*raw != '\0' && *raw != '\n'))
-			last = add_whiterow(last, raw);
-
-	write_unlock_irqrestore(&whitelist_rwlock, flags);
-}
 
 int
 is_whitelisted(const char *path, unsigned short family, const void *ip, int port)
@@ -278,80 +260,127 @@ whitelisted:
 	return WHITELISTED;
 }
 
-static void *
-whitelist_file_start(struct seq_file *m, loff_t *pos)
-__acquires(whitelist_rwlock)
-{
-	struct white_process *row;
-	loff_t curr_pos;
+static const char *list_delims = ",\n";
 
-	read_lock(&whitelist_rwlock);
-	row = whitelist;
-	curr_pos = 0;
-	while ((curr_pos < *pos) && row != NULL) {
-		row = row->next;
-		++curr_pos;
-	}
-	return row;
-}
-
-static void
-whitelist_file_stop(struct seq_file *m, void *v)
-__releases(whitelist_rwlock)
-{
-	read_unlock(&whitelist_rwlock);
-}
-
-static void *
-whitelist_file_next(struct seq_file *m, void *v, loff_t *pos)
-__must_hold(whitelist_rwlock)
-{
-	struct white_process *row;
-
-	row = (struct white_process *)v;
-	if (unlikely(v == NULL))
-		return NULL;
-	++(*pos);
-	return row->next;
-}
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+int
+whitelist_param_set(const char *buf, struct kernel_param *kp)
+#else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
 static int
-whitelist_file_show(struct seq_file *m, void *v)
+whitelist_param_set(const char *buf, const struct kernel_param *kp)
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
+{
+	char *raw_orig;
+	char *raw;
+	unsigned long flags;
+	struct white_process *last = NULL;
+
+	raw_orig = kstrdup(buf, GFP_KERNEL);
+
+	write_lock_irqsave(&whitelist_rwlock, flags);
+
+	purge_whitelist();
+
+	if (unlikely(buf == NULL))
+		goto unlock;
+
+	while ((raw = strsep(&raw_orig, list_delims)) != NULL)
+		if (likely(*raw != '\0' && *raw != '\n'))
+			last = add_whiterow(last, raw);
+
+unlock:
+	write_unlock_irqrestore(&whitelist_rwlock, flags);
+	kfree(raw_orig);
+	return 0;
+}
+
+#define VERIFY_SNPRINTF(buf, remaining, change)	\
+do {						\
+	if (change == 0) {			\
+		/* Nothing written ! */		\
+		return NULL;			\
+	}					\
+	buf += change;				\
+	remaining -= change;			\
+} while (0)
+
+static char *
+whitelist_print(struct white_process *row, char * buf, size_t *avail)
 __must_hold(whitelist_rwlock)
 {
 	int ret;
-	struct white_process *row;
+	int rem = *avail;
 
-	row = (struct white_process *)v;
-	if (unlikely(v == NULL))
-		return -1;
-	ret = seq_printf(m, "%.*s", (int) row->path_len, row->path);
-	if (ret != 0)
-		return ret;
+	ret = scnprintf(buf, rem, "%.*s", (int) row->path_len, row->path);
+	VERIFY_SNPRINTF(buf, rem, ret);
 	switch (row->family) {
 	case AF_INET:
-		ret = seq_printf(m, "|i<%pI4>", &row->ip.ip4);
+		ret = scnprintf(buf, rem, "|i<%pI4>", &row->ip.ip4);
+		VERIFY_SNPRINTF(buf, rem, ret);
 		break;
 	case AF_INET6:
-		ret = seq_printf(m, "|i<%pI6c>", &row->ip.ip6);
+		ret = scnprintf(buf, rem, "|i<%pI6c>", &row->ip.ip6);
+		VERIFY_SNPRINTF(buf, rem, ret);
 		break;
 	default:
 		ret = 0;
 		break;
 	}
-	if (ret != 0)
-		return ret;
 	if (row->port != NO_PORT) {
-		ret = seq_printf(m, "|p<%d>", row->port);
-		if (ret != 0)
-			return ret;
+		ret = scnprintf(buf, rem, "|p<%d>", row->port);
+		VERIFY_SNPRINTF(buf, rem, ret);
 	}
-	return seq_putc(m, '\n');
+	ret = scnprintf(buf, rem, ",");
+	VERIFY_SNPRINTF(buf, rem, ret);
+	*avail = rem;
+	return buf;
 }
 
-const struct seq_operations whitelist_file = {
-	.start = &whitelist_file_start,
-	.next = &whitelist_file_next,
-	.stop = &whitelist_file_stop,
-	.show = &whitelist_file_show
+static const char whitelist_overflow[] = "!!OVERFLOW!!";
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+int
+whitelist_param_get(char *buffer, struct kernel_param *kp)
+#else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+static int
+whitelist_param_get(char *buffer, const struct kernel_param *kp)
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
+{
+	struct white_process *row;
+	char *last;
+	char *tmp;
+	/* fs/sysfs/file.c indicate that max size is PAGE_SIZE (minus trailing space) */
+	size_t available = PAGE_SIZE - 1;
+
+	read_lock(&whitelist_rwlock);
+
+	last = buffer;
+	row = whitelist;
+	while (row != NULL) {
+		tmp = whitelist_print(row, last, &available);
+		if (tmp == NULL) {
+			if (available < sizeof(whitelist_overflow) - 1)
+				last = buffer + (PAGE_SIZE - sizeof(whitelist_overflow));
+			last += scnprintf(buffer, sizeof(whitelist_overflow) - 1, "%s", whitelist_overflow);
+			goto done;
+		}
+		last = tmp;
+		row = row->next;
+	}
+
+	if (last > buffer) {
+		--last;
+		*last = '\0';
+	}
+done:
+	read_unlock(&whitelist_rwlock);
+
+	return (last - buffer);
+}
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36)
+const struct kernel_param_ops whitelist_param = {
+	.set = whitelist_param_set,
+	.get = whitelist_param_get,
 };
+#endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
