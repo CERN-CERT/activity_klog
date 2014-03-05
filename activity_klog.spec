@@ -2,7 +2,7 @@
 %define debug_package %{nil}
 
 Name:		activity_klog
-Version:	2.1
+Version:	2.2
 Release:	2%{?dist}
 
 Summary:	Kernel modules for logging various user activity
@@ -147,6 +147,9 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Wed Mar 05 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.1_rc2
+- Replace procfs folders/files by kernel modules parameters
+
 * Wed Feb 26 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.1_rc2
 - Add SELinux support
 - Add Rsyslog support for secure_log (simpler format)
