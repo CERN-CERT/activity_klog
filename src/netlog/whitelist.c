@@ -6,7 +6,6 @@
 #include <linux/err.h>
 #include <linux/spinlock.h>
 #include "whitelist.h"
-#include "proc_config.h"
 #include "netlog.h"
 #include "internal.h"
 #include "retro-compat.h"

@@ -7,7 +7,6 @@
 #include <linux/syscalls.h>
 #include <linux/kallsyms.h>
 #include "whitelist.h"
-#include "proc_config.h"
 #include "probes.h"
 #include "internal.h"
 #include "netlog.h"
@@ -28,10 +27,29 @@
 /*      MODULE PARAMETERS         */
 /**********************************/
 
-static int probes = DEFAULT_PROBES;
+# if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+module_param_call(probes, &all_probes_param_set, &all_probes_param_get, NULL, 0600);
+# else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+module_param_cb(probes, &all_probes_param, NULL, 0600);
+# endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
+MODULE_PARM_DESC(probes, " Integer paramter describing which probes should be loaded\n");
 
-module_param(probes, int, 0);
-MODULE_PARM_DESC(probes, " Integer paramter describing which prbes should be loaded\n");
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+# define DEFINE_PROBE_PARAM(name, pos)									\
+module_param_call(probe_##name, &one_probe_param_set, &one_probe_param_get, probe_list + pos, 0600);	\
+MODULE_PARM_DESC(probe_##name, " Integer paramter describing which probes should be loaded\n");
+#else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+# define DEFINE_PROBE_PARAM(name, pos)									\
+module_param_cb(probe_##name, &one_probe_param, probe_list + pos, 0600);				\
+MODULE_PARM_DESC(probe_##name, " Integer paramter describing which probes should be loaded\n");
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
+
+DEFINE_PROBE_PARAM(tcp_connect, 0)
+DEFINE_PROBE_PARAM(tcp_accept,  1)
+DEFINE_PROBE_PARAM(tcp_close,   2)
+DEFINE_PROBE_PARAM(udp_connect, 3)
+DEFINE_PROBE_PARAM(udp_bind,    4)
+DEFINE_PROBE_PARAM(udp_close,   5)
 
 #if WHITELISTING
 # if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
@@ -51,28 +69,19 @@ MODULE_PARM_DESC(whitelist, " A coma separated list of strings that contains"
 
 static int __init netlog_init(void)
 {
-	int err;
+	int ret;
 
 	pr_info("Light monitoring tool for inet connections by CERN Security Team\n");
 
-	err = plant_probe(probes);
-	if (err < 0) {
-		pr_info("\t[-] Unable to plant all probes\n");
+	ret = probes_init();
+	if (ret != 0) {
 		unplant_all();
-		return err;
+#if WHITELISTING
+		destroy_whitelist();
+#endif
 	}
 
-	err = create_proc();
-	if (err < 0) {
-		pr_info("\t[-] Creation of proc files failed\n");
-		unplant_all();
-		return err;
-	} else {
-		pr_info("\t[+] Created proc files for configuration\n");
-	}
-
-	pr_info("\t[+] Deployed\n");
-	return 0;
+	return ret;
 }
 
 /************************************/
@@ -81,7 +90,6 @@ static int __init netlog_init(void)
 
 static void __exit netlog_exit(void)
 {
-	destroy_proc();
 	unplant_all();
 
 #if WHITELISTING

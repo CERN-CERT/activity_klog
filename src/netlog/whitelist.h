@@ -1,6 +1,7 @@
 #ifndef __NETLOG_WHITELIST__
 #define __NETLOG_WHITELIST__
 
+#include <linux/moduleparam.h>
 #include <linux/sched.h>
 #include <linux/version.h>
 

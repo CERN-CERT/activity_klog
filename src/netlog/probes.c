@@ -24,9 +24,18 @@
 /*          Variables           */
 /********************************/
 
-static u32 loaded_probes = 0;
+static u8 initialized;
+static u32 loaded_probes;
 static DEFINE_SPINLOCK(probe_lock);
 
+struct probes probe_list[] = {
+        { "tcp_connect", 1 << PROBE_TCP_CONNECT },
+        { "tcp_accept",  1 << PROBE_TCP_ACCEPT},
+        { "tcp_close",   1 << PROBE_TCP_CLOSE},
+        { "udp_connect", 1 << PROBE_UDP_CONNECT},
+        { "udp_bind",    1 << PROBE_UDP_BIND},
+        { "udp_close",   1 << PROBE_UDP_CLOSE},
+};
 
 /********************************/
 /*            Tools             */
@@ -365,11 +374,10 @@ static void unplant_udp_bind(void) __must_hold(probe_lock)
 	unplant_kretprobe(&bind_kretprobe);
 }
 
-static void unplant_probe_locked(u32 probe) __must_hold(probe_lock)
+static void
+unplant_probes(u32 removed_probes)
+__must_hold(probe_lock)
 {
-	u32 removed_probes;
-
-	removed_probes = loaded_probes & probe;
 	loaded_probes ^= removed_probes;
 
 	if (removed_probes & (1 << PROBE_TCP_CONNECT))
@@ -389,18 +397,15 @@ static void unplant_probe_locked(u32 probe) __must_hold(probe_lock)
 		unplant_udp_bind();
 }
 
-void unplant_probe(u32 probe)
+void unplant_all(void)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&probe_lock, flags);
-	unplant_probe_locked(probe);
-	spin_unlock_irqrestore(&probe_lock, flags);
-}
 
-void unplant_all(void)
-{
-	unplant_probe((1 << (PROBES_NUMBER + 1)) - 1);
+	unplant_probes(loaded_probes);
+
+	spin_unlock_irqrestore(&probe_lock, flags);
 }
 
 static int plant_tcp_connect(void) __must_hold(probe_lock)
@@ -476,26 +481,23 @@ static int plant_udp_bind(void) __must_hold(probe_lock)
 	return 0;
 }
 
-int plant_probe(u32 probe)
+static int
+plant_probes(u32 new_probes)
+__must_hold(&probe_lock)
 {
-	unsigned long flags;
-	u32 new_probes;
 	int err = 0;
-
-	spin_lock_irqsave(&probe_lock, flags);
-	new_probes = (probe ^ loaded_probes) & probe;
 
 	if (new_probes & (1 << PROBE_TCP_CONNECT)) {
 		err = plant_tcp_connect();
 		if (err)
-			goto unlock;
+			return err;
 		loaded_probes |= 1 << PROBE_TCP_CONNECT;
 	}
 
 	if (new_probes & (1 << PROBE_TCP_ACCEPT)) {
 		err = plant_tcp_accept();
 		if (err)
-			goto unlock;
+			return err;
 		loaded_probes |= 1 << PROBE_TCP_ACCEPT;
 	}
 
@@ -503,21 +505,21 @@ int plant_probe(u32 probe)
 		if (!(loaded_probes & (1 << PROBE_UDP_CLOSE))) {
 			err = plant_close();
 			if (err)
-				goto unlock;
+				return err;
 		}
 		loaded_probes |= 1 << PROBE_TCP_CLOSE;
 	}
 	if (new_probes & (1 << PROBE_UDP_CONNECT)) {
 		err = plant_udp_connect();
 		if (err)
-			goto unlock;
+			return err;
 		loaded_probes |= 1 << PROBE_UDP_CONNECT;
 	}
 
 	if (new_probes & (1 << PROBE_UDP_BIND)) {
 		err = plant_udp_bind();
 		if (err)
-			goto unlock;
+			return err;
 		loaded_probes |= 1 << PROBE_UDP_BIND;
 	}
 
@@ -525,23 +527,179 @@ int plant_probe(u32 probe)
 		if (!(loaded_probes & (1 << PROBE_TCP_CLOSE))) {
 			err = plant_close();
 			if (err)
-				goto unlock;
+				return err;
 		}
 		loaded_probes |= 1 << PROBE_UDP_CLOSE;
 	}
 
-unlock:
-	spin_unlock_irqrestore(&probe_lock, flags);
 	return err;
 }
 
-int probe_status(u32 probe)
+/***********************************************/
+/*               ""Initializer""               */
+/***********************************************/
+
+/*
+ * The following function only do something if initialized != 0
+ * i.e if no parameter was set (yet)
+*/
+
+int
+probes_init(void)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&probe_lock, flags);
+	if (initialized != 0) {
+		ret = plant_probes(DEFAULT_PROBES);
+		if (ret >= 0)
+			initialized = 1;
+	}
+	spin_unlock_irqrestore(&probe_lock, flags);
+
+	return ret;
+}
+
+/***********************************************/
+/*     GETTER/SETTER for module parameters     */
+/***********************************************/
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+int
+all_probes_param_set(const char *buf, struct kernel_param *kp)
+#else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+static int
+all_probes_param_set(const char *buf, const struct kernel_param *kp)
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
+{
+	unsigned long flags;
+	u32 probes_to_add;
+	u32 probes_to_remove;
+	unsigned long wanted_probes;
+	int ret;
+
+	ret = kstrtoul(buf, 0, &wanted_probes);
+	if (ret < 0)
+		return ret;
+
+	spin_lock_irqsave(&probe_lock, flags);
+
+	if (initialized != 0) {
+		ret = plant_probes(DEFAULT_PROBES);
+		if (ret < 0)
+			goto fail;
+		initialized = 1;
+	}
+
+	probes_to_add = wanted_probes & (~loaded_probes);
+	probes_to_remove = (~wanted_probes) & loaded_probes;
+
+	unplant_probes(probes_to_remove);
+	ret = plant_probes(probes_to_add);
+
+fail:
+	spin_unlock_irqrestore(&probe_lock, flags);
+	return ret;
+}
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+int
+all_probes_param_get(char *buffer, struct kernel_param *kp)
+#else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+static int
+all_probes_param_get(char *buffer, const struct kernel_param *kp)
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
 {
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&probe_lock, flags);
-	ret = !!(probe & loaded_probes);
+        spin_lock_irqsave(&probe_lock, flags);
+	ret = scnprintf(buffer, PAGE_SIZE, "%x", loaded_probes);
+	spin_unlock_irqrestore(&probe_lock, flags);
+
+	return ret;
+}
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36)
+const struct kernel_param_ops all_probes_param = {
+        .set = all_probes_param_set,
+        .get = all_probes_param_get,
+};
+#endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+int
+one_probe_param_set(const char *buf, struct kernel_param *kp)
+#else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+static int
+one_probe_param_set(const char *buf, const struct kernel_param *kp)
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
+{
+	unsigned long flags;
+	unsigned long value;
+	int ret;
+	struct probes *probe;
+
+	probe = (struct probes*)kp->arg;
+	if (unlikely(probe == NULL))
+		return -EBADF;
+
+	ret = kstrtoul(buf, 0, &value);
+	if (ret < 0)
+		return ret;
+	ret = 0;
+
+        spin_lock_irqsave(&probe_lock, flags);
+
+	if (initialized != 0) {
+		ret = plant_probes(DEFAULT_PROBES);
+		if (ret < 0)
+			goto fail;
+		initialized = 1;
+	}
+
+	if (value) {
+		if (probe->mask & (~loaded_probes))
+			ret = plant_probes(probe->mask);
+	} else {
+		if (probe->mask &loaded_probes)
+			unplant_probes(probe->mask);
+	}
+
+fail:
 	spin_unlock_irqrestore(&probe_lock, flags);
 	return ret;
 }
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+int
+one_probe_param_get(char *buffer, struct kernel_param *kp)
+#else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+static int
+one_probe_param_get(char *buffer, const struct kernel_param *kp)
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
+{
+	unsigned long flags;
+	int ret;
+	struct probes *probe;
+
+	probe = (struct probes*)kp->arg;
+	if (unlikely(probe == NULL))
+		return -EBADF;
+
+        spin_lock_irqsave(&probe_lock, flags);
+	ret = scnprintf(buffer, PAGE_SIZE, "%i", !!(probe->mask & loaded_probes));
+	spin_unlock_irqrestore(&probe_lock, flags);
+
+	return ret;
+}
+
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36)
+const struct kernel_param_ops one_probe_param = {
+        .set = one_probe_param_set,
+        .get = one_probe_param_get,
+};
+#endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
