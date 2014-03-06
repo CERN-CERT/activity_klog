@@ -150,7 +150,7 @@ rm -rf $RPM_BUILD_ROOT
 #* NEXT Vincent Brillault <vincent.brillault@cern.ch> NEXT
 #- Fix specfile (loading wrong module)
 
-* Wed Mar 05 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.1_rc2
+* Wed Mar 05 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.2_rc1
 - Replace procfs folders/files by kernel modules parameters
 
 * Wed Feb 26 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.1_rc2
