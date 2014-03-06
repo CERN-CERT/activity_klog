@@ -3,7 +3,7 @@
 
 Name:		activity_klog
 Version:	2.2
-Release:	2%{?dist}
+Release:	3%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
@@ -127,7 +127,7 @@ install -m0644 config/secure_log.udev ${RPM_BUILD_ROOT}/etc/udev/rules.d/99-secu
 %post secure_log
 for selinuxvariant in %{selinux_variants}; do
 	/usr/sbin/semodule -s ${selinuxvariant} -i \
-		%{_datadir}/selinux/${selinuxvariant}/mymodule.pp &> /dev/null || :
+		%{_datadir}/selinux/${selinuxvariant}/secure_log.pp &> /dev/null || :
 done
 
 %post netlog
@@ -139,7 +139,7 @@ ${RPM_BUILD_ROOT}/etc/sysconfig/modules/execlog.modules
 %postun secure_log
 if [ $1 -eq 0 ] ; then
 	for selinuxvariant in %{selinux_variants}; do
-		/usr/sbin/semodule -s ${selinuxvariant} -r mymodule &> /dev/null || :
+		/usr/sbin/semodule -s ${selinuxvariant} -r secure_log &> /dev/null || :
 	done
 fi
 
@@ -147,6 +147,9 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+#* NEXT Vincent Brillault <vincent.brillault@cern.ch> NEXT
+#- Fix specfile (loading wrong module)
+
 * Wed Mar 05 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.1_rc2
 - Replace procfs folders/files by kernel modules parameters
 
