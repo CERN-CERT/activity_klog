@@ -35,13 +35,16 @@ Source5:	execlog.files
 %description
 %{name} is a collection of Loadable Kernel Modules for logging various user activity
 
-%package secure_log
-Summary:	Kernel module creating a new logging device
+%package -n secure_log-selinux
+Summary:	Selinux module for secure_log kernel module
 Group:		System Environment/Kernel
+Requires:	selinux-policy
+Requires(post):	/usr/sbin/semodule, /sbin/restorecon, /sbin/fixfiles
+Requires(postun):	/usr/sbin/semodule, /sbin/restorecon, /sbin/fixfiles
 
-%description secure_log
-secure_log is a Loadable Kernel Module that create a new logging device
-It enables other modules to produce logs that will not go through the standard log device.
+%description -n secure_log-selinux
+Simple selinux policy for kmod-secure_log
+It allows syslogd to read directly from the newly created device
 
 %prep
 %setup -q
@@ -108,13 +111,19 @@ done
 mkdir -p  ${RPM_BUILD_ROOT}/etc/udev/rules.d/
 install -m0644 config/secure_log.udev ${RPM_BUILD_ROOT}/etc/udev/rules.d/99-securelog.rules
 
-%post secure_log
+%files -n secure_log-selinux
+%defattr(644,root,root,755)
+%{_datadir}/selinux/*/secure_log.pp
+/etc/udev/rules.d/99-securelog.rules
+
+%post -n secure_log-selinux
 for selinuxvariant in %{selinux_variants}; do
 	/usr/sbin/semodule -s ${selinuxvariant} -i \
 		%{_datadir}/selinux/${selinuxvariant}/secure_log.pp &> /dev/null || :
 done
+[ -c /dev/secure_log ] && /sbin/restorecon /dev/secure_log
 
-%postun secure_log
+%postun -n secure_log-selinux
 if [ $1 -eq 0 ] ; then
 	for selinuxvariant in %{selinux_variants}; do
 		/usr/sbin/semodule -s ${selinuxvariant} -r secure_log &> /dev/null || :
@@ -127,6 +136,7 @@ rm -rf $RPM_BUILD_ROOT
 %changelog
 #* NEXT Vincent Brillault <vincent.brillault@cern.ch> NEXT
 #- Fix specfile (loading wrong module, cleaning)
+#- Create a dedicated package for selinux
 
 * Wed Mar 05 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.2_rc1
 - Replace procfs folders/files by kernel modules parameters
