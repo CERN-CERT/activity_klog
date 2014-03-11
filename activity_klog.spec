@@ -43,22 +43,6 @@ Group:		System Environment/Kernel
 secure_log is a Loadable Kernel Module that create a new logging device
 It enables other modules to produce logs that will not go through the standard log device.
 
-%package netlog
-Summary:	Kernel module for logging network connections details
-Group:		System Environment/Kernel
-Requires:	kmod-secure_log
-
-%description netlog
-netlog is a Loadable Kernel Module that logs information for every connection.
-
-%package execlog
-Summary:	Kernel module for logging file execution details
-Group:		System Environment/Kernel
-Requires:	kmod-secure_log
-
-%description execlog
-Execlog is a Loadable Kernel Module that logs information for every file execution.
-
 %prep
 %setup -q
 set -- *
@@ -130,12 +114,6 @@ for selinuxvariant in %{selinux_variants}; do
 		%{_datadir}/selinux/${selinuxvariant}/secure_log.pp &> /dev/null || :
 done
 
-%post netlog
-${RPM_BUILD_ROOT}/etc/sysconfig/modules/netlog.modules
-
-%post execlog
-${RPM_BUILD_ROOT}/etc/sysconfig/modules/execlog.modules
-
 %postun secure_log
 if [ $1 -eq 0 ] ; then
 	for selinuxvariant in %{selinux_variants}; do
@@ -148,7 +126,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %changelog
 #* NEXT Vincent Brillault <vincent.brillault@cern.ch> NEXT
-#- Fix specfile (loading wrong module)
+#- Fix specfile (loading wrong module, cleaning)
 
 * Wed Mar 05 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.2_rc1
 - Replace procfs folders/files by kernel modules parameters
