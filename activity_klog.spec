@@ -8,7 +8,7 @@ Release:	3%{?dist}
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
 License:	GPLv2+
-URL:		http://github.com/Feandil/activity_klog
+URL:		http://github.com/CERN-CERT/activity_klog
 Vendor:		CERN, http://cern.ch/linux
 BuildRoot:	%{_tmppath}/%{name}-%{version}-buildroot
 BuildRequires:	sed, redhat-rpm-config
