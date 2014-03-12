@@ -23,9 +23,10 @@ Source2:	%{name}-selinux-%{version}.tgz
 Source3:	secure_log.files
 Source4:	netlog.files
 Source5:	execlog.files
+Source6:	secure_log.preamble
 
 # Build only for standard kernel variant(s)
-%kernel_module_package -f %{SOURCE3} -n secure_log default
+%kernel_module_package -f %{SOURCE3} -p %{SOURCE6} -n secure_log default
 %kernel_module_package -f %{SOURCE4} -n netlog default
 %kernel_module_package -f %{SOURCE5} -n execlog default
 
@@ -136,7 +137,7 @@ rm -rf $RPM_BUILD_ROOT
 %changelog
 #* NEXT Vincent Brillault <vincent.brillault@cern.ch> NEXT
 #- Fix specfile (loading wrong module, cleaning)
-#- Create a dedicated package for selinux
+#- Create a dedicated package for selinux, depend on it
 
 * Wed Mar 05 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.2_rc1
 - Replace procfs folders/files by kernel modules parameters
