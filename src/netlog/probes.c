@@ -583,7 +583,7 @@ all_probes_param_set(const char *buf, const struct kernel_param *kp)
 	unsigned long wanted_probes;
 	int ret;
 
-	ret = kstrtoul(buf, 0, &wanted_probes);
+	ret = kstrtoul(buf, 16, &wanted_probes);
 	if (ret < 0)
 		return ret;
 
