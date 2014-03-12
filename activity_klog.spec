@@ -3,7 +3,7 @@
 
 Name:		activity_klog
 Version:	2.2
-Release:	3%{?dist}
+Release:	5%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
@@ -135,9 +135,11 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
-#* NEXT Vincent Brillault <vincent.brillault@cern.ch> NEXT
-#- Fix specfile (loading wrong module, cleaning)
-#- Create a dedicated package for selinux, depend on it
+* Wed Mar 12 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.2_rc2
+- Fix specfile (loading wrong module, cleaning)
+- Create a dedicated package for selinux, depend on it
+- Adapt netlog to linux 3.13
+- Only accept hexadecimal for 'probes' parameter
 
 * Wed Mar 05 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.2_rc1
 - Replace procfs folders/files by kernel modules parameters
