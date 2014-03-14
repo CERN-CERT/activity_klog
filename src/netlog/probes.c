@@ -37,6 +37,22 @@ struct probes probe_list[] = {
         { "udp_close",   1 << PROBE_UDP_CLOSE},
 };
 
+#ifdef CONFIG_X86
+#ifdef CONFIG_X86_64
+/* Calling conventions: RDI, RSI, RDX */
+#define GET_ARG_1(regs) regs->di
+#define GET_ARG_2(regs) regs->si
+#define GET_ARG_3(regs) regs->dx
+#else /* !CONFIG_X86_64 */
+/* Calling conventions: AX, DX, BX */
+#define GET_ARG_1(regs) regs->ax
+#define GET_ARG_2(regs) regs->dx
+#define GET_ARG_3(regs) regs->bx
+#endif /* CONFIG_X86_64 ? */
+#else
+#error Unsupported architecture
+#endif
+
 /********************************/
 /*            Tools             */
 /********************************/
@@ -115,28 +131,25 @@ static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 /*           PROBES               */
 /**********************************/
 
-/* Some of the probes are grouped by 2: one probe before the syscall and one afterwards.
- * In those cases the socket file descriptor is only complete after the call and only available before the call.
- * A single process (thread) can be in a single system call at a time
- * because when a system call is called, the process is suspended until its end of execution.
- */
+struct probe_data {
+	struct socket *sock;
+};
 
-static struct socket *match_socket[PID_MAX_LIMIT] = {NULL};
-
-static int pre_inet_stream_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
+static int pre_handler_store_sock(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	if (likely(current != NULL))
-		match_socket[current->pid] = sock;
+	struct probe_data *priv = (struct probe_data*)ri->data;
 
-	jprobe_return();
-	return 0;
+	if (likely(current != NULL)) {
+		priv->sock = (struct socket*)GET_ARG_1(regs);
+		return 0;
+	}
+	return 1;
 }
 
 static int post_inet_stream_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	struct socket *sock;
-
-	sock = match_socket[current->pid];
+	struct probe_data *priv = (struct probe_data*)ri->data;
+	struct socket *sock = priv->sock;
 
 	if (likely(current != NULL) &&
 	    likely(sock != NULL) &&
@@ -146,24 +159,13 @@ static int post_inet_stream_connect(struct kretprobe_instance *ri, struct pt_reg
 	    likely(sock->sk->sk_protocol == IPPROTO_TCP))
 		log_if_not_whitelisted(sock, PROTO_TCP, ACTION_CONNECT);
 
-	match_socket[current->pid] = NULL;
-	return 0;
-}
-
-static int pre_inet_dgram_connect(struct socket *sock, struct sockaddr *addr, int addr_len, int flags)
-{
-	if (likely(current != NULL))
-		match_socket[current->pid] = sock;
-
-	jprobe_return();
 	return 0;
 }
 
 static int post_inet_dgram_connect(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	struct socket *sock;
-
-	sock = match_socket[current->pid];
+	struct probe_data *priv = (struct probe_data*)ri->data;
+	struct socket *sock = priv->sock;
 
 	if (likely(current != NULL) &&
 	    likely(sock != NULL) &&
@@ -173,7 +175,6 @@ static int post_inet_dgram_connect(struct kretprobe_instance *ri, struct pt_regs
 	    likely(sock->sk->sk_protocol == IPPROTO_UDP))
 		log_if_not_whitelisted(sock, PROTO_UDP, ACTION_CONNECT);
 
-	match_socket[current->pid] = NULL;
 	return 0;
 }
 
@@ -232,10 +233,29 @@ out:
 	return 0;
 }
 
+static int pre_sys_bind(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+	int err;
+	struct probe_data *priv = (struct probe_data*)ri->data;
+	struct socket *sock;
+
+	if (unlikely(current == NULL))
+		return 1;
+
+	sock = sockfd_lookup((int)GET_ARG_1(regs), &err);
+
+	if (likely(sock != NULL)) {
+		priv->sock = sock;
+		return 0;
+	}
+
+	return 1;
+}
+
 static int post_sys_bind(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	struct socket *sock;
-	sock = match_socket[current->pid];
+	struct probe_data *priv = (struct probe_data*)ri->data;
+	struct socket *sock = priv->sock;
 
 	if (likely(sock != NULL)) {
 		if (likely(sock->sk != NULL) &&
@@ -246,43 +266,19 @@ static int post_sys_bind(struct kretprobe_instance *ri, struct pt_regs *regs)
 		sockfd_put(sock);
 	}
 
-	match_socket[current->pid] = NULL;
 	return 0;
 }
 
 /* UDP protocol is connectionless protocol, so we probe the bind system call */
-asmlinkage static int pre_sys_bind(int sockfd, const struct sockaddr *addr, int addrlen)
-{
-	int err;
-	struct socket *sock;
-
-	if (unlikely(current == NULL))
-		return 0;
-
-	sock = sockfd_lookup(sockfd, &err);
-
-	if (likely(sock != NULL))
-		match_socket[current->pid] = sock;
-
-	jprobe_return();
-	return 0;
-}
-
 
 /*************************************/
 /*         probe definitions        */
 /*************************************/
 
-static struct jprobe stream_connect_jprobe = {
-	.entry = (kprobe_opcode_t *)pre_inet_stream_connect,
-	.kp = {
-		.symbol_name = "inet_stream_connect",
-		.fault_handler = handler_fault,
-	},
-};
-
 static struct kretprobe stream_connect_kretprobe = {
+	.entry_handler = pre_handler_store_sock,
 	.handler = post_inet_stream_connect,
+	.data_size = sizeof(struct socket*),
 	.maxactive = 16 * NR_CPUS,
 	.kp = {
 		.symbol_name = "inet_stream_connect",
@@ -290,16 +286,10 @@ static struct kretprobe stream_connect_kretprobe = {
 	},
 };
 
-static struct jprobe dgram_connect_jprobe = {
-	.entry = (kprobe_opcode_t *)pre_inet_dgram_connect,
-	.kp = {
-		.symbol_name = "inet_dgram_connect",
-		.fault_handler = handler_fault,
-	},
-};
-
 static struct kretprobe dgram_connect_kretprobe = {
+	.entry_handler = pre_handler_store_sock,
 	.handler = post_inet_dgram_connect,
+	.data_size = sizeof(struct socket*),
 	.maxactive = 16 * NR_CPUS,
 	.kp = {
 		.symbol_name = "inet_dgram_connect",
@@ -329,16 +319,10 @@ static struct jprobe close_jprobe = {
 };
 
 static struct kretprobe bind_kretprobe = {
+	.entry_handler = pre_sys_bind,
 	.handler = post_sys_bind,
+	.data_size = sizeof(struct socket*),
 	.maxactive = 16 * NR_CPUS,
-	.kp = {
-		.symbol_name = "sys_bind",
-		.fault_handler = handler_fault,
-	},
-};
-
-static struct jprobe bind_jprobe = {
-	.entry = (kprobe_opcode_t *)pre_sys_bind,
 	.kp = {
 		.symbol_name = "sys_bind",
 		.fault_handler = handler_fault,
@@ -352,13 +336,11 @@ static struct jprobe bind_jprobe = {
 
 static void unplant_tcp_connect(void) __must_hold(probe_lock)
 {
-	unplant_jprobe(&stream_connect_jprobe);
 	unplant_kretprobe(&stream_connect_kretprobe);
 }
 
 static void unplant_udp_connect(void) __must_hold(probe_lock)
 {
-	unplant_jprobe(&dgram_connect_jprobe);
 	unplant_kretprobe(&dgram_connect_kretprobe);
 }
 
@@ -374,7 +356,6 @@ static void unplant_close(void) __must_hold(probe_lock)
 
 static void unplant_udp_bind(void) __must_hold(probe_lock)
 {
-	unplant_jprobe(&bind_jprobe);
 	unplant_kretprobe(&bind_kretprobe);
 }
 
@@ -416,15 +397,9 @@ static int plant_tcp_connect(void) __must_hold(probe_lock)
 {
 	int err;
 
-	err = plant_jprobe(&stream_connect_jprobe);
+	err = plant_kretprobe(&stream_connect_kretprobe);
 	if (err < 0)
 		return -CONNECT_PROBE_FAILED;
-
-	err = plant_kretprobe(&stream_connect_kretprobe);
-	if (err < 0) {
-		unplant_jprobe(&stream_connect_jprobe);
-		return -CONNECT_PROBE_FAILED;
-	}
 
 	return 0;
 }
@@ -433,15 +408,9 @@ static int plant_udp_connect(void) __must_hold(probe_lock)
 {
 	int err;
 
-	err = plant_jprobe(&dgram_connect_jprobe);
+	err = plant_kretprobe(&dgram_connect_kretprobe);
 	if (err < 0)
 		return -CONNECT_PROBE_FAILED;
-
-	err = plant_kretprobe(&dgram_connect_kretprobe);
-	if (err < 0) {
-		unplant_jprobe(&dgram_connect_jprobe);
-		return -CONNECT_PROBE_FAILED;
-	}
 
 	return 0;
 }
@@ -472,15 +441,9 @@ static int plant_udp_bind(void) __must_hold(probe_lock)
 {
 	int err;
 
-	err = plant_jprobe(&bind_jprobe);
+	err = plant_kretprobe(&bind_kretprobe);
 	if (err < 0)
 		return -BIND_PROBE_FAILED;
-
-	err = plant_kretprobe(&bind_kretprobe);
-	if (err < 0) {
-		unplant_jprobe(&bind_jprobe);
-		return -BIND_PROBE_FAILED;
-	}
 
 	return 0;
 }
