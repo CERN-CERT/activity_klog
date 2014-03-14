@@ -2,8 +2,8 @@
 %define debug_package %{nil}
 
 Name:		activity_klog
-Version:	2.2
-Release:	5%{?dist}
+Version:	2.3
+Release:	1%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
@@ -135,6 +135,11 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Fri Mar 14 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.3_rc1
+- Info/Error info cleaning
+- Use kret pre-handler instead of jprobe: use kretprobe local cache instead of global cache
+- Small code simplification
+
 * Wed Mar 12 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.2_rc2
 - Fix specfile (loading wrong module, cleaning)
 - Create a dedicated package for selinux, depend on it
