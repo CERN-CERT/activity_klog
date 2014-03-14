@@ -15,7 +15,7 @@ MODULE_VERSION("0.2");
 
 static int simple_format;
 module_param(simple_format, int, 0664);
-MODULE_PARM_DESC(simple_format, "Use a simpler out format than syslog RFC, only valid for new open call on the device\n");
+MODULE_PARM_DESC(simple_format, "Use a simpler out format than syslog RFC, only valid for new open call on the device");
 
 
 /*

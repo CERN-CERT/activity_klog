@@ -32,16 +32,16 @@ module_param_call(probes, &all_probes_param_set, &all_probes_param_get, NULL, 06
 # else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
 module_param_cb(probes, &all_probes_param, NULL, 0600);
 # endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
-MODULE_PARM_DESC(probes, " Integer paramter describing which probes should be loaded\n");
+MODULE_PARM_DESC(probes, " Integer paramter describing which probes should be loaded");
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
 # define DEFINE_PROBE_PARAM(name, pos)									\
 module_param_call(probe_##name, &one_probe_param_set, &one_probe_param_get, probe_list + pos, 0600);	\
-MODULE_PARM_DESC(probe_##name, " Integer paramter describing which probes should be loaded\n");
+MODULE_PARM_DESC(probe_##name, " Integer paramter describing which probes should be loaded");
 #else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
 # define DEFINE_PROBE_PARAM(name, pos)									\
 module_param_cb(probe_##name, &one_probe_param, probe_list + pos, 0600);				\
-MODULE_PARM_DESC(probe_##name, " Integer paramter describing which probes should be loaded\n");
+MODULE_PARM_DESC(probe_##name, " Integer paramter describing which probes should be loaded");
 #endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
 
 DEFINE_PROBE_PARAM(tcp_connect, 0)
