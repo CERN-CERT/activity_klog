@@ -140,7 +140,7 @@ purge_whitelist(void) __must_hold(whitelist_rwlock)
 	struct white_process *current_row;
 	struct white_process *next_row;
 
-	pr_info("\t[+] Cleared whitelist\n");
+	pr_info("[+] Cleared whitelist\n");
 
 	current_row = whitelist;
 	while (current_row != NULL) {
@@ -172,13 +172,13 @@ add_whiterow(struct white_process *last, char *raw) __must_hold(whitelist_rwlock
 
 	new_row = whiterow_from_string(raw);
 	if (new_row == NULL) {
-		pr_err("\t[-] Failed to whitelist %s\n", raw);
+		pr_err("[-] Failed to whitelist %s\n", raw);
 		kfree(new_row);
 	} else if (is_already_whitelisted(new_row)) {
-		pr_err("\t[-] Duplicate whitelist %s\n", raw);
+		pr_err("[-] Duplicate whitelist %s\n", raw);
 		kfree(new_row);
 	} else {
-		pr_info("\t[+] Whitelisted %s\n", raw);
+		pr_info("[+] Whitelisted %s\n", raw);
 		if (last == NULL)
 			whitelist = new_row;
 		else

@@ -724,7 +724,7 @@ init_secure_dev(void)
 		goto clean_cdev;
 	}
 
-	dev_info(dev, "\t[+]Created /dev/"MODULE_NAME" for logs\n");
+	dev_info(dev, "[+]Created /dev/"MODULE_NAME" for logs\n");
 	return 0;
 
 clean_cdev:
@@ -741,7 +741,7 @@ module_init(init_secure_dev);
 static void __exit
 destroy_secure_dev(void)
 {
-	dev_info(dev, "\t[+]Removing /dev/"MODULE_NAME"\n");
+	dev_info(dev, "[+]Removing /dev/"MODULE_NAME"\n");
 	device_destroy(secure_class, secure_dev);
 	cdev_del(&secure_c_dev);
 	unregister_chrdev_region(secure_dev, 1);

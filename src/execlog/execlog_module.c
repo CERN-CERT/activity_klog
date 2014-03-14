@@ -110,7 +110,7 @@ static int __init plant_probes(void)
 	if (err < 0)
 		return -1;
 
-	pr_info("\t[+] Deployed\n");
+	pr_info("[+] Deployed\n");
 	return 0;
 }
 
