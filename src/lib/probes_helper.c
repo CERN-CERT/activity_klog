@@ -37,7 +37,7 @@ int plant_jprobe(struct jprobe *probe) __must_hold(probe_lock)
 	pr_info("[+] Planting jprobe on %s\n", probe->kp.symbol_name);
 	err = register_jprobe(probe);
 	if (err < 0)
-		pr_info("[-] Failed to planted jprobe on %s: %i\n", probe->kp.symbol_name, err);
+		pr_err("[-] Failed to planted jprobe on %s: %i\n", probe->kp.symbol_name, err);
 	else
 		pr_info("[+] Planted jprobe on %s\n", probe->kp.symbol_name);
 
@@ -59,7 +59,7 @@ int plant_kretprobe(struct kretprobe *probe) __must_hold(probe_lock)
 	pr_info("[+] Planting kretprobe on %s\n", probe->kp.symbol_name);
 	err = register_kretprobe(probe);
 	if (err < 0)
-		pr_info("[-] Failed to planted kretprobe on %s: %i\n", probe->kp.symbol_name, err);
+		pr_err("[-] Failed to planted kretprobe on %s: %i\n", probe->kp.symbol_name, err);
 	else
 		pr_info("[+] Planted kretprobe on %s\n", probe->kp.symbol_name);
 
