@@ -334,31 +334,6 @@ static struct kretprobe bind_kretprobe = {
 /*     Planting/unplanting probes       */
 /****************************************/
 
-static void unplant_tcp_connect(void) __must_hold(probe_lock)
-{
-	unplant_kretprobe(&stream_connect_kretprobe);
-}
-
-static void unplant_udp_connect(void) __must_hold(probe_lock)
-{
-	unplant_kretprobe(&dgram_connect_kretprobe);
-}
-
-static void unplant_tcp_accept(void) __must_hold(probe_lock)
-{
-	unplant_kretprobe(&accept_kretprobe);
-}
-
-static void unplant_close(void) __must_hold(probe_lock)
-{
-	unplant_jprobe(&close_jprobe);
-}
-
-static void unplant_udp_bind(void) __must_hold(probe_lock)
-{
-	unplant_kretprobe(&bind_kretprobe);
-}
-
 static void
 unplant_probes(u32 removed_probes)
 __must_hold(probe_lock)
@@ -366,20 +341,20 @@ __must_hold(probe_lock)
 	loaded_probes ^= removed_probes;
 
 	if (removed_probes & (1 << PROBE_TCP_CONNECT))
-		unplant_tcp_connect();
+		unplant_kretprobe(&stream_connect_kretprobe);
 
 	if (removed_probes & (1 << PROBE_TCP_ACCEPT))
-		unplant_tcp_accept();
+		unplant_kretprobe(&accept_kretprobe);
 
 	if (removed_probes & ((1 << PROBE_TCP_CLOSE) | (1 << PROBE_UDP_CLOSE))) {
 		if (!(loaded_probes & ((1 << PROBE_TCP_CLOSE) | (1 << PROBE_UDP_CLOSE))))
-			unplant_close();
+			unplant_jprobe(&close_jprobe);
 	}
 	if (removed_probes & (1 << PROBE_UDP_CONNECT))
-		unplant_udp_connect();
+		unplant_kretprobe(&dgram_connect_kretprobe);
 
 	if (removed_probes & (1 << PROBE_UDP_BIND))
-		unplant_udp_bind();
+		unplant_kretprobe(&bind_kretprobe);
 }
 
 void unplant_all(void)
@@ -393,61 +368,6 @@ void unplant_all(void)
 	spin_unlock_irqrestore(&probe_lock, flags);
 }
 
-static int plant_tcp_connect(void) __must_hold(probe_lock)
-{
-	int err;
-
-	err = plant_kretprobe(&stream_connect_kretprobe);
-	if (err < 0)
-		return -CONNECT_PROBE_FAILED;
-
-	return 0;
-}
-
-static int plant_udp_connect(void) __must_hold(probe_lock)
-{
-	int err;
-
-	err = plant_kretprobe(&dgram_connect_kretprobe);
-	if (err < 0)
-		return -CONNECT_PROBE_FAILED;
-
-	return 0;
-}
-
-static int plant_tcp_accept(void) __must_hold(probe_lock)
-{
-	int err;
-
-	err = plant_kretprobe(&accept_kretprobe);
-	if (err < 0)
-		return -ACCEPT_PROBE_FAILED;
-
-	return 0;
-}
-
-static int plant_close(void) __must_hold(probe_lock)
-{
-	int err;
-
-	err = plant_jprobe(&close_jprobe);
-	if (err < 0)
-		return -CLOSE_PROBE_FAILED;
-
-	return 0;
-}
-
-static int plant_udp_bind(void) __must_hold(probe_lock)
-{
-	int err;
-
-	err = plant_kretprobe(&bind_kretprobe);
-	if (err < 0)
-		return -BIND_PROBE_FAILED;
-
-	return 0;
-}
-
 static int
 plant_probes(u32 new_probes)
 __must_hold(&probe_lock)
@@ -455,46 +375,46 @@ __must_hold(&probe_lock)
 	int err = 0;
 
 	if (new_probes & (1 << PROBE_TCP_CONNECT)) {
-		err = plant_tcp_connect();
-		if (err)
-			return err;
+		err = plant_kretprobe(&stream_connect_kretprobe);
+		if (err < 0)
+			return -CONNECT_PROBE_FAILED;
 		loaded_probes |= 1 << PROBE_TCP_CONNECT;
 	}
 
 	if (new_probes & (1 << PROBE_TCP_ACCEPT)) {
-		err = plant_tcp_accept();
-		if (err)
-			return err;
+		err = plant_kretprobe(&accept_kretprobe);
+		if (err < 0)
+			return -ACCEPT_PROBE_FAILED;
 		loaded_probes |= 1 << PROBE_TCP_ACCEPT;
 	}
 
 	if (new_probes & (1 << PROBE_TCP_CLOSE)) {
 		if (!(loaded_probes & (1 << PROBE_UDP_CLOSE))) {
-			err = plant_close();
-			if (err)
-				return err;
+			err = plant_jprobe(&close_jprobe);
+			if (err < 0)
+				return -CLOSE_PROBE_FAILED;
 		}
 		loaded_probes |= 1 << PROBE_TCP_CLOSE;
 	}
 	if (new_probes & (1 << PROBE_UDP_CONNECT)) {
-		err = plant_udp_connect();
+		err = plant_kretprobe(&dgram_connect_kretprobe);
 		if (err)
-			return err;
+			return -CONNECT_PROBE_FAILED;
 		loaded_probes |= 1 << PROBE_UDP_CONNECT;
 	}
 
 	if (new_probes & (1 << PROBE_UDP_BIND)) {
-		err = plant_udp_bind();
-		if (err)
-			return err;
+		err = plant_kretprobe(&bind_kretprobe);
+		if (err < 0)
+			return -BIND_PROBE_FAILED;
 		loaded_probes |= 1 << PROBE_UDP_BIND;
 	}
 
 	if (new_probes & (1 << PROBE_UDP_CLOSE)) {
 		if (!(loaded_probes & (1 << PROBE_TCP_CLOSE))) {
-			err = plant_close();
-			if (err)
-				return err;
+			err = plant_jprobe(&close_jprobe);
+			if (err < 0)
+				return -CLOSE_PROBE_FAILED;
 		}
 		loaded_probes |= 1 << PROBE_UDP_CLOSE;
 	}
