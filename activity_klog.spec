@@ -3,7 +3,7 @@
 
 Name:		activity_klog
 Version:	2.3
-Release:	1%{?dist}
+Release:	2%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
@@ -135,6 +135,10 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Thu Mar 20 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.3_rc2
+- Remove mls support: not supported in SLC
+- Typo in configuration
+
 * Fri Mar 14 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.3_rc1
 - Info/Error info cleaning
 - Use kret pre-handler instead of jprobe: use kretprobe local cache instead of global cache
