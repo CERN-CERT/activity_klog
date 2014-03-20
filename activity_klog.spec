@@ -31,7 +31,7 @@ Source6:	secure_log.preamble
 %kernel_module_package -f %{SOURCE5} -n execlog default
 
 # Build only the following SELinux variant(s)
-%global selinux_variants mls targeted
+%global selinux_variants targeted
 
 %description
 %{name} is a collection of Loadable Kernel Modules for logging various user activity
