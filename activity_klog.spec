@@ -2,8 +2,8 @@
 %define debug_package %{nil}
 
 Name:		activity_klog
-Version:	2.3
-Release:	2%{?dist}
+Version:	2.4
+Release:	1%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
@@ -135,6 +135,10 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Thu Mar 27 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.4_rc1
+- Enhanced rsyslog support (send_eof)
+- Fix buffer overflow in sercure_log
+
 * Thu Mar 20 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.3_rc2
 - Remove mls support: not supported in SLC
 - Typo in configuration
