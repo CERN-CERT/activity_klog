@@ -580,6 +580,10 @@ secure_log_read(struct file *file, char __user *buf, size_t count,
 
 	/* Get the current record */
 	record = (struct sec_log *)(log_buf + data->log_curr_idx);
+	if (record->len == 0) {
+		/* We have cycled back to the start */
+		record = (struct sec_log *)(log_buf);
+	}
 
 	ts = record->nsec;
 	rem_nsec = do_div(ts, 1000000000);
