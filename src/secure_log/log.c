@@ -199,7 +199,7 @@ __must_hold(log_lock)
 		else
 			free = log_first_idx - log_next_idx;
 
-		if (free > size + sizeof(size_t))
+		if (free > size + sizeof(struct sec_log))
 			break;
 
 		/* Drop old messages until we have enough contiuous space */
@@ -207,7 +207,7 @@ __must_hold(log_lock)
 		log_first_seq++;
 	}
 
-	if (unlikely(log_next_idx + size + sizeof(size_t) >= LOG_BUF_LEN)) {
+	if (unlikely(log_next_idx + size + sizeof(struct sec_log) >= LOG_BUF_LEN)) {
 		/*
 		 * As free > size + sizeof(size_t), this mean that we had
 		 * free = max(log_buf_len - log_next_idx, log_first_idx)
