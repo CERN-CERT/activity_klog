@@ -466,7 +466,11 @@ all_probes_param_set(const char *buf, const struct kernel_param *kp)
 	unsigned long wanted_probes;
 	int ret;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 2, 0)
+	ret = strict_strtoul(buf, 16, &wanted_probes);
+#else /* LINUX_VERSION_CODE > KERNEL_VERSION(3, 2, 0) */
 	ret = kstrtoul(buf, 16, &wanted_probes);
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(3, 2, 0) */
 	if (ret < 0)
 		return ret;
 
@@ -533,7 +537,11 @@ one_probe_param_set(const char *buf, const struct kernel_param *kp)
 	if (unlikely(probe == NULL))
 		return -EBADF;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 2, 0)
+	ret = strict_strtoul(buf, 0, &value);
+#else /* LINUX_VERSION_CODE > KERNEL_VERSION(3, 2, 0) */
 	ret = kstrtoul(buf, 0, &value);
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(3, 2, 0) */
 	if (ret < 0)
 		return ret;
 	ret = 0;
