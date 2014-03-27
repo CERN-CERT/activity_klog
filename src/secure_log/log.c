@@ -404,6 +404,12 @@ __must_hold(log_lock)
 	size_t remaining = USER_BUFFER_SIZE - len;
 	int change;
 
+	if (WARN_ON(record->header.len < sizeof(struct netlog_log))) {
+		change = snprintf(data + len, remaining, "BROKEN RECCORD");
+		UPDATE_POINTERS(change, remaining, len);
+		return len;
+	}
+
 	change = snprintf(data + len, remaining, "%.*s %s ",
 			  (int)record->path_len, get_netlog_path(record),
 			  netlog_protocol(record));
@@ -465,6 +471,12 @@ __must_hold(log_lock)
 {
 	size_t remaining = USER_BUFFER_SIZE - len;
 	int change;
+
+	if (WARN_ON(record->header.len < sizeof(struct execlog_log))) {
+		change = snprintf(data + len, remaining, "BROKEN RECCORD");
+		UPDATE_POINTERS(change, remaining, len);
+		return len;
+	}
 
 	change = snprintf(data + len, remaining, "%.*s %.*s",
 			  (int) record->path_len, get_execlog_path(record),
