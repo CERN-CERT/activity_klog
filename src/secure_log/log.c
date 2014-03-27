@@ -17,6 +17,10 @@ static int simple_format;
 module_param(simple_format, int, 0664);
 MODULE_PARM_DESC(simple_format, "Use a simpler out format than syslog RFC, only valid for new open call on the device");
 
+static int send_eof;
+module_param(send_eof, int, 0664);
+MODULE_PARM_DESC(send_eof, "Return a EOF at the current end of the buffer, only valid for new open call on the device");
+
 
 /*
  * This kernel module is heavily inspired from linux/kernel/printk.c
@@ -325,6 +329,7 @@ struct user_data {
 	u64 log_curr_seq;
 	u32 log_curr_idx;
 	u8  simple_format;
+	u8  send_eof;
 	struct mutex lock /** Lock when reading (only one read a at time) */;
 	char buf[USER_BUFFER_SIZE];
 };
@@ -546,6 +551,13 @@ secure_log_read(struct file *file, char __user *buf, size_t count,
 			goto out;
 		}
 
+		/* The caller asked for a EOF */
+		if (data->send_eof) {
+			ret = 0;
+			spin_unlock_irqrestore(&log_lock, flags);
+			goto out;
+		}
+
 		/* We need to wait, unlock */
 		spin_unlock_irqrestore(&log_lock, flags);
 		ret = wait_event_interruptible(log_wait,
@@ -654,6 +666,7 @@ secure_log_open(struct inode *inode, struct file *file)
 	/* Set the format */
 	kparam_block_sysfs_write(simple_format);
 	data->simple_format = simple_format;
+	data->send_eof = send_eof;
 	kparam_unblock_sysfs_write(simple_format);
 
 	/* Get current state */
