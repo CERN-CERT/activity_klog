@@ -167,6 +167,7 @@ static const char null_tty[] = "NULL tty";
 
 static inline void
 init_log_header(struct sec_log *record, enum secure_log_type type)
+__must_hold(log_lock)
 {
 	record->nsec = local_clock();
 	current_uid_gid(&record->uid, &record->gid);
