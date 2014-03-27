@@ -11,7 +11,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vincent Brillault <vincent.brillault@cern.ch>");
 MODULE_DESCRIPTION("Create a new logging device, /dev/"MODULE_NAME);
-MODULE_VERSION("0.2");
+MODULE_VERSION("0.3");
 
 static int simple_format;
 module_param(simple_format, int, 0664);
