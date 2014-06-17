@@ -2,8 +2,13 @@
 #include <linux/kprobes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include "log.h"
 #include "../lib/probes_helper.h"
+#ifdef USE_PRINK
+#include "current_details.h"
+#else /* ! USE_PRINK */
+#include "log.h"
+#endif /* ? USE_PRINK */
+
 
 /* Printing function */
 #undef pr_fmt
@@ -22,6 +27,9 @@ static int execlog_do_execve(char *filename, char __user *__user *__argv,
 	size_t argv_size;
 	long argv_written;
 	char *argv_buffer, *argv_current_end;
+#ifdef USE_PRINK
+	struct current_details details;
+#endif /* USE_PRINK */
 
 	/* Find total argv_size */
 	argv_size = 2;
@@ -74,8 +82,15 @@ static int execlog_do_execve(char *filename, char __user *__user *__argv,
 	}
 	*argv_current_end = '\0';
 
+#ifdef USE_PRINK
+	fill_current_details(&details);
+	printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" %s %.*s"),
+	       CURRENT_DETAILS_ARGS(details), filename,
+	       (int)(argv_current_end - argv_buffer + 1), argv_buffer);
+#else /* ! USE_PRINK */
 	store_execlog_record(filename, argv_buffer,
 			     argv_current_end - argv_buffer + 1);
+#endif /* ? USE_PRINK */
 free:
 	kfree(argv_buffer);
 out:
