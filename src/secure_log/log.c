@@ -3,10 +3,10 @@
 #include <linux/in.h>
 #include <linux/ipv6.h>
 #include <linux/module.h>
-#include <linux/tty.h>
 #include <linux/version.h>
 #include "log.h"
 #include "sparse_compat.h"
+#include "current_details.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vincent Brillault <vincent.brillault@cern.ch>");
@@ -45,15 +45,7 @@ MODULE_PARM_DESC(send_eof, "Return a EOF at the current end of the buffer, only 
 /* Log structures of records stored the buffer */
 struct sec_log {
 	size_t len /** Total size of the record, including the strings at the end */;
-	u64 nsec   /** Timestamp of the activity */;
-	pid_t pid  /** PID responsible for the activity */;
-	pid_t sid  /** SID of the PID responsible for the activity */;
-	pid_t ppid /** PID of the parent of the PID responsible for the activity */;
-	uid_t uid  /** UID responsible for the activity */;
-	uid_t euid /** EUID responsible for the activity */;
-	uid_t gid  /** GID responsible for the activity */;
-	uid_t egid /** EGID responsible for the activity */;
-	char tty[64] /** TTY, if existant, used by the program responsible for the activity, '\0' otherwise */;
+	struct current_details process /* Details of the process */;
 	enum secure_log_type type /** Type of this record (for cast)*/;
 };
 
@@ -163,28 +155,6 @@ copy_ip(void *dst, const void *src, unsigned short family)
 	}
 }
 
-static const char null_tty[] = "NULL tty";
-
-static inline void
-init_log_header(struct sec_log *record, enum secure_log_type type)
-__must_hold(log_lock)
-{
-	record->nsec = local_clock();
-	current_uid_gid(&record->uid, &record->gid);
-	current_euid_egid(&record->euid, &record->egid);
-	record->pid  = current->pid;
-	if (likely(current->real_parent != NULL))
-		record->ppid = current->real_parent->pid;
-	else
-		record->ppid = 0;
-	record->sid  = task_session_vnr(current);
-	tty_name(current->signal->tty, record->tty);
-	if (memcmp(record->tty, null_tty, sizeof(null_tty) - 1) == 0)
-		record->tty[4] = '\0';
-	record->type = type;
-}
-
-
 static inline void
 find_new_record_place(size_t size)
 __must_hold(log_lock)
@@ -245,7 +215,8 @@ store_netlog_record(const char *path, enum secure_log_action action,
 	find_new_record_place(record_size);
 	record = (struct netlog_log *)(log_buf + log_next_idx);
 	/* Store basic information */
-	init_log_header(&(record->header), LOG_NETWORK_INTERACTION);
+	fill_current_details(&(record->header.process));
+	record->header.type = LOG_NETWORK_INTERACTION;
 	record->header.len = record_size;
 	record->path_len = path_len;
 
@@ -305,7 +276,8 @@ store_execlog_record(const char *path,
 	find_new_record_place(record_size);
 	record = (struct execlog_log *)(log_buf + log_next_idx);
 	/* Store basic information */
-	init_log_header(&(record->header), LOG_EXECUTION);
+	fill_current_details(&(record->header.process));
+	record->header.type = LOG_EXECUTION;
 	record->header.len = record_size;
 
 	/* Store advanced information */
@@ -505,12 +477,8 @@ __must_hold(log_lock)
 	ssize_t ret;
 
 	/* Fill the common header */
-	len += sprintf(buf + len,
-		       "p:%d s:%d pp:%d u/g:%d/%d eu/g:%d/%d t:%s ",
-		       record->pid, record->sid, record->ppid,
-		       record->uid, record->gid,
-		       record->euid, record->egid,
-		       record->tty);
+	len += sprintf(buf + len, CURRENT_DETAILS_FORMAT " ",
+		       CURRENT_DETAILS_ARGS(record->process));
 
 	/* Print the content */
 	switch (record->type) {
@@ -597,7 +565,7 @@ secure_log_read(struct file *file, char __user *buf, size_t count,
 		record = (struct sec_log *)(log_buf);
 	}
 
-	ts = record->nsec;
+	ts = record->process.nsec;
 	rem_nsec = do_div(ts, 1000000000);
 	if (data->simple_format == 0) {
 		/* Fill the syslog header */
