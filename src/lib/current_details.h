@@ -2,6 +2,7 @@
 #define __TOOL_CURRENT_DATA__
 
 #include <linux/tty.h>
+#include <linux/version.h>
 
 /* Structure containing all the details about the current process */
 struct current_details {
@@ -27,9 +28,21 @@ static const char null_tty[] = "NULL tty";
 static inline void
 fill_current_details(struct current_details *details)
 {
-	details->nsec = local_clock();
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+	kuid_t kuid;
+	kgid_t kgid;
+
+	current_uid_gid(&kuid, &kgid);
+	details->uid = from_kuid(&init_user_ns, kuid);
+	details->gid = from_kgid(&init_user_ns, kgid);
+	current_euid_egid(&kuid, &kgid);
+	details->euid = from_kuid(&init_user_ns, kuid);
+	details->egid = from_kgid(&init_user_ns, kgid);
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(3, 5, 0) */
 	current_uid_gid(&details->uid, &details->gid);
 	current_euid_egid(&details->euid, &details->egid);
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(3, 5, 0) */
+	details->nsec = local_clock();
 	details->pid = current->pid;
 	if (likely(current->real_parent != NULL))
 		details->ppid = current->real_parent->pid;
