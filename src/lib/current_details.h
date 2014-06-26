@@ -17,7 +17,7 @@ struct current_details {
 	char tty[64] /** TTY, if existant, used by 'current', '\0' otherwise */;
 };
 
-#define CURRENT_DETAILS_FORMAT "p:%d s:%d pp:%d u/g:%d/%d eu/g:%d/%d t:%s"
+#define CURRENT_DETAILS_FORMAT "p:%d s:%d pp:%d u:%d g:%d eu:%d eg:%d t:%s"
 #define CURRENT_DETAILS_ARGS(details) details.pid, details.sid, details.ppid, \
 				      details.uid, details.gid, \
 				      details.euid, details.egid, \
