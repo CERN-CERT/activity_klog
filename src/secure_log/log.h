@@ -2,6 +2,7 @@
 #define __SECURE_LOG___
 
 #include <linux/types.h>
+#include "print_netlog.h"
 
 /**
  * Type of a secure log
@@ -11,24 +12,6 @@ enum secure_log_type {
 	LOG_EXECUTION			/** Execve (file execution) with arguments log */,
 };
 
-
-/**
- * Which protocol was used ?
- */
-enum secure_log_protocol {
-	PROTO_TCP = 0,
-	PROTO_UDP,
-};
-
-/**
- * What was the network action ?
- */
-enum secure_log_action {
-	ACTION_CONNECT,
-	ACTION_ACCEPT,
-	ACTION_CLOSE,
-	ACTION_BIND,
-};
 
 /* Size of the buffer containing the logs */
 #define LOG_BUF_LEN (1 << 20)
@@ -41,8 +24,8 @@ enum secure_log_action {
 #define USER_BUFFER_SIZE 8000
 
 void
-store_netlog_record(const char *path, enum secure_log_action action,
-		    enum secure_log_protocol protocol, unsigned short family,
+store_netlog_record(const char *path, enum netlog_action action,
+		    enum netlog_protocol protocol, unsigned short family,
 		    const void *src_ip, int src_port,
 		    const void *dst_ip, int dst_port);
 

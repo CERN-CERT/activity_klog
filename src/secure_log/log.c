@@ -52,8 +52,8 @@ struct sec_log {
 struct netlog_log {
 	struct sec_log header    /** Mandatory header */;
 	size_t path_len          /** Length of the path of the executable responsible for the activity, including the tailing '\0'. The string is accessible via get_netlog_path */;
-	enum secure_log_protocol protocol /** Network protocol used (currently supported: UDP & TCP */;
-	enum secure_log_action action /** Type of call used (currently supported: bind, connect, accept, close */;
+	enum netlog_protocol protocol /** Network protocol used (currently supported: UDP & TCP */;
+	enum netlog_action action /** Type of call used (currently supported: bind, connect, accept, close */;
 	unsigned short family    /** Familly of the socket used (currently supported: AF_INET, AF_INET6 */;
 	int src_port             /** Source port (local) */;
 	int dst_port             /** Destination port (distant) */;
@@ -192,8 +192,8 @@ __must_hold(log_lock)
 
 
 void
-store_netlog_record(const char *path, enum secure_log_action action,
-		    enum secure_log_protocol protocol, unsigned short family,
+store_netlog_record(const char *path, enum netlog_action action,
+		    enum netlog_protocol protocol, unsigned short family,
 		    const void *src_ip, int src_port,
 		    const void *dst_ip, int dst_port)
 {
@@ -344,20 +344,6 @@ secure_log_llseek(struct file *file, loff_t offset, int whence)
 }
 
 
-static inline const char *
-netlog_protocol(struct netlog_log *log)
-__must_hold(log_lock)
-{
-	switch (log->protocol) {
-	case PROTO_TCP:
-		return "TCP";
-	case PROTO_UDP:
-		return "UDP";
-	default:
-		return "UNK";
-	}
-}
-
 #define UPDATE_POINTERS(change, remaining, len) \
 do {						\
 	if (change >= remaining) {		\
@@ -382,56 +368,14 @@ __must_hold(log_lock)
 		return len;
 	}
 
-	change = snprintf(data + len, remaining, "%.*s %s ",
-			  (int)record->path_len, get_netlog_path(record),
-			  netlog_protocol(record));
+	change = snprintf(data + len, remaining, "%.*s ",
+			  (int)record->path_len, get_netlog_path(record));
 	UPDATE_POINTERS(change, remaining, len);
-	switch (record->family) {
-	case AF_INET:
-		change = snprintf(data + len, remaining, "%pI4:%d",
-				  &record->src.ip4, record->src_port);
-		break;
-	case AF_INET6:
-		change = snprintf(data + len, remaining, "[%pI6c]:%d",
-				  &record->src.ip6, record->src_port);
-		break;
-	default:
-		change = snprintf(data + len, remaining, "Unknown");
-		break;
-	}
-	UPDATE_POINTERS(change, remaining, len);
-	switch (record->action) {
-	case ACTION_CONNECT:
-		change = snprintf(data + len, remaining, " -> ");
-		break;
-	case ACTION_ACCEPT:
-		change = snprintf(data + len, remaining, " <- ");
-		break;
-	case ACTION_CLOSE:
-		change = snprintf(data + len, remaining, " <!> ");
-		break;
-	case ACTION_BIND:
-		change = snprintf(data + len, remaining, " BIND ");
-		goto out;
-	default:
-		change = snprintf(data + len, remaining, " UNK ");
-		goto out;
-	}
-	UPDATE_POINTERS(change, remaining, len);
-	switch (record->family) {
-	case AF_INET:
-		change = snprintf(data + len, remaining, "%pI4:%d",
-				&record->dst.ip4, record->dst_port);
-		break;
-	case AF_INET6:
-		change = snprintf(data + len, remaining, "[%pI6c]:%d",
-				&record->dst.ip6, record->dst_port);
-		break;
-	default:
-		change = snprintf(data + len, remaining, "Unknown");
-		break;
-	}
-out:
+
+	change = print_netlog(data + len, remaining,
+			      record->protocol, record->family, record->action,
+			      &record->src, record->src_port,
+			      &record->dst, record->dst_port);
 	UPDATE_POINTERS(change, remaining, len);
 	return len;
 }

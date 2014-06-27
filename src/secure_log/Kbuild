@@ -2,7 +2,7 @@
 # Variables needed to build the kernel module
 #
 name      = secure_log
-src_files = log.c
+src_files = log.c ../lib/print_netlog.c
  
 obj-m += $(name).o
 $(name)-y := $(src_files:.c=.o)
