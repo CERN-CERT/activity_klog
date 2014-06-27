@@ -6,4 +6,4 @@ src_files = log.c
  
 obj-m += $(name).o
 $(name)-y := $(src_files:.c=.o)
-ccflags-y  += -D'MODULE_NAME="$(name)"'  -I$(src)/../lib
+ccflags-y  += -D'MODULE_NAME="$(name)"' -I"$(src)/../lib"
