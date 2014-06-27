@@ -84,7 +84,7 @@ static int execlog_do_execve(char *filename, char __user *__user *__argv,
 
 #ifdef USE_PRINK
 	fill_current_details(&details);
-	printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" %s %.*s"),
+	printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" %s %.*s\n"),
 	       CURRENT_DETAILS_ARGS(details), filename,
 	       (int)(argv_current_end - argv_buffer + 1), argv_buffer);
 #else /* ! USE_PRINK */
