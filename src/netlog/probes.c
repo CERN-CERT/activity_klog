@@ -18,7 +18,7 @@
 #include "sparse_compat.h"
 #include "retro-compat.h"
 #include "internal.h"
-#include "../lib/probes_helper.h"
+#include "probes_helper.h"
 
 /********************************/
 /*          Variables           */

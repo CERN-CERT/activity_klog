@@ -2,7 +2,7 @@
 #include <linux/kprobes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include "../lib/probes_helper.h"
+#include "probes_helper.h"
 #ifdef USE_PRINK
 #include "current_details.h"
 #else /* ! USE_PRINK */
