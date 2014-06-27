@@ -13,7 +13,12 @@
 #include <net/ip.h>
 #include "whitelist.h"
 #include "netlog.h"
+#ifdef USE_PRINK
+#include "current_details.h"
+#include "print_netlog.h"
+#else /* ! USE_PRINK */
 #include "log.h"
+#endif /* ? USE_PRINK */
 #include "probes.h"
 #include "sparse_compat.h"
 #include "retro-compat.h"
@@ -87,6 +92,10 @@ static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 	const void *src_ip;
 	int dst_port;
 	int src_port;
+#ifdef USE_PRINK
+	char print_buffer[NETLOG_PRINT_SIZE];
+	struct current_details details;
+#endif /* USE_PRINK */
 
 	path = path_from_mm(current->mm, buffer, MAX_EXEC_PATH);
 	buffer[MAX_EXEC_PATH] = '\0';
@@ -122,8 +131,19 @@ static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 		return;
 #endif
 
+#ifdef USE_PRINK
+	fill_current_details(&details);
+	if (print_netlog(print_buffer, NETLOG_PRINT_SIZE, protocol,
+			 family, action, src_ip, src_port, dst_ip,
+			 dst_port) < 0)
+		pr_err("Impossible to print netlog data\n");
+	else
+		printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" %s %s\n"),
+		       CURRENT_DETAILS_ARGS(details), path, print_buffer);
+#else /* ! USE_PRINK */
 	store_netlog_record(path, action, protocol,
 			    family, src_ip, src_port, dst_ip, dst_port);
+#endif /* ? USE_PRINK */
 }
 
 
