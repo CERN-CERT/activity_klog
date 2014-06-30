@@ -26,7 +26,7 @@ Source5:	execlog.files
 #Source6:	secure_log.preamble
 
 # Build only for standard kernel variant(s)
-#%kernel_module_package -f %{SOURCE3} -p %{SOURCE6} -n secure_log default
+#kernel_module_package -f %{SOURCE3} -p %{SOURCE6} -n secure_log default
 %kernel_module_package -f %{SOURCE4} -n netlog default
 %kernel_module_package -f %{SOURCE5} -n execlog default
 
