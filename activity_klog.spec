@@ -50,6 +50,9 @@ It allows syslogd to read directly from the newly created device
 %prep
 %setup -q
 set -- *
+# Enable compat features
+echo "ccflags-y += -DUSE_PRINK=1" >> execlog/Kbuild
+echo "ccflags-y += -DUSE_PRINK=1" >> netlog/Kbuild
 mkdir source
 mv "$@" source/
 mkdir obj
