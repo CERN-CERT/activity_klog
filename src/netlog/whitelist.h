@@ -10,8 +10,13 @@
 #define WHITELISTED 1
 #define NOT_WHITELISTED 0
 
+#ifdef NETLOG_V1_COMPAT
 void set_whitelist_from_array(char **raw_array, int raw_len);
 void set_whitelist_from_string(char *raw_list);
+
+#include <linux/seq_file.h>
+extern const struct seq_operations whitelist_file;
+#endif /* NETLOG_V1_COMPAT */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
 int whitelist_param_set(const char *buf, struct kernel_param *kp);

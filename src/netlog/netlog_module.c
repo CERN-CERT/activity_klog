@@ -11,6 +11,10 @@
 #include "internal.h"
 #include "netlog.h"
 
+#ifdef NETLOG_V1_COMPAT
+#include "compat_v1.h"
+#endif /* NETLOG_V1_COMPAT */
+
 /****************************************************************/
 /* Kernel module information (submitted at the end of the file) */
 /****************************************************************/
@@ -61,6 +65,14 @@ MODULE_PARM_DESC(whitelist, " A coma separated list of strings that contains"
 		 " the connections that " MODULE_NAME " will ignore.\n"
 		 " The format of the string must be '${executable}|i<${ip}>|<${port}>'."
 		 " The ip and port parts are optional.");
+# ifdef NETLOG_V1_COMPAT
+static int whitelist_length;
+static char *connections_to_whitelist[MAX_WHITELIST_SIZE] = {NULL};
+
+module_param_array(connections_to_whitelist, charp, &whitelist_length, 0000);
+MODULE_PARM_DESC(connections_to_whitelist, " An array of strings that contains the connections that " MODULE_NAME " will ignore.\n"
+					   "\t\tThe format of the string must be '/absolute/executable/path ip_address-port'");
+# endif
 #endif
 
 /************************************/
@@ -81,6 +93,17 @@ static int __init netlog_init(void)
 #endif
 	}
 
+#if WHITELISTING
+# ifdef NETLOG_V1_COMPAT
+	ret = create_proc();
+	if (ret != 0) {
+		unplant_all();
+		destroy_whitelist();
+	}
+	set_whitelist_from_array(connections_to_whitelist, whitelist_length);
+# endif /* NETLOG_V1_COMPAT */
+#endif /* WHITELISTING */
+
 	return ret;
 }
 
@@ -93,8 +116,11 @@ static void __exit netlog_exit(void)
 	unplant_all();
 
 #if WHITELISTING
+# ifdef NETLOG_V1_COMPAT
+	destroy_proc();
+# endif /* NETLOG_V1_COMPAT */
 	destroy_whitelist();
-#endif
+#endif /* WHITELISTING */
 }
 
 

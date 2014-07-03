@@ -189,6 +189,7 @@ add_whiterow(struct white_process *last, char *raw) __must_hold(whitelist_rwlock
 	return last;
 }
 
+#ifdef NETLOG_V1_COMPAT
 void
 set_whitelist_from_array(char **raw_array, int raw_len)
 {
@@ -205,6 +206,7 @@ set_whitelist_from_array(char **raw_array, int raw_len)
 
 	write_unlock_irqrestore(&whitelist_rwlock, flags);
 }
+#endif /* NETLOG_V1_COMPAT */
 
 
 int
@@ -292,6 +294,13 @@ unlock:
 	kfree(raw_orig);
 	return 0;
 }
+
+#ifdef NETLOG_V1_COMPAT
+void set_whitelist_from_string(char *raw_list)
+{
+	whitelist_param_set(raw_list, NULL);
+}
+#endif /* NETLOG_V1_COMPAT */
 
 #define VERIFY_SNPRINTF(buf, remaining, change)	\
 do {						\
@@ -383,3 +392,83 @@ const struct kernel_param_ops whitelist_param = {
 	.get = whitelist_param_get,
 };
 #endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+
+#ifdef NETLOG_V1_COMPAT
+static void *
+whitelist_file_start(struct seq_file *m, loff_t *pos)
+__acquires(whitelist_rwlock)
+{
+	struct white_process *row;
+	loff_t curr_pos;
+
+	read_lock(&whitelist_rwlock);
+	row = whitelist;
+	curr_pos = 0;
+	while ((curr_pos < *pos) && row != NULL) {
+		row = row->next;
+		++curr_pos;
+	}
+	return row;
+}
+
+static void
+whitelist_file_stop(struct seq_file *m, void *v)
+__releases(whitelist_rwlock)
+{
+	read_unlock(&whitelist_rwlock);
+}
+
+static void *
+whitelist_file_next(struct seq_file *m, void *v, loff_t *pos)
+__must_hold(whitelist_rwlock)
+{
+	struct white_process *row;
+
+	row = (struct white_process *)v;
+	if (unlikely(v == NULL))
+		return NULL;
+	++(*pos);
+	return row->next;
+}
+
+static int
+whitelist_file_show(struct seq_file *m, void *v)
+__must_hold(whitelist_rwlock)
+{
+	int ret;
+	struct white_process *row;
+
+	row = (struct white_process *)v;
+	if (unlikely(v == NULL))
+		return -1;
+	ret = seq_printf(m, "%.*s", (int) row->path_len, row->path);
+	if (ret != 0)
+		return ret;
+	switch (row->family) {
+	case AF_INET:
+		ret = seq_printf(m, "|i<%pI4>", &row->ip.ip4);
+		break;
+	case AF_INET6:
+		ret = seq_printf(m, "|i<%pI6c>", &row->ip.ip6);
+		break;
+	default:
+		ret = 0;
+		break;
+	}
+	if (ret != 0)
+		return ret;
+	if (row->port != NO_PORT) {
+		ret = seq_printf(m, "|p<%d>", row->port);
+		if (ret != 0)
+			return ret;
+	}
+	return seq_putc(m, '\n');
+}
+
+const struct seq_operations whitelist_file = {
+	.start = &whitelist_file_start,
+	.next = &whitelist_file_next,
+	.stop = &whitelist_file_stop,
+	.show = &whitelist_file_show
+};
+#endif /* NETLOG_V1_COMPAT */
