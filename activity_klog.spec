@@ -53,6 +53,7 @@ set -- *
 # Enable compat features
 echo "ccflags-y += -DUSE_PRINK=1" >> execlog/Kbuild
 echo "ccflags-y += -DUSE_PRINK=1" >> netlog/Kbuild
+sed -i "s/^src_files = \(.*\)/src_files = \1 ..\/lib\/print_netlog.c/" netlog/Kbuild
 # Disable secure_log
 sed '/secure_log/d' -i Kbuild
 mkdir source
