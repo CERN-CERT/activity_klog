@@ -75,6 +75,12 @@ MODULE_PARM_DESC(connections_to_whitelist, " An array of strings that contains t
 # endif
 #endif
 
+#ifdef NETLOG_V1_COMPAT
+static int absolute_path_mode;
+module_param(absolute_path_mode, int, 0);
+MODULE_PARM_DESC(absolute_path_mode, "This parameter is only present for backward compatibility, it is ignored");
+#endif /* NETLOG_V1_COMPAT */
+
 /************************************/
 /*             INIT MODULE          */
 /************************************/
