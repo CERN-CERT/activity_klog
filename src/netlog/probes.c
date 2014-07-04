@@ -458,7 +458,7 @@ probes_init(void)
 	int ret = 0;
 
 	spin_lock_irqsave(&probe_lock, flags);
-	if (initialized != 0) {
+	if (initialized == 0) {
 		ret = plant_probes(DEFAULT_PROBES);
 		if (ret >= 0)
 			initialized = 1;
@@ -481,8 +481,6 @@ all_probes_param_set(const char *buf, const struct kernel_param *kp)
 #endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
 {
 	unsigned long flags;
-	u32 probes_to_add;
-	u32 probes_to_remove;
 	unsigned long wanted_probes;
 	int ret;
 
@@ -495,22 +493,9 @@ all_probes_param_set(const char *buf, const struct kernel_param *kp)
 		return ret;
 
 	spin_lock_irqsave(&probe_lock, flags);
-
-	if (initialized != 0) {
-		ret = plant_probes(DEFAULT_PROBES);
-		if (ret < 0)
-			goto fail;
-		initialized = 1;
-	}
-
-	probes_to_add = wanted_probes & (~loaded_probes);
-	probes_to_remove = (~wanted_probes) & loaded_probes;
-
-	unplant_probes(probes_to_remove);
-	ret = plant_probes(probes_to_add);
-
-fail:
+	ret = plant_probes(wanted_probes);
 	spin_unlock_irqrestore(&probe_lock, flags);
+
 	return ret;
 }
 
@@ -568,7 +553,7 @@ one_probe_param_set(const char *buf, const struct kernel_param *kp)
 
         spin_lock_irqsave(&probe_lock, flags);
 
-	if (initialized != 0) {
+	if (initialized == 0) {
 		ret = plant_probes(DEFAULT_PROBES);
 		if (ret < 0)
 			goto fail;
