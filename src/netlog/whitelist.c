@@ -462,7 +462,10 @@ __must_hold(whitelist_rwlock)
 		if (ret != 0)
 			return ret;
 	}
-	return seq_putc(m, '\n');
+	if (row->next != NULL)
+		return seq_putc(m, ',');
+	else
+		return seq_putc(m, '\n');
 }
 
 const struct seq_operations whitelist_file = {
