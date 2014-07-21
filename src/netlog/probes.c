@@ -500,6 +500,8 @@ all_probes_param_set(const char *buf, const struct kernel_param *kp)
 	if (ret < 0)
 		return ret;
 
+	initialized = 1;
+
 	spin_lock_irqsave(&probe_lock, flags);
 	ret = plant_probes(wanted_probes);
 	spin_unlock_irqrestore(&probe_lock, flags);
