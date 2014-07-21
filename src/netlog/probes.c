@@ -112,10 +112,18 @@ static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 		src_ip = &inet_sk(sock->sk)->SADDR;
 		break;
 	case AF_INET6:
-#if LINUX_VERSION_CODE > KERNEL_VERSION(3, 13, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
 		dst_ip = &sock->sk->sk_v6_daddr;
 #else /* LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0) */
+# ifdef RHEL_MAJOR
+#  if RHEL_MAJOR >= 7
+		dst_ip = &sock->sk->sk_v6_daddr;
+#  else /* RHEL_MAJOR < 7 */
 		dst_ip = &inet6_sk(sock->sk)->daddr;
+#  endif /* RHEL_MAJOR ? 7 */
+# else /* !RHEL_MAJOR */
+		dst_ip = &inet6_sk(sock->sk)->daddr;
+# endif /* ?RHEL_MAJOR */
 #endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(3, 13, 0) */
 		src_ip = &inet6_sk(sock->sk)->saddr;
 		break;
