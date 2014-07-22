@@ -387,13 +387,11 @@ __must_hold(probe_lock)
 
 void unplant_all(void)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&probe_lock, flags);
+	spin_lock(&probe_lock);
 
 	unplant_probes(loaded_probes);
 
-	spin_unlock_irqrestore(&probe_lock, flags);
+	spin_unlock(&probe_lock);
 }
 
 static int
@@ -462,16 +460,15 @@ __must_hold(&probe_lock)
 int
 probes_init(void)
 {
-	unsigned long flags;
 	int ret = 0;
 
-	spin_lock_irqsave(&probe_lock, flags);
+	spin_lock(&probe_lock);
 	if (initialized == 0) {
 		ret = plant_probes(DEFAULT_PROBES);
 		if (ret >= 0)
 			initialized = 1;
 	}
-	spin_unlock_irqrestore(&probe_lock, flags);
+	spin_unlock(&probe_lock);
 
 	return ret;
 }
@@ -488,7 +485,6 @@ static int
 all_probes_param_set(const char *buf, const struct kernel_param *kp)
 #endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
 {
-	unsigned long flags;
 	unsigned long wanted_probes;
 	int ret;
 
@@ -502,9 +498,9 @@ all_probes_param_set(const char *buf, const struct kernel_param *kp)
 
 	initialized = 1;
 
-	spin_lock_irqsave(&probe_lock, flags);
+	spin_lock(&probe_lock);
 	ret = plant_probes(wanted_probes);
-	spin_unlock_irqrestore(&probe_lock, flags);
+	spin_unlock(&probe_lock);
 
 	return ret;
 }
@@ -517,12 +513,11 @@ static int
 all_probes_param_get(char *buffer, const struct kernel_param *kp)
 #endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
 {
-	unsigned long flags;
 	int ret;
 
-        spin_lock_irqsave(&probe_lock, flags);
+        spin_lock(&probe_lock);
 	ret = scnprintf(buffer, PAGE_SIZE, "%x", loaded_probes);
-	spin_unlock_irqrestore(&probe_lock, flags);
+	spin_unlock(&probe_lock);
 
 	return ret;
 }
@@ -543,7 +538,6 @@ static int
 one_probe_param_set(const char *buf, const struct kernel_param *kp)
 #endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
 {
-	unsigned long flags;
 	unsigned long value;
 	int ret;
 	struct probes *probe;
@@ -561,7 +555,7 @@ one_probe_param_set(const char *buf, const struct kernel_param *kp)
 		return ret;
 	ret = 0;
 
-        spin_lock_irqsave(&probe_lock, flags);
+        spin_lock(&probe_lock);
 
 	if (initialized == 0) {
 		ret = plant_probes(DEFAULT_PROBES);
@@ -579,7 +573,7 @@ one_probe_param_set(const char *buf, const struct kernel_param *kp)
 	}
 
 fail:
-	spin_unlock_irqrestore(&probe_lock, flags);
+	spin_unlock(&probe_lock);
 	return ret;
 }
 
@@ -591,7 +585,6 @@ static int
 one_probe_param_get(char *buffer, const struct kernel_param *kp)
 #endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
 {
-	unsigned long flags;
 	int ret;
 	struct probes *probe;
 
@@ -599,9 +592,9 @@ one_probe_param_get(char *buffer, const struct kernel_param *kp)
 	if (unlikely(probe == NULL))
 		return -EBADF;
 
-        spin_lock_irqsave(&probe_lock, flags);
+        spin_lock(&probe_lock);
 	ret = scnprintf(buffer, PAGE_SIZE, "%i", !!(probe->mask & loaded_probes));
-	spin_unlock_irqrestore(&probe_lock, flags);
+	spin_unlock(&probe_lock);
 
 	return ret;
 }
