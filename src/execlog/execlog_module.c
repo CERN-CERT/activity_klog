@@ -56,18 +56,39 @@ get_user_arg_ptr(struct user_arg_ptr argv, int nr)
 /*          common core           */
 /**********************************/
 
+static const char bad_file[] = "BAD_FILE";
+
 static void
-execlog_common(const char *filename, const struct user_arg_ptr __argv,
+execlog_common(const char __user * __filename,
+	       const struct user_arg_ptr __argv,
 	       const struct user_arg_ptr __envp)
 {
 	const char __user *__argv_content;
 	int argv_cur_pos;
-	size_t argv_size;
+	size_t argv_size, filename_size;
 	long argv_written;
-	char *argv_buffer, *argv_current_end;
+	char *argv_buffer, *argv_current_end, *filename_buffer;
 #ifdef USE_PRINK
 	struct current_details details;
 #endif /* USE_PRINK */
+
+	/* Get Filename */
+	filename_size = strnlen_user(__filename, PATH_MAX);
+	if (unlikely(filename_size < 0 || filename_size > PATH_MAX)) {
+		filename_buffer = kmalloc(sizeof(bad_file), GFP_ATOMIC);
+	} else {
+		filename_buffer = kmalloc(filename_size, GFP_ATOMIC);
+	}
+	if (unlikely(filename_buffer == NULL))
+		return;
+	if (unlikely(filename_size < 0 || filename_size > PATH_MAX)) {
+		strncpy(filename_buffer, bad_file, sizeof(bad_file));
+        } else {
+		if (unlikely(strncpy_from_user(filename_buffer, __filename,
+					       filename_size) < 0)) {
+			strncpy(filename_buffer, bad_file, sizeof(bad_file));
+		}
+	}
 
 	/* Find total argv_size */
 	argv_size = 2;
@@ -86,7 +107,7 @@ execlog_common(const char *filename, const struct user_arg_ptr __argv,
 	/* Allocate memory for copying the argv from userspace */
 	argv_buffer = kmalloc(argv_size, GFP_ATOMIC);
 	if (unlikely(argv_buffer == NULL))
-		return;
+		goto free_filename;
 
 	/* Copy argv from userspace */
 	argv_cur_pos = 0;
@@ -98,7 +119,7 @@ execlog_common(const char *filename, const struct user_arg_ptr __argv,
 						 argv_size);
 		if (unlikely(argv_written < 0)) {
 			/* TODO: we should probably log this failure somewhere */
-			goto free;
+			goto free_argv;
 		}
 		/* Update the pointer and remaining size
 		 * strncpy_from_user guaranties that argv_written <= argv_size, i-e argv_size will not loop (unsigned) */
@@ -121,14 +142,16 @@ execlog_common(const char *filename, const struct user_arg_ptr __argv,
 #ifdef USE_PRINK
 	fill_current_details(&details);
 	printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" %s %.*s\n"),
-	       CURRENT_DETAILS_ARGS(details), filename,
+	       CURRENT_DETAILS_ARGS(details), filename_buffer,
 	       (int)(argv_current_end - argv_buffer + 1), argv_buffer);
 #else /* ! USE_PRINK */
-	store_execlog_record(filename, argv_buffer,
+	store_execlog_record(filename_buffer, argv_buffer,
 			     argv_current_end - argv_buffer + 1);
 #endif /* ? USE_PRINK */
-free:
+free_argv:
 	kfree(argv_buffer);
+free_filename:
+	kfree(filename_buffer);
 }
 
 /**********************************/
