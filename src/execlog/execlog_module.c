@@ -179,6 +179,28 @@ probe_sys_execve(const char __user * __filename,
 	return 0;
 }
 
+#ifdef CONFIG_COMPAT
+static asmlinkage long
+probe_compat_sys_execve(const char __user * __filename,
+			const compat_uptr_t __user * __argv,
+			const compat_uptr_t __user * __envp)
+{
+	struct user_arg_ptr argv = {
+		.is_compat = true,
+		.ptr.compat = __argv,
+	 };
+	struct user_arg_ptr envp = {
+		.is_compat = true,
+		.ptr.compat = __envp,
+	};
+
+	execlog_common(__filename, argv, envp);
+
+	/* Mandatory return for jprobes */
+	jprobe_return();
+	return 0;
+}
+#endif /* CONFIG_COMPAT */
 
 /*************************************/
 /*          probe definitions        */
@@ -191,6 +213,16 @@ static struct jprobe execve_jprobe = {
 	       .fault_handler = handler_fault,
 	},
 };
+
+#ifdef CONFIG_COMPAT
+static struct jprobe execve_compat_jprobe = {
+	.entry = (kprobe_opcode_t *)probe_compat_sys_execve,
+	.kp = {
+	       .symbol_name = "compat_sys_execve",
+	       .fault_handler = handler_fault,
+	},
+};
+#endif /* CONFIG_COMPAT */
 
 /************************************/
 /*             INIT MODULE          */
@@ -206,6 +238,14 @@ static int __init plant_probes(void)
 	if (err < 0)
 		return -1;
 
+#ifdef CONFIG_COMPAT
+	err = plant_jprobe(&execve_compat_jprobe);
+	if (err < 0) {
+		unplant_jprobe(&execve_jprobe);
+		return -2;
+	}
+#endif /* CONFIG_COMPAT */
+
 	pr_info("[+] Deployed\n");
 	return 0;
 }
@@ -217,6 +257,9 @@ static int __init plant_probes(void)
 static void __exit unplant_probes(void)
 {
 	unplant_jprobe(&execve_jprobe);
+#ifdef CONFIG_COMPAT
+	unplant_jprobe(&execve_compat_jprobe);
+#endif /* CONFIG_COMPAT */
 }
 
 /************************************/
