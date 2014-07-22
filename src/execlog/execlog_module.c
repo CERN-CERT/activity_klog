@@ -15,15 +15,53 @@
 #define pr_fmt(fmt) MODULE_NAME ": " fmt
 
 /**********************************/
-/*           PROBES               */
+/*        32/64 compat            */
 /**********************************/
 
-static int execlog_do_execve(char *filename, char __user *__user *__argv,
-			     char __user *__user *__envp,
-			     struct pt_regs *not_used)
+#include <linux/compat.h>
+
+struct user_arg_ptr {
+	bool is_compat;
+	union {
+		const char __user *const __user *native;
+#ifdef CONFIG_COMPAT
+		const compat_uptr_t __user *compat;
+	#endif
+	} ptr;
+};
+
+static const char __user*
+get_user_arg_ptr(struct user_arg_ptr argv, int nr)
 {
-	char __user *__user *__argv_pointer;
-	char __user *__argv_content;
+	const char __user *native;
+
+#ifdef CONFIG_COMPAT
+	if (unlikely(argv.is_compat)) {
+		compat_uptr_t compat;
+
+		if (get_user(compat, argv.ptr.compat + nr))
+			return NULL;
+
+		return compat_ptr(compat);
+	}
+#endif
+
+	if (get_user(native, argv.ptr.native + nr))
+		return NULL;
+
+	return native;
+}
+
+/**********************************/
+/*          common core           */
+/**********************************/
+
+static void
+execlog_common(const char *filename, const struct user_arg_ptr __argv,
+	       const struct user_arg_ptr __envp)
+{
+	const char __user *__argv_content;
+	int argv_cur_pos;
 	size_t argv_size;
 	long argv_written;
 	char *argv_buffer, *argv_current_end;
@@ -33,11 +71,10 @@ static int execlog_do_execve(char *filename, char __user *__user *__argv,
 
 	/* Find total argv_size */
 	argv_size = 2;
-	__argv_pointer = __argv;
-	while (get_user(__argv_content, __argv_pointer) == 0 &&
-	       __argv_content != NULL) {
+	argv_cur_pos = 0;
+	while ((__argv_content = get_user_arg_ptr(__argv, argv_cur_pos)) != NULL) {
 		argv_size += strlen_user(__argv_content) + 1;
-		++__argv_pointer;
+		++argv_cur_pos;
 	}
 
 	/* strncpy can only take a long as it input, check for potential overflow */
@@ -49,13 +86,12 @@ static int execlog_do_execve(char *filename, char __user *__user *__argv,
 	/* Allocate memory for copying the argv from userspace */
 	argv_buffer = kmalloc(argv_size, GFP_ATOMIC);
 	if (unlikely(argv_buffer == NULL))
-		goto out;
+		return;
 
 	/* Copy argv from userspace */
-	__argv_pointer = __argv;
+	argv_cur_pos = 0;
 	argv_current_end = argv_buffer;
-	while (get_user(__argv_content, __argv_pointer) == 0 &&
-	       __argv_content != NULL) {
+	while ((__argv_content = get_user_arg_ptr(__argv, argv_cur_pos)) != NULL) {
 		/* Get at max argv_size bytes from __argv_content */
 		argv_written = strncpy_from_user(argv_current_end,
 						 __argv_content,
@@ -78,7 +114,7 @@ static int execlog_do_execve(char *filename, char __user *__user *__argv,
 		++argv_current_end;
 		--argv_size;
 		/* Next iteration */
-		++__argv_pointer;
+		++argv_cur_pos;
 	}
 	*argv_current_end = '\0';
 
@@ -93,14 +129,28 @@ static int execlog_do_execve(char *filename, char __user *__user *__argv,
 #endif /* ? USE_PRINK */
 free:
 	kfree(argv_buffer);
-out:
+}
+
+/**********************************/
+/*           PROBES               */
+/**********************************/
+
+static int execlog_do_execve(const char *filename,
+			     const char __user *const __user *__argv,
+			     const char __user *const __user *__envp)
+{
+	struct user_arg_ptr argv = { .ptr.native = __argv };
+	struct user_arg_ptr envp = { .ptr.native = __envp };
+
+	execlog_common(filename, argv, envp);
 	/* Mandatory return for jprobes */
 	jprobe_return();
 	return 0;
 }
 
+
 /*************************************/
-/*         probe definitions        */
+/*          probe definitions        */
 /*************************************/
 
 static struct jprobe execve_jprobe = {
