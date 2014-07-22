@@ -2,6 +2,7 @@
 #include <linux/kprobes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
+#include <linux/version.h>
 #include "probes_helper.h"
 #ifdef USE_PRINK
 #include "current_details.h"
@@ -218,7 +219,11 @@ static struct jprobe execve_jprobe = {
 static struct jprobe execve_compat_jprobe = {
 	.entry = (kprobe_opcode_t *)probe_compat_sys_execve,
 	.kp = {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
+	       .symbol_name = "sys32_execve",
+#else /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0) */
 	       .symbol_name = "compat_sys_execve",
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(3, 7, 0) */
 	       .fault_handler = handler_fault,
 	},
 };
