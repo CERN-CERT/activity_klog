@@ -158,14 +158,22 @@ free_filename:
 /*           PROBES               */
 /**********************************/
 
-static int execlog_do_execve(const char *filename,
-			     const char __user *const __user *__argv,
-			     const char __user *const __user *__envp)
+static asmlinkage long
+probe_sys_execve(const char __user * __filename,
+		 const char __user * const __user * __argv,
+		 const char __user * const __user * __envp)
 {
-	struct user_arg_ptr argv = { .ptr.native = __argv };
-	struct user_arg_ptr envp = { .ptr.native = __envp };
+	struct user_arg_ptr argv = {
+		.is_compat = false,
+		.ptr.native = __argv,
+	 };
+	struct user_arg_ptr envp = {
+		.is_compat = false,
+		.ptr.native = __envp,
+	};
 
-	execlog_common(filename, argv, envp);
+	execlog_common(__filename, argv, envp);
+
 	/* Mandatory return for jprobes */
 	jprobe_return();
 	return 0;
@@ -177,9 +185,9 @@ static int execlog_do_execve(const char *filename,
 /*************************************/
 
 static struct jprobe execve_jprobe = {
-	.entry = (kprobe_opcode_t *)execlog_do_execve,
+	.entry = (kprobe_opcode_t *)probe_sys_execve,
 	.kp = {
-	       .symbol_name = "do_execve",
+	       .symbol_name = "sys_execve",
 	       .fault_handler = handler_fault,
 	},
 };
