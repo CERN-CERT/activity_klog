@@ -3,4 +3,4 @@ src_files = execlog_module.c ../lib/probes_helper.c
  
 obj-m += $(name).o
 $(name)-y := $(src_files:.c=.o)
-ccflags-y  += -D'MODULE_NAME="$(name)"' -I"$(src)/../secure_log" -I"$(src)/../lib"
+ccflags-y  += -D'MODULE_NAME="$(name)"' -D'MODULE_EXECLOG' -I"$(src)/../secure_log" -I"$(src)/../lib

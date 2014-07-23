@@ -2,7 +2,6 @@
 #define __SECURE_LOG___
 
 #include <linux/types.h>
-#include "print_netlog.h"
 
 /**
  * Type of a secure log
@@ -23,13 +22,19 @@ enum secure_log_type {
 /* User data buffer */
 #define USER_BUFFER_SIZE 8000
 
+#if defined(MODULE_NETLOG) || defined(MODULE_SECURE_LOG)
+#include "print_netlog.h"
+
 void
 store_netlog_record(const char *path, enum netlog_action action,
 		    enum netlog_protocol protocol, unsigned short family,
 		    const void *src_ip, int src_port,
 		    const void *dst_ip, int dst_port);
+#endif /* ?MODULE_NETLOG */
 
+#if defined(MODULE_EXECLOG) || defined(MODULE_SECURE_LOG)
 void
 store_execlog_record(const char *path, const char *argv, size_t argv_size);
+#endif /* ?MODULE_EXECLOG */
 
 #endif /* __SECURE_LOG__ */
