@@ -2,7 +2,7 @@
 %define debug_package %{nil}
 
 Name:		activity_klog
-Version:	2.5
+Version:	2.6
 Release:	1%{?dist}
 
 Summary:	Kernel modules for logging various user activity
@@ -165,6 +165,13 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Thu Jul 24 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.6
+- Adapt code to Centos 7
+- Netlog: do not disable irq when planting probes
+- Execlog: monitor compat_sys_execve
+- Execlog: delay argv copying (avoid page faults)
+- Project reorganisation (use logical links)
+
 * Thu Jul 10 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.5
 - Add backward compatibility with netlog version 1
 
