@@ -1,4 +1,5 @@
 #include <linux/module.h>
+#include <linux/binfmts.h>
 #include <linux/kprobes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
@@ -54,42 +55,51 @@ get_user_arg_ptr(struct user_arg_ptr argv, int nr)
 }
 
 /**********************************/
+/*     inter-probe nightmare      */
+/**********************************/
+
+struct execve_data {
+	struct hlist_node hlist;
+	pid_t pid;
+	struct user_arg_ptr argv;
+};
+
+static HLIST_HEAD(active_kretprobes);
+static DEFINE_SPINLOCK(active_kretprobes_lock);
+
+static struct execve_data*
+get_current_kretprobe_data(void)
+{
+	struct execve_data *cur, *tgt = NULL;
+
+	spin_lock(&active_kretprobes_lock);
+	hlist_for_each_entry(cur, &active_kretprobes, hlist) {
+		if (cur->pid == current->pid) {
+			tgt = cur;
+			break;
+		}
+	}
+	spin_unlock(&active_kretprobes_lock);
+	return tgt;
+}
+
+
+/**********************************/
 /*          common core           */
 /**********************************/
 
-static const char bad_file[] = "BAD_FILE";
-
 static void
-execlog_common(const char __user * __filename,
-	       const struct user_arg_ptr __argv,
-	       const struct user_arg_ptr __envp)
+execlog_common(const char *filename,
+	       const struct user_arg_ptr __argv)
 {
 	const char __user *__argv_content;
 	int argv_cur_pos;
-	size_t argv_size, filename_size;
+	size_t argv_size;
 	long argv_written;
-	char *argv_buffer, *argv_current_end, *filename_buffer;
+	char *argv_buffer, *argv_current_end;
 #ifdef USE_PRINK
 	struct current_details details;
 #endif /* USE_PRINK */
-
-	/* Get Filename */
-	filename_size = strnlen_user(__filename, PATH_MAX);
-	if (unlikely(filename_size < 0 || filename_size > PATH_MAX)) {
-		filename_buffer = kmalloc(sizeof(bad_file), GFP_ATOMIC);
-	} else {
-		filename_buffer = kmalloc(filename_size, GFP_ATOMIC);
-	}
-	if (unlikely(filename_buffer == NULL))
-		return;
-	if (unlikely(filename_size < 0 || filename_size > PATH_MAX)) {
-		strncpy(filename_buffer, bad_file, sizeof(bad_file));
-        } else {
-		if (unlikely(strncpy_from_user(filename_buffer, __filename,
-					       filename_size) < 0)) {
-			strncpy(filename_buffer, bad_file, sizeof(bad_file));
-		}
-	}
 
 	/* Find total argv_size */
 	argv_size = 2;
@@ -108,7 +118,7 @@ execlog_common(const char __user * __filename,
 	/* Allocate memory for copying the argv from userspace */
 	argv_buffer = kmalloc(argv_size, GFP_ATOMIC);
 	if (unlikely(argv_buffer == NULL))
-		goto free_filename;
+		return;
 
 	/* Copy argv from userspace */
 	argv_cur_pos = 0;
@@ -143,72 +153,103 @@ execlog_common(const char __user * __filename,
 #ifdef USE_PRINK
 	fill_current_details(&details);
 	printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" %s %.*s\n"),
-	       CURRENT_DETAILS_ARGS(details), filename_buffer,
+	       CURRENT_DETAILS_ARGS(details), filename,
 	       (int)(argv_current_end - argv_buffer + 1), argv_buffer);
 #else /* ! USE_PRINK */
-	store_execlog_record(filename_buffer, argv_buffer,
+	store_execlog_record(filename, argv_buffer,
 			     argv_current_end - argv_buffer + 1);
 #endif /* ? USE_PRINK */
 free_argv:
 	kfree(argv_buffer);
-free_filename:
-	kfree(filename_buffer);
 }
 
 /**********************************/
 /*           PROBES               */
 /**********************************/
 
-static asmlinkage long
-probe_sys_execve(const char __user * __filename,
-		 const char __user * const __user * __argv,
-		 const char __user * const __user * __envp)
+static int
+pre_sys_execve(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	struct user_arg_ptr argv = {
-		.is_compat = false,
-		.ptr.native = __argv,
-	 };
-	struct user_arg_ptr envp = {
-		.is_compat = false,
-		.ptr.native = __envp,
-	};
+	struct execve_data *priv = (struct execve_data*)ri->data;
 
-	execlog_common(__filename, argv, envp);
+	if (unlikely(current == NULL))
+		return 1;
 
-	/* Mandatory return for jprobes */
-	jprobe_return();
+	priv->argv.is_compat = false;
+	priv->argv.ptr.native = (const char __user *const __user *) GET_ARG_2(regs);
+	priv->pid = current->pid;
+
+	spin_lock(&active_kretprobes_lock);
+	hlist_add_head(&priv->hlist, &active_kretprobes);
+	spin_unlock(&active_kretprobes_lock);
+
 	return 0;
 }
 
 #ifdef CONFIG_COMPAT
-static asmlinkage long
-probe_compat_sys_execve(const char __user * __filename,
-			const compat_uptr_t __user * __argv,
-			const compat_uptr_t __user * __envp)
+static int
+pre_compat_sys_execve(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	struct user_arg_ptr argv = {
-		.is_compat = true,
-		.ptr.compat = __argv,
-	 };
-	struct user_arg_ptr envp = {
-		.is_compat = true,
-		.ptr.compat = __envp,
-	};
+	struct execve_data *priv = (struct execve_data*)ri->data;
 
-	execlog_common(__filename, argv, envp);
+	if (unlikely(current == NULL))
+		return 1;
 
-	/* Mandatory return for jprobes */
-	jprobe_return();
+	priv->argv.is_compat = true;
+	priv->argv.ptr.compat = (const compat_uptr_t __user *) GET_ARG_2(regs);
+	priv->pid = current->pid;
+
+	spin_lock(&active_kretprobes_lock);
+	hlist_add_head(&priv->hlist, &active_kretprobes);
+	spin_unlock(&active_kretprobes_lock);
+
 	return 0;
 }
 #endif /* CONFIG_COMPAT */
+
+static int
+probe_search_binary_handler(struct linux_binprm *bprm)
+{
+	struct execve_data *priv;
+
+	priv = get_current_kretprobe_data();
+	if (unlikely(priv == NULL)) {
+		/* We missed this kreprobe, we won't clean it */
+		goto out;
+	}
+	execlog_common(bprm->filename, priv->argv);
+	priv->argv.ptr.native = NULL;
+out:
+	jprobe_return();
+	return 0;
+}
+
+static int
+post_check(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+	struct execve_data *priv = (struct execve_data*)ri->data;
+
+	if (unlikely(priv == NULL))
+		return 0;
+	if (unlikely(priv->argv.ptr.native != NULL && !IS_ERR(ERR_PTR(regs_return_value(regs)))))
+		pr_err("Missed one execution!\n");
+
+	spin_lock(&active_kretprobes_lock);
+	hlist_del(&priv->hlist);
+	spin_unlock(&active_kretprobes_lock);
+
+	return 0;
+}
 
 /*************************************/
 /*          probe definitions        */
 /*************************************/
 
-static struct jprobe execve_jprobe = {
-	.entry = (kprobe_opcode_t *)probe_sys_execve,
+static struct kretprobe kretprobe_sys_execve = {
+	.entry_handler = pre_sys_execve,
+	.handler = post_check,
+	.data_size = sizeof(struct execve_data),
+	.maxactive = 16 * NR_CPUS,
 	.kp = {
 	       .symbol_name = "sys_execve",
 	       .fault_handler = handler_fault,
@@ -216,8 +257,11 @@ static struct jprobe execve_jprobe = {
 };
 
 #ifdef CONFIG_COMPAT
-static struct jprobe execve_compat_jprobe = {
-	.entry = (kprobe_opcode_t *)probe_compat_sys_execve,
+static struct kretprobe kretprobe_compat_sys_execve = {
+	.entry_handler = pre_compat_sys_execve,
+	.handler = post_check,
+	.data_size = sizeof(struct execve_data),
+	.maxactive = 16 * NR_CPUS,
 	.kp = {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
 	       .symbol_name = "sys32_execve",
@@ -229,6 +273,14 @@ static struct jprobe execve_compat_jprobe = {
 };
 #endif /* CONFIG_COMPAT */
 
+static struct jprobe jprobe_search_binary_handler = {
+	.entry = probe_search_binary_handler,
+	.kp = {
+		.symbol_name = "search_binary_handler",
+		.fault_handler = handler_fault,
+	},
+};
+
 /************************************/
 /*             INIT MODULE          */
 /************************************/
@@ -239,20 +291,37 @@ static int __init plant_probes(void)
 
 	pr_info("Light monitoring tool for execve by CERN Security Team\n");
 
-	err = plant_jprobe(&execve_jprobe);
-	if (err < 0)
-		return -1;
+	err = plant_jprobe(&jprobe_search_binary_handler);
+	if (err < 0) {
+		err = -1;
+		goto err_cleaned;
+	}
+
+	err = plant_kretprobe(&kretprobe_sys_execve);
+	if (err < 0) {
+		err = -2;
+		goto err_clean_jprobe;
+	}
 
 #ifdef CONFIG_COMPAT
-	err = plant_jprobe(&execve_compat_jprobe);
+	err = plant_kretprobe(&kretprobe_compat_sys_execve);
 	if (err < 0) {
-		unplant_jprobe(&execve_jprobe);
-		return -2;
+		err = -3;
+		goto err_clean_kprobe;
 	}
 #endif /* CONFIG_COMPAT */
 
 	pr_info("[+] Deployed\n");
 	return 0;
+
+#ifdef CONFIG_COMPAT
+err_clean_kprobe:
+	unplant_kretprobe(&kretprobe_sys_execve);
+#endif /* CONFIG_COMPAT */
+err_clean_jprobe:
+	unplant_jprobe(&jprobe_search_binary_handler);
+err_cleaned:
+	return err;
 }
 
 /************************************/
@@ -261,10 +330,11 @@ static int __init plant_probes(void)
 
 static void __exit unplant_probes(void)
 {
-	unplant_jprobe(&execve_jprobe);
+	unplant_kretprobe(&kretprobe_sys_execve);
 #ifdef CONFIG_COMPAT
-	unplant_jprobe(&execve_compat_jprobe);
+	unplant_kretprobe(&kretprobe_compat_sys_execve);
 #endif /* CONFIG_COMPAT */
+	unplant_jprobe(&jprobe_search_binary_handler);
 }
 
 /************************************/
