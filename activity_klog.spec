@@ -1,4 +1,4 @@
-%{!?dist: %define dist .ai6}
+%{!?dist: %define dist .slc6}
 %define debug_package %{nil}
 
 Name:		activity_klog
@@ -13,22 +13,33 @@ Vendor:		CERN, http://cern.ch/linux
 BuildRoot:	%{_tmppath}/%{name}-%{version}-buildroot
 BuildRequires:	sed, redhat-rpm-config
 BuildRequires:	%kernel_module_package_buildreqs
-#BuildRequires:	checkpolicy, selinux-policy-devel
-#BuildRequires:	hardlink
+%if "%{?dist}" != ".slc6"
+BuildRequires:	checkpolicy, selinux-policy-devel
+BuildRequires:	hardlink
+%endif
 ExclusiveArch:	i686 x86_64
 
 Source0:	%{name}-%{version}.tgz
 Source1:	%{name}-config-%{version}.tgz
 Source2:	%{name}-selinux-%{version}.tgz
-#Source3:	secure_log.files
+Source3:	secure_log.files
 Source4:	netlog.files
 Source5:	execlog.files
-#Source6:	secure_log.preamble
+Source6:	secure_log.preamble
 
 # Build only for standard kernel variant(s)
-#kernel_module_package -f %{SOURCE3} -p %{SOURCE6} -n secure_log default
+%if "%{?dist}" != ".slc6"
+%kernel_module_package -f %{SOURCE3} -p %{SOURCE6} -n secure_log default
+%endif
 %kernel_module_package -f %{SOURCE4} -n netlog default
 %kernel_module_package -f %{SOURCE5} -n execlog default
+
+%if "%{?dist}" == ".slc6"
+%define modules_to_build netlog execlog
+%else
+%define modules_to_build netlog execlog secure_log
+%endif
+
 
 # Build only the following SELinux variant(s)
 %global selinux_variants targeted
@@ -36,20 +47,23 @@ Source5:	execlog.files
 %description
 %{name} is a collection of Loadable Kernel Modules for logging various user activity
 
-#%package -n secure_log-selinux
-#Summary:	Selinux module for secure_log kernel module
-#Group:		System Environment/Kernel
-#Requires:	selinux-policy
-#Requires(post):	/usr/sbin/semodule, /sbin/restorecon, /sbin/fixfiles
-#Requires(postun):	/usr/sbin/semodule, /sbin/restorecon, /sbin/fixfiles
+%if "%{?dist}" != ".slc6"
+%package -n secure_log-selinux
+Summary:	Selinux module for secure_log kernel module
+Group:		System Environment/Kernel
+Requires:	selinux-policy
+Requires(post):	/usr/sbin/semodule, /sbin/restorecon, /sbin/fixfiles
+Requires(postun):	/usr/sbin/semodule, /sbin/restorecon, /sbin/fixfiles
 
-#%description -n secure_log-selinux
-#Simple selinux policy for kmod-secure_log
-#It allows syslogd to read directly from the newly created device
+%description -n secure_log-selinux
+Simple selinux policy for kmod-secure_log
+It allows syslogd to read directly from the newly created device
+%endif
 
 %prep
 %setup -q
 set -- *
+%if "%{?dist}" == ".slc6"
 # Enable compat features
 echo "ccflags-y += -DUSE_PRINK=1" >> execlog/Kbuild
 echo "ccflags-y += -DUSE_PRINK=1" >> netlog/Kbuild
@@ -58,6 +72,7 @@ echo "ccflags-y += -DNETLOG_V1_COMPAT=1" >> netlog/Kbuild
 sed -i "s/^src_files = \(.*\)/src_files = \1 compat_v1.c/" netlog/Kbuild
 # Disable secure_log
 sed '/secure_log/d' -i Kbuild
+%endif
 mkdir source
 mv "$@" source/
 mkdir obj
@@ -77,14 +92,16 @@ for flavor in %flavors_to_build ; do
 
 	make -C %{kernel_source $flavor} M=$PWD/obj/$flavor
 done
-##Selinux
-#cd SELinux
-#for selinuxvariant in %{selinux_variants}
-#do
-#	make NAME=${selinuxvariant} -f /usr/share/selinux/devel/Makefile
-#	mv secure_log.pp secure_log.pp.${selinuxvariant}
-#	make NAME=${selinuxvariant} -f /usr/share/selinux/devel/Makefile clean
-#done
+%if "%{?dist}" != ".slc6"
+#Selinux
+cd SELinux
+for selinuxvariant in %{selinux_variants}
+do
+	make NAME=${selinuxvariant} -f /usr/share/selinux/devel/Makefile
+	mv secure_log.pp secure_log.pp.${selinuxvariant}
+	make NAME=${selinuxvariant} -f /usr/share/selinux/devel/Makefile clean
+done
+%endif
 cd -
 
 %install
@@ -94,10 +111,13 @@ export INSTALL_MOD_DIR=extra/
 for flavor in %flavors_to_build ; do 
 	make -C %{kernel_source $flavor} modules_install \
 	M=$PWD/obj/$flavor
+
+	# Cleanup unnecessary kernel-generated module dependency files.
+	find $INSTALL_MOD_PATH/lib/modules -iname 'modules.*' -exec rm {} \;
 done
 
 mkdir -p ${RPM_BUILD_ROOT}/etc/depmod.d/
-for module in netlog execlog; do
+for module in %{modules_to_build}; do
 	install -m0644 config/${module}.conf $RPM_BUILD_ROOT/etc/depmod.d/
 done
 
@@ -107,37 +127,39 @@ for module in netlog execlog; do
 	install -m0755 config/${module}.modules ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
 done
 
-##Selinux
-#for selinuxvariant in %{selinux_variants}
-#do
-#	install -d %{buildroot}%{_datadir}/selinux/${selinuxvariant}
-#	install -p -m 644 SELinux/secure_log.pp.${selinuxvariant} \
-#		%{buildroot}%{_datadir}/selinux/${selinuxvariant}/secure_log.pp
-#done
-#/usr/sbin/hardlink -cv %{buildroot}%{_datadir}/selinux
+%if "%{?dist}" != ".slc6"
+#Selinux
+for selinuxvariant in %{selinux_variants}
+do
+	install -d %{buildroot}%{_datadir}/selinux/${selinuxvariant}
+	install -p -m 644 SELinux/secure_log.pp.${selinuxvariant} \
+		%{buildroot}%{_datadir}/selinux/${selinuxvariant}/secure_log.pp
+done
+/usr/sbin/hardlink -cv %{buildroot}%{_datadir}/selinux
 
-## Udev rule
-#mkdir -p  ${RPM_BUILD_ROOT}/etc/udev/rules.d/
-#install -m0644 config/secure_log.udev ${RPM_BUILD_ROOT}/etc/udev/rules.d/99-securelog.rules
+# Udev rule
+mkdir -p  ${RPM_BUILD_ROOT}/etc/udev/rules.d/
+install -m0644 config/secure_log.udev ${RPM_BUILD_ROOT}/etc/udev/rules.d/99-securelog.rules
 
-#%files -n secure_log-selinux
-#%defattr(644,root,root,755)
-#%{_datadir}/selinux/*/secure_log.pp
-#/etc/udev/rules.d/99-securelog.rules
+%files -n secure_log-selinux
+%defattr(644,root,root,755)
+%{_datadir}/selinux/*/secure_log.pp
+/etc/udev/rules.d/99-securelog.rules
 
-#%post -n secure_log-selinux
-#for selinuxvariant in %{selinux_variants}; do
-#	/usr/sbin/semodule -s ${selinuxvariant} -i \
-#		%{_datadir}/selinux/${selinuxvariant}/secure_log.pp &> /dev/null || :
-#done
-#[ -c /dev/secure_log ] && /sbin/restorecon /dev/secure_log
+%post -n secure_log-selinux
+for selinuxvariant in %{selinux_variants}; do
+	/usr/sbin/semodule -s ${selinuxvariant} -i \
+		%{_datadir}/selinux/${selinuxvariant}/secure_log.pp &> /dev/null || :
+done
+[ -c /dev/secure_log ] && /sbin/restorecon /dev/secure_log
 
-#%postun -n secure_log-selinux
-#if [ $1 -eq 0 ] ; then
-#	for selinuxvariant in %{selinux_variants}; do
-#		/usr/sbin/semodule -s ${selinuxvariant} -r secure_log &> /dev/null || :
-#	done
-#fi
+%postun -n secure_log-selinux
+if [ $1 -eq 0 ] ; then
+	for selinuxvariant in %{selinux_variants}; do
+		/usr/sbin/semodule -s ${selinuxvariant} -r secure_log &> /dev/null || :
+	done
+fi
+%endif
 
 %clean
 rm -rf $RPM_BUILD_ROOT
