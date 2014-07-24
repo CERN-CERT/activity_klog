@@ -1,5 +1,4 @@
 #include <linux/kprobes.h>
-#include "sparse_compat.h"
 
 #ifdef CONFIG_X86
 #ifdef CONFIG_X86_64
@@ -19,8 +18,8 @@
 
 int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number);
 
-void unplant_jprobe(struct jprobe *probe) __must_hold(probe_lock);
-int plant_jprobe(struct jprobe *probe) __must_hold(probe_lock);
+void unplant_jprobe(struct jprobe *probe);
+int plant_jprobe(struct jprobe *probe);
 
-void unplant_kretprobe(struct kretprobe *probe) __must_hold(probe_lock);
-int plant_kretprobe(struct kretprobe *probe) __must_hold(probe_lock);
+void unplant_kretprobe(struct kretprobe *probe);
+int plant_kretprobe(struct kretprobe *probe);
