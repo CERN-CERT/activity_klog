@@ -70,10 +70,17 @@ static DEFINE_SPINLOCK(active_kretprobes_lock);
 static struct execve_data*
 get_current_kretprobe_data(void)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
+	struct hlist_node * tmp;
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0) */
 	struct execve_data *cur, *tgt = NULL;
 
 	spin_lock(&active_kretprobes_lock);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
+	hlist_for_each_entry(cur, tmp, &active_kretprobes, hlist) {
+#else /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0) */
 	hlist_for_each_entry(cur, &active_kretprobes, hlist) {
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(3, 9, 0) */
 		if (cur->pid == current->pid) {
 			tgt = cur;
 			break;
