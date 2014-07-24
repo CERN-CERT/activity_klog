@@ -42,22 +42,6 @@ struct probes probe_list[] = {
         { "udp_close",   1 << PROBE_UDP_CLOSE},
 };
 
-#ifdef CONFIG_X86
-#ifdef CONFIG_X86_64
-/* Calling conventions: RDI, RSI, RDX */
-#define GET_ARG_1(regs) regs->di
-#define GET_ARG_2(regs) regs->si
-#define GET_ARG_3(regs) regs->dx
-#else /* !CONFIG_X86_64 */
-/* Calling conventions: AX, DX, BX */
-#define GET_ARG_1(regs) regs->ax
-#define GET_ARG_2(regs) regs->dx
-#define GET_ARG_3(regs) regs->bx
-#endif /* CONFIG_X86_64 ? */
-#else
-#error Unsupported architecture
-#endif
-
 /********************************/
 /*            Tools             */
 /********************************/
