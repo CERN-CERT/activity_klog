@@ -33,7 +33,7 @@ srpm: dist
 	$(rpmbuild) --define "dist $(DIST)" --define "_sourcedir ${PWD}" --define "_srcrpmdir ${PWD}" -bs ${NAME}.spec
 
 rpm: dist 
-	$(rpmbuild) --define "dist $(DIST)" --define "_sourcedir ${PWD}" --define "_srcrpmdir ${PWD}" -ba ${NAME}.spec
+	$(rpmbuild) --define "dist $(DIST)" --define "_sourcedir ${PWD}" --define "_rpmdir ${PWD}" -ba ${NAME}.spec
 
 clean:
 	@rm -f *.tgz
