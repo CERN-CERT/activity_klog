@@ -251,8 +251,8 @@ static struct kretprobe kretprobe_sys_execve = {
 	.data_size = sizeof(struct execve_data),
 	.maxactive = 16 * NR_CPUS,
 	.kp = {
-	       .symbol_name = "sys_execve",
-	       .fault_handler = handler_fault,
+		.symbol_name = "sys_execve",
+		.fault_handler = handler_fault,
 	},
 };
 
@@ -268,7 +268,7 @@ static struct kretprobe kretprobe_compat_sys_execve = {
 #else /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0) */
 	       .symbol_name = "compat_sys_execve",
 #endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(3, 7, 0) */
-	       .fault_handler = handler_fault,
+		.fault_handler = handler_fault,
 	},
 };
 #endif /* CONFIG_COMPAT */
