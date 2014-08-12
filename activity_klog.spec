@@ -206,7 +206,7 @@ rm -rf $RPM_BUILD_ROOT
 - Import of a major rewrite from fork github.com/Feandil
 - Rewrite of spec file (multiple packages)
 
-* Tue Sep 19 2012 Panos Sakkos <panos.sakkos@cern.ch> - 1.30
+* Wed Sep 19 2012 Panos Sakkos <panos.sakkos@cern.ch> - 1.30
 - Updated version to 1.30, which introduces the "On the fly whitelisting" feature.
 
 * Wed Sep 12 2012 Antonio Perez <antonio.perez.perez@cern.ch> - 1.23-2
