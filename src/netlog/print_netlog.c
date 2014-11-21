@@ -13,10 +13,10 @@ static const char * netlog_protocol_desc[] = {
 
 static const char * netlog_action_desc[] = {
 	" UNK ",
+	" BIND ",
 	" -> ",
 	" <- ",
 	" <!> ",
-	" BIND ",
 	NULL
 };
 
