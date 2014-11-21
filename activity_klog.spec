@@ -2,7 +2,7 @@
 %define debug_package %{nil}
 
 Name:		activity_klog
-Version:	2.6
+Version:	2.7
 Release:	1%{?dist}
 
 Summary:	Kernel modules for logging various user activity
@@ -165,6 +165,9 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Fri Nov 21 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.7
+- Fix netlog action decoding table
+
 * Thu Jul 24 2014 Vincent Brillault <vincent.brillault@cern.ch> - 2.6
 - Adapt code to Centos 7
 - Netlog: do not disable irq when planting probes
