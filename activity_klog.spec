@@ -3,7 +3,7 @@
 
 Name:		activity_klog
 Version:	2.7
-Release:	1%{?dist}
+Release:	2%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
