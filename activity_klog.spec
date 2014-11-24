@@ -13,7 +13,7 @@ Vendor:		CERN, http://cern.ch/linux
 BuildRoot:	%{_tmppath}/%{name}-%{version}-buildroot
 BuildRequires:	sed, redhat-rpm-config
 BuildRequires:	%kernel_module_package_buildreqs
-%if "%{?dist}" != ".slc6"
+%if 0%rhel >= 7
 BuildRequires:	checkpolicy, selinux-policy-devel
 BuildRequires:	hardlink
 %endif
@@ -28,16 +28,16 @@ Source5:	execlog.files
 Source6:	secure_log.preamble
 
 # Build only for standard kernel variant(s)
-%if "%{?dist}" != ".slc6"
+%if 0%rhel >= 7
 %kernel_module_package -f %{SOURCE3} -p %{SOURCE6} -n secure_log default
 %endif
 %kernel_module_package -f %{SOURCE4} -n netlog default
 %kernel_module_package -f %{SOURCE5} -n execlog default
 
-%if "%{?dist}" == ".slc6"
-%define modules_to_build netlog execlog
-%else
+%if 0%rhel >= 7
 %define modules_to_build netlog execlog secure_log
+%else
+%define modules_to_build netlog execlog
 %endif
 
 
@@ -47,7 +47,7 @@ Source6:	secure_log.preamble
 %description
 %{name} is a collection of Loadable Kernel Modules for logging various user activity
 
-%if "%{?dist}" != ".slc6"
+%if 0%rhel >= 7
 %package -n secure_log-selinux
 Summary:	Selinux module for secure_log kernel module
 Group:		System Environment/Kernel
@@ -63,7 +63,7 @@ It allows syslogd to read directly from the newly created device
 %prep
 %setup -q
 set -- *
-%if "%{?dist}" == ".slc6"
+%if 0%rhel == 6
 # Enable compat features
 echo "ccflags-y += -DUSE_PRINK=1" >> execlog/Kbuild
 echo "ccflags-y += -DUSE_PRINK=1" >> netlog/Kbuild
@@ -92,7 +92,7 @@ for flavor in %flavors_to_build ; do
 
 	make -C %{kernel_source $flavor} M=$PWD/obj/$flavor
 done
-%if "%{?dist}" != ".slc6"
+%if 0%rhel >= 7
 #Selinux
 cd SELinux
 for selinuxvariant in %{selinux_variants}
@@ -127,7 +127,7 @@ for module in netlog execlog; do
 	install -m0755 config/${module}.modules ${RPM_BUILD_ROOT}/etc/sysconfig/modules/
 done
 
-%if "%{?dist}" != ".slc6"
+%if 0%rhel >= 7
 #Selinux
 for selinuxvariant in %{selinux_variants}
 do
