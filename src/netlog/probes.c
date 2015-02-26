@@ -31,7 +31,7 @@
 
 static u8 initialized;
 static u32 loaded_probes;
-static DEFINE_SPINLOCK(probe_lock);
+static DEFINE_SEMAPHORE(probe_lock);
 
 struct probes probe_list[] = {
 	{ "tcp_connect", 1 << PROBE_TCP_CONNECT },
@@ -371,11 +371,11 @@ __must_hold(probe_lock)
 
 void unplant_all(void)
 {
-	spin_lock(&probe_lock);
+	down(&probe_lock);
 
 	unplant_probes(loaded_probes);
 
-	spin_unlock(&probe_lock);
+	up(&probe_lock);
 }
 
 static int
@@ -446,13 +446,13 @@ probes_init(void)
 {
 	int ret = 0;
 
-	spin_lock(&probe_lock);
+	down(&probe_lock);
 	if (initialized == 0) {
 		ret = plant_probes(DEFAULT_PROBES);
 		if (ret >= 0)
 			initialized = 1;
 	}
-	spin_unlock(&probe_lock);
+	up(&probe_lock);
 
 	return ret;
 }
@@ -481,10 +481,13 @@ all_probes_param_set(const char *buf, const struct kernel_param *kp)
 		return ret;
 
 	initialized = 1;
+	ret = down_interruptible(&probe_lock);
+	if (ret != 0)
+		return ret;
 
-	spin_lock(&probe_lock);
 	ret = plant_probes(wanted_probes);
-	spin_unlock(&probe_lock);
+
+	up(&probe_lock);
 
 	return ret;
 }
@@ -499,9 +502,11 @@ all_probes_param_get(char *buffer, const struct kernel_param *kp)
 {
 	int ret;
 
-	spin_lock(&probe_lock);
+	ret = down_interruptible(&probe_lock);
+	if (ret != 0)
+		return ret;
 	ret = scnprintf(buffer, PAGE_SIZE, "%x", loaded_probes);
-	spin_unlock(&probe_lock);
+	up(&probe_lock);
 
 	return ret;
 }
@@ -539,7 +544,9 @@ one_probe_param_set(const char *buf, const struct kernel_param *kp)
 		return ret;
 	ret = 0;
 
-	spin_lock(&probe_lock);
+	ret = down_interruptible(&probe_lock);
+	if (ret != 0)
+		return ret;
 
 	if (initialized == 0) {
 		ret = plant_probes(DEFAULT_PROBES);
@@ -557,7 +564,7 @@ one_probe_param_set(const char *buf, const struct kernel_param *kp)
 	}
 
 fail:
-	spin_unlock(&probe_lock);
+	up(&probe_lock);
 	return ret;
 }
 
@@ -576,9 +583,11 @@ one_probe_param_get(char *buffer, const struct kernel_param *kp)
 	if (unlikely(probe == NULL))
 		return -EBADF;
 
-	spin_lock(&probe_lock);
+	ret = down_interruptible(&probe_lock);
+	if (ret != 0)
+		return ret;
 	ret = scnprintf(buffer, PAGE_SIZE, "%i", !!(probe->mask & loaded_probes));
-	spin_unlock(&probe_lock);
+	up(&probe_lock);
 
 	return ret;
 }
