@@ -112,7 +112,7 @@ execlog_common(const char *filename,
 	argv_size = 2;
 	argv_cur_pos = 0;
 	while ((__argv_content = get_user_arg_ptr(__argv, argv_cur_pos)) != NULL) {
-		argv_size += strlen_user(__argv_content) + 1;
+		argv_size += strlen_user(__argv_content);
 		++argv_cur_pos;
 	}
 
