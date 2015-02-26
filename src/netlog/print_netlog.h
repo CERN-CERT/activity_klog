@@ -6,8 +6,8 @@
  */
 enum netlog_protocol {
 	PROTO_UNK = 0,
-        PROTO_TCP,
-        PROTO_UDP,
+	PROTO_TCP,
+	PROTO_UDP,
 };
 
 /**
@@ -15,10 +15,10 @@ enum netlog_protocol {
  */
 enum netlog_action {
 	ACTION_UNK = 0,
-        ACTION_BIND,
-        ACTION_CONNECT,
-        ACTION_ACCEPT,
-        ACTION_CLOSE,
+	ACTION_BIND,
+	ACTION_CONNECT,
+	ACTION_ACCEPT,
+	ACTION_CLOSE,
 };
 
 #define NETLOG_PRINT_SIZE 128

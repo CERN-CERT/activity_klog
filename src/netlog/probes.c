@@ -34,12 +34,12 @@ static u32 loaded_probes;
 static DEFINE_SPINLOCK(probe_lock);
 
 struct probes probe_list[] = {
-        { "tcp_connect", 1 << PROBE_TCP_CONNECT },
-        { "tcp_accept",  1 << PROBE_TCP_ACCEPT},
-        { "tcp_close",   1 << PROBE_TCP_CLOSE},
-        { "udp_connect", 1 << PROBE_UDP_CONNECT},
-        { "udp_bind",    1 << PROBE_UDP_BIND},
-        { "udp_close",   1 << PROBE_UDP_CLOSE},
+	{ "tcp_connect", 1 << PROBE_TCP_CONNECT },
+	{ "tcp_accept",  1 << PROBE_TCP_ACCEPT},
+	{ "tcp_close",   1 << PROBE_TCP_CLOSE},
+	{ "udp_connect", 1 << PROBE_UDP_CONNECT},
+	{ "udp_bind",    1 << PROBE_UDP_BIND},
+	{ "udp_close",   1 << PROBE_UDP_CLOSE},
 };
 
 /********************************/
@@ -499,7 +499,7 @@ all_probes_param_get(char *buffer, const struct kernel_param *kp)
 {
 	int ret;
 
-        spin_lock(&probe_lock);
+	spin_lock(&probe_lock);
 	ret = scnprintf(buffer, PAGE_SIZE, "%x", loaded_probes);
 	spin_unlock(&probe_lock);
 
@@ -508,8 +508,8 @@ all_probes_param_get(char *buffer, const struct kernel_param *kp)
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36)
 const struct kernel_param_ops all_probes_param = {
-        .set = all_probes_param_set,
-        .get = all_probes_param_get,
+	.set = all_probes_param_set,
+	.get = all_probes_param_get,
 };
 #endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
 
@@ -539,7 +539,7 @@ one_probe_param_set(const char *buf, const struct kernel_param *kp)
 		return ret;
 	ret = 0;
 
-        spin_lock(&probe_lock);
+	spin_lock(&probe_lock);
 
 	if (initialized == 0) {
 		ret = plant_probes(DEFAULT_PROBES);
@@ -576,7 +576,7 @@ one_probe_param_get(char *buffer, const struct kernel_param *kp)
 	if (unlikely(probe == NULL))
 		return -EBADF;
 
-        spin_lock(&probe_lock);
+	spin_lock(&probe_lock);
 	ret = scnprintf(buffer, PAGE_SIZE, "%i", !!(probe->mask & loaded_probes));
 	spin_unlock(&probe_lock);
 
@@ -586,7 +586,7 @@ one_probe_param_get(char *buffer, const struct kernel_param *kp)
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36)
 const struct kernel_param_ops one_probe_param = {
-        .set = one_probe_param_set,
-        .get = one_probe_param_get,
+	.set = one_probe_param_set,
+	.get = one_probe_param_get,
 };
 #endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */

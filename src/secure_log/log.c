@@ -351,7 +351,7 @@ do {						\
 		return -1;			\
 	}					\
 	len += change;				\
-	remaining -= change;                    \
+	remaining -= change;			\
 } while (0)
 
 
