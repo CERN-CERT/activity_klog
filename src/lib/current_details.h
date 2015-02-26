@@ -33,11 +33,11 @@ fill_current_details(struct current_details *details)
 	kgid_t kgid;
 
 	current_uid_gid(&kuid, &kgid);
-	details->uid = from_kuid(&init_user_ns, kuid);
-	details->gid = from_kgid(&init_user_ns, kgid);
+	details->uid = kuid.val;
+	details->gid = kgid.val;
 	current_euid_egid(&kuid, &kgid);
-	details->euid = from_kuid(&init_user_ns, kuid);
-	details->egid = from_kgid(&init_user_ns, kgid);
+	details->euid = kuid.val;
+	details->egid = kgid.val;
 #else /* LINUX_VERSION_CODE < KERNEL_VERSION(3, 5, 0) */
 	current_uid_gid(&details->uid, &details->gid);
 	current_euid_egid(&details->euid, &details->egid);
