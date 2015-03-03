@@ -38,9 +38,11 @@ static struct white_process *whitelist = NULL;
 
 /* Lock on the whitelist */
 static DEFINE_RWLOCK(whitelist_rwlock);
+/* Sanity lock on the whitelist: only one w modification at a time ! */
+static DEFINE_SPINLOCK(whitelist_sanitylock);
 
 static struct white_process*
-whiterow_from_string(char *str)
+whiterow_from_string(char *str) __must_hold(whitelist_sanitylock)
 {
 	struct white_process *new_row = NULL;
 	char *pos;
@@ -118,9 +120,9 @@ fail:
 }
 
 static int
-is_already_whitelisted(struct white_process *new_row) __must_hold(whitelist_rwlock)
+is_already_whitelisted(struct white_process *head, struct white_process *new_row) __must_hold(whitelist_sanitylock)
 {
-	struct white_process *row = whitelist;
+	struct white_process *row = head;
 
 	while (row != NULL) {
 		if (new_row->port == row->port &&
@@ -135,36 +137,40 @@ is_already_whitelisted(struct white_process *new_row) __must_hold(whitelist_rwlo
 }
 
 static void
-purge_whitelist(void) __must_hold(whitelist_rwlock)
+purge_whitelist(struct white_process *head) __must_hold(whitelist_sanitylock)
 {
-	struct white_process *current_row;
 	struct white_process *next_row;
+	struct white_process *current_row = head;
 
-	pr_info("[+] Cleared whitelist\n");
-
-	current_row = whitelist;
 	while (current_row != NULL) {
 		next_row = current_row->next;
 		kfree(current_row);
 		current_row = next_row;
 	}
-	whitelist = NULL;
 }
 
 void
 destroy_whitelist(void)
 {
 	unsigned long flags;
+	struct white_process *old;
 
-	write_lock_irqsave(&whitelist_rwlock, flags);
+	spin_lock_irqsave(&whitelist_sanitylock, flags);
 
-	purge_whitelist();
+	write_lock(&whitelist_rwlock);
+	old = whitelist;
+	whitelist = NULL;
+	write_unlock(&whitelist_rwlock);
 
-	write_unlock_irqrestore(&whitelist_rwlock, flags);
+	pr_info("[+] Whitelist cleared\n");
+
+	purge_whitelist(old);
+
+	spin_unlock_irqrestore(&whitelist_sanitylock, flags);
 }
 
 static struct white_process *
-add_whiterow(struct white_process *last, char *raw) __must_hold(whitelist_rwlock)
+add_whiterow(struct white_process **head, struct white_process *last, char *raw) __must_hold(whitelist_sanitylock)
 {
 	struct white_process *new_row;
 	if (raw == NULL)
@@ -174,13 +180,13 @@ add_whiterow(struct white_process *last, char *raw) __must_hold(whitelist_rwlock
 	if (new_row == NULL) {
 		pr_err("[-] Failed to whitelist %s\n", raw);
 		kfree(new_row);
-	} else if (is_already_whitelisted(new_row)) {
+	} else if (is_already_whitelisted(*head, new_row)) {
 		pr_err("[-] Duplicate whitelist %s\n", raw);
 		kfree(new_row);
 	} else {
 		pr_info("[+] Whitelisted %s\n", raw);
 		if (last == NULL)
-			whitelist = new_row;
+			*head = new_row;
 		else
 			last->next = new_row;
 		new_row->next = NULL;
@@ -195,16 +201,26 @@ set_whitelist_from_array(char **raw_array, int raw_len)
 {
 	int i;
 	unsigned long flags;
+	struct white_process *old;
+	struct white_process *head = NULL;
 	struct white_process *last = NULL;
 
-	write_lock_irqsave(&whitelist_rwlock, flags);
-
-	purge_whitelist();
+	spin_lock_irqsave(&whitelist_sanitylock, flags);
+	pr_info("[+] Creating new whitelist ...\n");
 
 	for (i = 0; i < raw_len; ++i)
-		last = add_whiterow(last, raw_array[i]);
+		last = add_whiterow(&head, last, raw_array[i]);
 
-	write_unlock_irqrestore(&whitelist_rwlock, flags);
+	write_lock(&whitelist_rwlock);
+	old = whitelist;
+	whitelist = head;
+	write_unlock(&whitelist_rwlock);
+
+	pr_info("[+] New whitelist applied\n");
+
+	purge_whitelist(old);
+
+	spin_unlock_irqrestore(&whitelist_sanitylock, flags);
 }
 #endif /* NETLOG_V1_COMPAT */
 
@@ -274,23 +290,31 @@ whitelist_param_set(const char *buf, const struct kernel_param *kp)
 	char *raw_orig;
 	char *raw;
 	unsigned long flags;
+	struct white_process *old;
 	struct white_process *last = NULL;
+	struct white_process *head = NULL;
 
 	raw_orig = kstrdup(buf, GFP_KERNEL);
-
-	write_lock_irqsave(&whitelist_rwlock, flags);
-
-	purge_whitelist();
-
 	if (unlikely(buf == NULL))
-		goto unlock;
+		return 0;
+
+	spin_lock_irqsave(&whitelist_sanitylock, flags);
+
+	pr_info("[+] Creating new whitelist ...\n");
 
 	while ((raw = strsep(&raw_orig, list_delims)) != NULL)
 		if (likely(*raw != '\0' && *raw != '\n'))
-			last = add_whiterow(last, raw);
+			last = add_whiterow(&head, last, raw);
 
-unlock:
-	write_unlock_irqrestore(&whitelist_rwlock, flags);
+	write_lock(&whitelist_rwlock);
+	old = whitelist;
+	whitelist = head;
+	write_unlock(&whitelist_rwlock);
+
+	pr_info("[+] New whitelist applied\n");
+	purge_whitelist(old);
+	spin_unlock_irqrestore(&whitelist_sanitylock, flags);
+
 	kfree(raw_orig);
 	return 0;
 }
