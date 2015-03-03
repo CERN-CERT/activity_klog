@@ -31,7 +31,11 @@
 
 static u8 initialized;
 static u32 loaded_probes;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 36, 0)
 static DEFINE_SEMAPHORE(probe_lock);
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 36, 0) */
+static DECLARE_MUTEX(probe_lock);
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 36, 0) */
 
 struct probes probe_list[] = {
 	{ "tcp_connect", 1 << PROBE_TCP_CONNECT },
