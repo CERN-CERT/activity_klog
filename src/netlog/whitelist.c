@@ -295,7 +295,7 @@ whitelist_param_set(const char *buf, const struct kernel_param *kp)
 	struct white_process *head = NULL;
 
 	raw_orig = kstrdup(buf, GFP_KERNEL);
-	if (unlikely(buf == NULL))
+	if (unlikely(raw_orig == NULL))
 		return 0;
 
 	spin_lock_irqsave(&whitelist_sanitylock, flags);
