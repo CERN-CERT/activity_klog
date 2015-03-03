@@ -22,24 +22,24 @@ int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number)
 	}
 }
 
-void unplant_jprobe(struct jprobe *probe) __must_hold(probe_lock)
+void unplant_kprobe(struct kprobe *probe) __must_hold(probe_lock)
 {
-	pr_info("[+] Unplanting jprobe on %s\n", probe->kp.symbol_name);
-	unregister_jprobe(probe);
-	pr_info("[+] Unplanted jprobe on %s\n", probe->kp.symbol_name);
-	probe->kp.addr = NULL;
+	pr_info("[+] Unplanting kprobe on %s\n", probe->symbol_name);
+	unregister_kprobe(probe);
+	pr_info("[+] Unplanted kprobe on %s\n", probe->symbol_name);
+	probe->addr = NULL;
 }
 
-int plant_jprobe(struct jprobe *probe) __must_hold(probe_lock)
+int plant_kprobe(struct kprobe *probe) __must_hold(probe_lock)
 {
 	int err;
 
-	pr_info("[+] Planting jprobe on %s\n", probe->kp.symbol_name);
-	err = register_jprobe(probe);
+	pr_info("[+] Planting kprobe on %s\n", probe->symbol_name);
+	err = register_kprobe(probe);
 	if (err < 0)
-		pr_err("[-] Failed to planted jprobe on %s: %i\n", probe->kp.symbol_name, err);
+		pr_err("[-] Failed to planted kprobe on %s: %i\n", probe->symbol_name, err);
 	else
-		pr_info("[+] Planted jprobe on %s\n", probe->kp.symbol_name);
+		pr_info("[+] Planted kprobe on %s\n", probe->symbol_name);
 
 	return err;
 }

@@ -18,8 +18,8 @@
 
 int handler_fault(struct kprobe *p, struct pt_regs *regs, int trap_number);
 
-void unplant_jprobe(struct jprobe *probe);
-int plant_jprobe(struct jprobe *probe);
+void unplant_kprobe(struct kprobe *probe);
+int plant_kprobe(struct kprobe *probe);
 
 void unplant_kretprobe(struct kretprobe *probe);
 int plant_kretprobe(struct kretprobe *probe);

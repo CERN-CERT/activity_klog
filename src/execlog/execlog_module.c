@@ -215,19 +215,23 @@ pre_compat_sys_execve(struct kretprobe_instance *ri, struct pt_regs *regs)
 #endif /* CONFIG_COMPAT */
 
 static int
-probe_search_binary_handler(struct linux_binprm *bprm)
+pre_search_binary_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct execve_data *priv;
+	struct linux_binprm *bprm = (struct linux_binprm *) GET_ARG_1(regs);
+
+	if (unlikely(bprm == NULL)) {
+		/* Well, that's strange ... */
+		return 0;
+	}
 
 	priv = get_current_kretprobe_data();
 	if (unlikely(priv == NULL)) {
-		/* We missed this kreprobe, we won't clean it */
-		goto out;
+		/* We missed this kreprobe... How ? */
+		return 0;
 	}
 	execlog_common(bprm->filename, priv->argv);
 	priv->argv.ptr.native = NULL;
-out:
-	jprobe_return();
 	return 0;
 }
 
@@ -280,12 +284,10 @@ static struct kretprobe kretprobe_compat_sys_execve = {
 };
 #endif /* CONFIG_COMPAT */
 
-static struct jprobe jprobe_search_binary_handler = {
-	.entry = probe_search_binary_handler,
-	.kp = {
-		.symbol_name = "search_binary_handler",
-		.fault_handler = handler_fault,
-	},
+static struct kprobe kprobe_search_binary_handler = {
+	.pre_handler = pre_search_binary_handler,
+	.symbol_name = "search_binary_handler",
+	.fault_handler = handler_fault,
 };
 
 /************************************/
@@ -298,7 +300,7 @@ static int __init plant_probes(void)
 
 	pr_info("Light monitoring tool for execve by CERN Security Team\n");
 
-	err = plant_jprobe(&jprobe_search_binary_handler);
+	err = plant_kprobe(&kprobe_search_binary_handler);
 	if (err < 0) {
 		err = -1;
 		goto err_cleaned;
@@ -307,14 +309,14 @@ static int __init plant_probes(void)
 	err = plant_kretprobe(&kretprobe_sys_execve);
 	if (err < 0) {
 		err = -2;
-		goto err_clean_jprobe;
+		goto err_clean_kprobe;
 	}
 
 #ifdef CONFIG_COMPAT
 	err = plant_kretprobe(&kretprobe_compat_sys_execve);
 	if (err < 0) {
 		err = -3;
-		goto err_clean_kprobe;
+		goto err_clean_kretprobe;
 	}
 #endif /* CONFIG_COMPAT */
 
@@ -322,11 +324,11 @@ static int __init plant_probes(void)
 	return 0;
 
 #ifdef CONFIG_COMPAT
-err_clean_kprobe:
+err_clean_kretprobe:
 	unplant_kretprobe(&kretprobe_sys_execve);
 #endif /* CONFIG_COMPAT */
-err_clean_jprobe:
-	unplant_jprobe(&jprobe_search_binary_handler);
+err_clean_kprobe:
+	unplant_kprobe(&kprobe_search_binary_handler);
 err_cleaned:
 	return err;
 }
@@ -341,7 +343,7 @@ static void __exit unplant_probes(void)
 #ifdef CONFIG_COMPAT
 	unplant_kretprobe(&kretprobe_compat_sys_execve);
 #endif /* CONFIG_COMPAT */
-	unplant_jprobe(&jprobe_search_binary_handler);
+	unplant_kprobe(&kprobe_search_binary_handler);
 }
 
 /************************************/

@@ -214,11 +214,13 @@ static int post_sys_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	return 0;
 }
 
-asmlinkage static long pre_sys_close(unsigned int fd)
+
+static int pre_sys_close(struct kprobe *p, struct pt_regs *regs)
 {
 	struct socket *sock;
-	int err;
+	int fd, err;
 
+	fd = (int) GET_ARG_1(regs);
 	sock = sockfd_lookup(fd, &err);
 
 	if (unlikely(current == NULL) ||
@@ -240,8 +242,6 @@ asmlinkage static long pre_sys_close(unsigned int fd)
 out:
 	if (likely(sock != NULL))
 		sockfd_put(sock);
-
-	jprobe_return();
 	return 0;
 }
 
@@ -322,12 +322,10 @@ static struct kretprobe accept_kretprobe = {
 	},
 };
 
-static struct jprobe close_jprobe = {
-	.entry = (kprobe_opcode_t *)pre_sys_close,
-	.kp = {
-		.symbol_name = "sys_close",
-		.fault_handler = handler_fault,
-	}
+static struct kprobe close_kprobe = {
+	.pre_handler = pre_sys_close,
+	.symbol_name = "sys_close",
+	.fault_handler = handler_fault,
 };
 
 static struct kretprobe bind_kretprobe = {
@@ -360,7 +358,7 @@ __must_hold(probe_lock)
 
 	if (removed_probes & ((1 << PROBE_TCP_CLOSE) | (1 << PROBE_UDP_CLOSE))) {
 		if (!(loaded_probes & ((1 << PROBE_TCP_CLOSE) | (1 << PROBE_UDP_CLOSE))))
-			unplant_jprobe(&close_jprobe);
+			unplant_kprobe(&close_kprobe);
 	}
 	if (removed_probes & (1 << PROBE_UDP_CONNECT))
 		unplant_kretprobe(&dgram_connect_kretprobe);
@@ -400,7 +398,7 @@ __must_hold(&probe_lock)
 
 	if (new_probes & (1 << PROBE_TCP_CLOSE)) {
 		if (!(loaded_probes & (1 << PROBE_UDP_CLOSE))) {
-			err = plant_jprobe(&close_jprobe);
+			err = plant_kprobe(&close_kprobe);
 			if (err < 0)
 				return -CLOSE_PROBE_FAILED;
 		}
@@ -422,7 +420,7 @@ __must_hold(&probe_lock)
 
 	if (new_probes & (1 << PROBE_UDP_CLOSE)) {
 		if (!(loaded_probes & (1 << PROBE_TCP_CLOSE))) {
-			err = plant_jprobe(&close_jprobe);
+			err = plant_kprobe(&close_kprobe);
 			if (err < 0)
 				return -CLOSE_PROBE_FAILED;
 		}
