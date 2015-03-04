@@ -678,7 +678,7 @@ clean_class:
 	return err;
 }
 
-module_init(init_secure_dev);
+module_init(init_secure_dev)
 
 static void __exit
 destroy_secure_dev(void)
@@ -691,4 +691,4 @@ destroy_secure_dev(void)
 	return;
 }
 
-module_exit(destroy_secure_dev);
+module_exit(destroy_secure_dev)

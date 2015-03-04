@@ -377,5 +377,5 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vincent Brillault <vincent.brillault@cern.ch>");
 MODULE_DESCRIPTION("execlog logs information about every 'execve' syscall.");
 
-module_init(plant_probes);
-module_exit(unplant_probes);
+module_init(plant_probes)
+module_exit(unplant_probes)

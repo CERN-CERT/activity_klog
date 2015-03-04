@@ -134,9 +134,9 @@ static void __exit netlog_exit(void)
 /* Register module functions and information */
 /*********************************************/
 
-module_init(netlog_init);
-module_exit(netlog_exit);
+module_init(netlog_init)
+module_exit(netlog_exit)
 
 MODULE_LICENSE(MOD_LICENSE);
-MODULE_AUTHOR(MOD_AUTHORS);
+MODULE_AUTHOR(MOD_AUTHORS)
 MODULE_DESCRIPTION(MOD_DESC);

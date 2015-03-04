@@ -11,9 +11,6 @@
 #include "retro-compat.h"
 #include "sparse_compat.h"
 
-#define BUFFER_STEP 4096
-#define BUFFER_MAX  4096000
-
 #define IP_RAW_SIZE 16
 
 /* Whitelist */
@@ -29,10 +26,6 @@ struct white_process {
 	size_t path_len;
 	char path[];
 };
-
-/* Max size of a row without the path */
-/* |i<${ip}>|p<${port}>\n */
-#define ROW_MAX_SIZE (9 + INET6_ADDRSTRLEN + 6)
 
 static struct white_process *whitelist = NULL;
 

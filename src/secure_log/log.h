@@ -1,5 +1,5 @@
 #ifndef __SECURE_LOG__
-#define __SECURE_LOG___
+#define __SECURE_LOG__
 
 #include <linux/types.h>
 
