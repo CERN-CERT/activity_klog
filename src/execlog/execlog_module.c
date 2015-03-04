@@ -95,6 +95,8 @@ get_current_kretprobe_data(void)
 /*          common core           */
 /**********************************/
 
+static const char * default_argv = "@Memory_error";
+
 static void
 execlog_common(const char *filename,
 	       const struct user_arg_ptr __argv)
@@ -118,14 +120,18 @@ execlog_common(const char *filename,
 
 	/* strncpy can only take a long as it input, check for potential overflow */
 	if (unlikely(argv_size > LONG_MAX)) {
-		/* TODO: we should probably log this failure somewhere */
+		pr_err("argv troncated (%zu > %lu)", argv_size, LONG_MAX);
 		argv_size = LONG_MAX;
 	}
 
 	/* Allocate memory for copying the argv from userspace */
 	argv_buffer = kmalloc(argv_size, GFP_ATOMIC);
-	if (unlikely(argv_buffer == NULL))
-		return;
+	if (unlikely(argv_buffer == NULL)) {
+		pr_err("Unable to allocate memory for user argv");
+		argv_buffer = (char *)default_argv;
+		argv_current_end = ((char *)default_argv) + sizeof(default_argv);
+		goto log;
+	}
 
 	/* Copy argv from userspace */
 	argv_cur_pos = 0;
@@ -136,8 +142,12 @@ execlog_common(const char *filename,
 						 __argv_content,
 						 argv_size);
 		if (unlikely(argv_written < 0)) {
-			/* TODO: we should probably log this failure somewhere */
-			goto free_argv;
+			if (argv_written == -EFAULT)
+				pr_err("Unable to copy one of the arguments: Page fault");
+			else
+				pr_err("Unable to copy one of the arguments : %li", argv_written);
+			/* We can just skip this argument for now */
+			argv_written = 0;
 		}
 		/* Update the pointer and remaining size
 		 * strncpy_from_user guaranties that argv_written <= argv_size, i-e argv_size will not loop (unsigned) */
@@ -157,6 +167,7 @@ execlog_common(const char *filename,
 	}
 	*argv_current_end = '\0';
 
+log:
 #ifdef USE_PRINK
 	fill_current_details(&details);
 	printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" %s %.*s\n"),
@@ -166,8 +177,8 @@ execlog_common(const char *filename,
 	store_execlog_record(filename, argv_buffer,
 			     argv_current_end - argv_buffer + 1);
 #endif /* ? USE_PRINK */
-free_argv:
-	kfree(argv_buffer);
+	if (argv_buffer != default_argv)
+		kfree(argv_buffer);
 }
 
 /**********************************/
@@ -214,6 +225,8 @@ pre_compat_sys_execve(struct kretprobe_instance *ri, struct pt_regs *regs)
 }
 #endif /* CONFIG_COMPAT */
 
+static const char *kretprobe_missed = "@Missed";
+
 static int
 pre_search_binary_handler(struct kprobe *p, struct pt_regs *regs)
 {
@@ -221,13 +234,23 @@ pre_search_binary_handler(struct kprobe *p, struct pt_regs *regs)
 	struct linux_binprm *bprm = (struct linux_binprm *) GET_ARG_1(regs);
 
 	if (unlikely(bprm == NULL)) {
-		/* Well, that's strange ... */
+		pr_err("search_binary_handler called with a NULL bprm\n");
 		return 0;
 	}
 
 	priv = get_current_kretprobe_data();
 	if (unlikely(priv == NULL)) {
-		/* We missed this kreprobe... How ? */
+		pr_err("search_binary_handler: No execve probe running\n");
+#ifdef USE_PRINK
+        struct current_details details;
+	fill_current_details(&details);
+	printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" %s %s\n"),
+	       CURRENT_DETAILS_ARGS(details), bprm->filename,
+	       kretprobe_missed);
+#else /* ! USE_PRINK */
+	store_execlog_record(bprm->filename, kretprobe_missed,
+			     sizeof(kretprobe_missed));
+#endif /* ? USE_PRINK */
 		return 0;
 	}
 	execlog_common(bprm->filename, priv->argv);
@@ -243,7 +266,7 @@ post_check(struct kretprobe_instance *ri, struct pt_regs *regs)
 	if (unlikely(priv == NULL))
 		return 0;
 	if (unlikely(priv->argv.ptr.native != NULL && !IS_ERR(ERR_PTR(regs_return_value(regs)))))
-		pr_err("Missed one execution!\n");
+		pr_err("Execve probe: search_binary_handler not called\n");
 
 	spin_lock(&active_kretprobes_lock);
 	hlist_del(&priv->hlist);
