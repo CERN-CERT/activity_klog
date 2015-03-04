@@ -56,7 +56,10 @@ static char *path_from_mm(struct mm_struct *mm, char *buffer, int length)
 	if (unlikely(mm == NULL))
 		return NULL;
 
-	down_read(&mm->mmap_sem);
+	if (!down_read_trylock(&mm->mmap_sem)) {
+		/* It's lock, we can't sleep here to get it, so just give up */
+		return NULL;
+	}
 
 	if (unlikely(mm->exe_file == NULL)) {
 		p = NULL;
