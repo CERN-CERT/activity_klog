@@ -2,3 +2,33 @@ obj-m += secure_log/
 obj-m += netlog/
 obj-m += execlog/
 
+ifeq ($(COMPILATION_CHECKS),y)
+ifeq ($(CC),clang)
+
+subdir-ccflags-y := -Weverything -Werror -Wmissing-prototypes -Wstrict-prototypes -std=gnu89
+
+subdir-ccflags-y += --system-header-prefix=asm
+subdir-ccflags-y += --system-header-prefix=linux
+subdir-ccflags-y += --system-header-prefix=net
+
+subdir-ccflags-y += -Wno-cast-align
+subdir-ccflags-y += -Wno-c99-extensions
+subdir-ccflags-y += -Wno-c11-extensions
+subdir-ccflags-y += -Wno-c++-compat
+subdir-ccflags-y += -Wno-covered-switch-default
+subdir-ccflags-y += -Wno-disabled-macro-expansion
+subdir-ccflags-y += -Wno-language-extension-token
+subdir-ccflags-y += -Wno-long-long
+subdir-ccflags-y += -Wno-unused-function
+subdir-ccflags-y += -Wno-unused-parameter
+subdir-ccflags-y += -Wno-variadic-macros
+
+# To check/fix
+subdir-ccflags-y += -Wno-error=padded
+subdir-ccflags-y += -Wno-error=sign-conversion
+subdir-ccflags-y += -Wno-error=conversion
+subdir-ccflags-y += -Wno-error=extra-semi
+subdir-ccflags-y += -Wno-error=used-but-marked-unused
+
+endif
+endif
