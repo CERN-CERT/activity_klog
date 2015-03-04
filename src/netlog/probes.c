@@ -70,11 +70,14 @@ static char *path_from_mm(struct mm_struct *mm, char *buffer, int length)
 	return p;
 }
 
+static const char *default_exec_name = "@Unknown";
+
 static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 {
 	/* sock & sock->sk need to be non null */
 
-	char buffer[MAX_EXEC_PATH + 1], *path;
+	char buffer[MAX_EXEC_PATH + 1];
+	const char *path;
 	unsigned short family;
 	const void *dst_ip;
 	const void *src_ip;
@@ -88,7 +91,7 @@ static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 	path = path_from_mm(current->mm, buffer, MAX_EXEC_PATH);
 	buffer[MAX_EXEC_PATH] = '\0';
 	if (unlikely(path == NULL))
-		return;
+		path = default_exec_name;
 
 	/* Get everything */
 	family = sock->sk->sk_family;
