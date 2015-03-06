@@ -597,8 +597,10 @@ secure_log_open(struct inode *inode, struct file *file)
 	/* Set the format */
 	kparam_block_sysfs_write(simple_format);
 	data->simple_format = simple_format;
-	data->send_eof = send_eof;
 	kparam_unblock_sysfs_write(simple_format);
+	kparam_block_sysfs_write(send_eof);
+	data->send_eof = send_eof;
+	kparam_unblock_sysfs_write(send_eof);
 
 	/* Get current state */
 	spin_lock_irqsave(&log_lock, flags);
