@@ -36,6 +36,13 @@ print_ip(char *buffer, size_t len, int family, const void *ip, int port)
 	}
 }
 
+#define VERIFY_PRINT(buf, remaining, change)	\
+	if (change >= remaining)		\
+		return -1;			\
+	buf += change;				\
+	/* change is >= 0 (snprintf)*/		\
+	remaining -= (unsigned long) change;
+
 /**
  * Write netlog log to buffer
  */
@@ -53,33 +60,21 @@ print_netlog(char *buffer, size_t len,
 		prot = PROTO_UNK;
 	change = snprintf(buffer, len, "%s ",
 			  netlog_protocol_desc[prot]);
-	if (change >= len)
-		return -1;
-	len -= change;
-	buffer += change;
+	VERIFY_PRINT(buffer, len, change)
 
 	change = print_ip(buffer, len, family, src_ip, src_port);
-	if (change >= len)
-		return -1;
-	len -= change;
-	buffer += change;
+	VERIFY_PRINT(buffer, len, change)
 
 	if (action >= sizeof(netlog_action_desc))
 		action = ACTION_UNK;
 	change = snprintf(buffer, len, "%s", netlog_action_desc[action]);
-	if (change >= len)
-		return -1;
-	len -= change;
-	buffer += change;
+	VERIFY_PRINT(buffer, len, change)
 
 	if (action < ACTION_CONNECT)
 		return orig_len - len;
 
 	change = print_ip(buffer, len, family, dst_ip, dst_port);
-	if (change >= len)
-		return -1;
-	len -= change;
-	buffer += change;
+	VERIFY_PRINT(buffer, len, change)
 
 	return orig_len - len;
 }
