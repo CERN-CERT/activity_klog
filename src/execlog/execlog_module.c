@@ -240,16 +240,15 @@ pre_search_binary_handler(struct kprobe *p, struct pt_regs *regs)
 
 	priv = get_current_kretprobe_data();
 	if (unlikely(priv == NULL)) {
-		pr_err("search_binary_handler: No execve probe running\n");
 #ifdef USE_PRINK
-        struct current_details details;
-	fill_current_details(&details);
-	printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" %s %s\n"),
-	       CURRENT_DETAILS_ARGS(details), bprm->filename,
-	       kretprobe_missed);
+		struct current_details details;
+		fill_current_details(&details);
+		printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" %s %s\n"),
+		       CURRENT_DETAILS_ARGS(details), bprm->filename,
+		       kretprobe_missed);
 #else /* ! USE_PRINK */
-	store_execlog_record(bprm->filename, kretprobe_missed,
-			     sizeof(kretprobe_missed));
+		store_execlog_record(bprm->filename, kretprobe_missed,
+				     sizeof(kretprobe_missed));
 #endif /* ? USE_PRINK */
 		return 0;
 	}
