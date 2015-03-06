@@ -30,7 +30,7 @@
 /********************************/
 
 static u8 initialized;
-static u32 loaded_probes;
+static unsigned long loaded_probes;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 36, 0)
 static DEFINE_SEMAPHORE(probe_lock);
 #else /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 36, 0) */
@@ -355,7 +355,7 @@ static struct kretprobe bind_kretprobe = {
 /****************************************/
 
 static void
-unplant_probes(u32 removed_probes)
+unplant_probes(unsigned long removed_probes)
 __must_hold(probe_lock)
 {
 	loaded_probes ^= removed_probes;
@@ -387,7 +387,7 @@ void unplant_all(void)
 }
 
 static int
-plant_probes(u32 new_probes)
+plant_probes(unsigned long new_probes)
 __must_hold(&probe_lock)
 {
 	int err = 0;
@@ -513,7 +513,7 @@ all_probes_param_get(char *buffer, const struct kernel_param *kp)
 	ret = down_interruptible(&probe_lock);
 	if (ret != 0)
 		return ret;
-	ret = scnprintf(buffer, PAGE_SIZE, "%x", loaded_probes);
+	ret = scnprintf(buffer, PAGE_SIZE, "%lx", loaded_probes);
 	up(&probe_lock);
 
 	return ret;
