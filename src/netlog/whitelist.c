@@ -334,7 +334,7 @@ whitelist_print(struct white_process *row, char * buf, size_t *avail)
 __must_hold(whitelist_rwlock)
 {
 	int ret;
-	int rem = *avail;
+	size_t rem = *avail;
 
 	ret = scnprintf(buf, rem, "%.*s", (int) row->path_len, row->path);
 	VERIFY_SNPRINTF(buf, rem, ret);
