@@ -265,7 +265,7 @@ post_check(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	if (unlikely(priv == NULL))
 		return 0;
-	if (unlikely(priv->argv.ptr.native != NULL && !IS_ERR(ERR_PTR(regs_return_value(regs)))))
+	if (unlikely(priv->argv.ptr.native != NULL))
 		pr_err("Execve probe: search_binary_handler not called\n");
 
 	spin_lock(&active_kretprobes_lock);
