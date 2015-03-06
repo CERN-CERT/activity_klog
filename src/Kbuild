@@ -19,6 +19,7 @@ subdir-ccflags-y += -Wno-covered-switch-default
 subdir-ccflags-y += -Wno-disabled-macro-expansion
 subdir-ccflags-y += -Wno-language-extension-token
 subdir-ccflags-y += -Wno-long-long
+subdir-ccflags-y += -Wno-padded
 subdir-ccflags-y += -Wno-unused-function
 subdir-ccflags-y += -Wno-unused-parameter
 subdir-ccflags-y += -Wno-variadic-macros
