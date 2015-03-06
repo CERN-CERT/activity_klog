@@ -376,6 +376,8 @@ __must_hold(log_lock)
 			      record->protocol, record->family, record->action,
 			      &record->src, record->src_port,
 			      &record->dst, record->dst_port);
+	if (change < 0)
+		return -1;
 	UPDATE_POINTERS(change, remaining, len);
 	return len;
 }
