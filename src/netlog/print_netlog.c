@@ -53,7 +53,7 @@ print_netlog(char *buffer, size_t len,
 	     const void *src_ip, int src_port,
 	     const void *dst_ip, int dst_port)
 {
-	int change;
+	long change;
 	size_t orig_len = len;
 
 	if (prot >= sizeof(netlog_protocol_desc))
