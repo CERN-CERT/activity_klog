@@ -425,8 +425,6 @@ static inline size_t
 secure_log_read_fill_record(char *buf, size_t len, struct sec_log *record)
 __must_hold(log_lock)
 {
-	ssize_t ret;
-
 	/* Fill the common header 'len' here is only set to the headers, it
 	 * can't overflow here*/
 	len += SPRINTF(buf + len, CURRENT_DETAILS_FORMAT " ",
@@ -435,21 +433,19 @@ __must_hold(log_lock)
 	/* Print the content */
 	switch (record->type) {
 	case LOG_NETWORK_INTERACTION:
-		ret = netlog_print((struct netlog_log *)record, buf, len);
+		len = netlog_print((struct netlog_log *)record, buf, len);
 		break;
 	case LOG_EXECUTION:
-		ret = execlog_print((struct execlog_log *)record, buf, len);
+		len = execlog_print((struct execlog_log *)record, buf, len);
 		break;
 	default:
 		/* We can't overflow here as only static headers have been
 		 * written up to here */
-		ret = len + SPRINTF(buf + len, "Unknown entry");
+		len += SPRINTF(buf + len, "Unknown entry");
 	}
-	if (ret == 0) {
+	if (len == 0) {
 		sprintf(buf + (USER_BUFFER_SIZE - 7), "TRUNC");
 		len = USER_BUFFER_SIZE - 2;
-	} else {
-		len = ret;
 	}
 	len += SPRINTF(buf + len, "\n");
 
