@@ -70,11 +70,14 @@ print_netlog(char *buffer, size_t len,
 	change = snprintf(buffer, len, "%s", netlog_action_desc[action]);
 	VERIFY_PRINT(buffer, len, change)
 
-	if (action < ACTION_CONNECT)
-		return orig_len - len;
+	if (action < ACTION_CONNECT) {
+		/* Netlog output can't overslow int */
+		return (int)(orig_len - len);
+	}
 
 	change = print_ip(buffer, len, family, dst_ip, dst_port);
 	VERIFY_PRINT(buffer, len, change)
 
-	return orig_len - len;
+	/* Netlog output can't overslow int */
+	return (int)(orig_len - len);
 }

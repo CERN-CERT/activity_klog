@@ -103,6 +103,9 @@ static dev_t secure_dev;
 static struct cdev secure_c_dev;
 static struct class *secure_class;
 
+/* sprintf is always > 0, let's cast them */
+#define SPRINTF (unsigned long)sprintf
+
 /* Get the path of a log */
 static char *
 get_netlog_path(struct netlog_log *log)
@@ -136,7 +139,8 @@ __must_hold(log_lock)
 		/* We need to wrap around */
 		return 0;
 	}
-	return idx + *len;
+	/* Length of items inside the cache can't get out of the cache */
+	return (u32)(idx + *len);
 }
 
 /* Small tool */
@@ -205,8 +209,8 @@ store_netlog_record(const char *path, enum netlog_action action,
 	if (unlikely(path_len > (LOG_BUF_LEN >> 4) ||
 		     path_len > INT_MAX)) {
 		dev_warn(dev, "troncating path (size %zu > %i)\n",
-			 path_len, min((LOG_BUF_LEN >> 4), INT_MAX));
-		path_len = min((LOG_BUF_LEN >> 4), INT_MAX);
+			 path_len, min((LOG_BUF_LEN >> 4), (unsigned int)INT_MAX));
+		path_len = min((LOG_BUF_LEN >> 4), (unsigned int)INT_MAX);
 	}
 	record_size = sizeof(struct netlog_log) + path_len;
 
@@ -260,14 +264,14 @@ store_execlog_record(const char *path,
 	if (unlikely(path_len > (LOG_BUF_LEN >> 5) ||
 		     path_len > INT_MAX)) {
 		dev_warn(dev, "Troncating path (size %zu > %i)\n",
-			 path_len, min((LOG_BUF_LEN >> 5), INT_MAX));
-		path_len = min((LOG_BUF_LEN >> 5), INT_MAX);
+			 path_len, min((LOG_BUF_LEN >> 5), (unsigned int)INT_MAX));
+		path_len = min((LOG_BUF_LEN >> 5), (unsigned int)INT_MAX);
 	}
 	if (unlikely(argv_size > (LOG_BUF_LEN >> 5) ||
 		     argv_size > INT_MAX)) {
 		dev_warn(dev, "Troncating argv (size %zu > %i)\n",
-			 argv_size, min((LOG_BUF_LEN >> 5), INT_MAX));
-		argv_size = min((LOG_BUF_LEN >> 5), INT_MAX);
+			 argv_size, min((LOG_BUF_LEN >> 5), (unsigned int)INT_MAX));
+		argv_size = min((LOG_BUF_LEN >> 5), (unsigned int)INT_MAX);
 	}
 	record_size = sizeof(struct execlog_log) + path_len + argv_size;
 
@@ -350,8 +354,9 @@ do {						\
 		/* Output truncated */		\
 		return 0;			\
 	}					\
-	len += change;				\
-	remaining -= change;			\
+	/* 'change' is always > 0 */		\
+	len += (unsigned long) change;		\
+	remaining -= (unsigned long) change;	\
 } while (0)
 
 
@@ -422,8 +427,9 @@ __must_hold(log_lock)
 {
 	ssize_t ret;
 
-	/* Fill the common header */
-	len += sprintf(buf + len, CURRENT_DETAILS_FORMAT " ",
+	/* Fill the common header 'len' here is only set to the headers, it
+	 * can't overflow here*/
+	len += SPRINTF(buf + len, CURRENT_DETAILS_FORMAT " ",
 		       CURRENT_DETAILS_ARGS(record->process));
 
 	/* Print the content */
@@ -435,7 +441,9 @@ __must_hold(log_lock)
 		ret = execlog_print((struct execlog_log *)record, buf, len);
 		break;
 	default:
-		ret = len + sprintf(buf + len, "Unknown entry");
+		/* We can't overflow here as only static headers have been
+		 * written up to here */
+		ret = len + SPRINTF(buf + len, "Unknown entry");
 	}
 	if (ret == 0) {
 		sprintf(buf + (USER_BUFFER_SIZE - 7), "TRUNC");
@@ -443,7 +451,7 @@ __must_hold(log_lock)
 	} else {
 		len = ret;
 	}
-	len += sprintf(buf + len, "\n");
+	len += SPRINTF(buf + len, "\n");
 
 	return len;
 }
@@ -515,13 +523,13 @@ secure_log_read(struct file *file, char __user *buf, size_t count,
 	rem_nsec = do_div(ts, 1000000000);
 	if (data->simple_format == 0) {
 		/* Fill the syslog header */
-		len = sprintf(data->buf, "<%u>1 - - %s - - - [%5lu.%06lu]: ",
+		len = SPRINTF(data->buf, "<%u>1 - - %s - - - [%5lu.%06lu]: ",
 			      (LOG_FACILITY << 3) | LOG_LEVEL,
 			      get_module_name(record->type),
 			      (unsigned long)ts, rem_nsec / 1000);
 	} else {
 		/* Use a simpler header */
-		len = sprintf(data->buf, "%s [%5lu.%06lu]: ",
+		len = SPRINTF(data->buf, "%s [%5lu.%06lu]: ",
 			      get_module_name(record->type),
 			      (unsigned long)ts, rem_nsec / 1000);
 	}
@@ -547,7 +555,8 @@ secure_log_read(struct file *file, char __user *buf, size_t count,
 		ret = -EFAULT;
 		goto out;
 	}
-	ret = len;
+	/* len < USER_BUFFER_SIZE, can't overflow */
+	ret = (ssize_t)len;
 out:
 	mutex_unlock(&data->lock);
 	return ret;
@@ -558,7 +567,7 @@ secure_log_poll(struct file *file, poll_table *wait)
 {
 	struct user_data *data = file->private_data;
 	unsigned long flags;
-	int ret = 0;
+	unsigned int ret = 0;
 
 	if (unlikely(data == NULL))
 		return POLLERR|POLLNVAL;
@@ -596,10 +605,10 @@ secure_log_open(struct inode *inode, struct file *file)
 
 	/* Set the format */
 	kparam_block_sysfs_write(simple_format);
-	data->simple_format = simple_format;
+	data->simple_format = !!simple_format;
 	kparam_unblock_sysfs_write(simple_format);
 	kparam_block_sysfs_write(send_eof);
-	data->send_eof = send_eof;
+	data->send_eof = !!send_eof;
 	kparam_unblock_sysfs_write(send_eof);
 
 	/* Get current state */

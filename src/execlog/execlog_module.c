@@ -114,7 +114,8 @@ execlog_common(const char *filename,
 	argv_size = 2;
 	argv_cur_pos = 0;
 	while ((__argv_content = get_user_arg_ptr(__argv, argv_cur_pos)) != NULL) {
-		argv_size += strlen_user(__argv_content);
+		/* strlen_user always return something > 0 */
+		argv_size += (unsigned long) strlen_user(__argv_content);
 		++argv_cur_pos;
 	}
 
@@ -138,9 +139,10 @@ execlog_common(const char *filename,
 	argv_current_end = argv_buffer;
 	while ((__argv_content = get_user_arg_ptr(__argv, argv_cur_pos)) != NULL) {
 		/* Get at max argv_size bytes from __argv_content */
+		/* argv_size is <= LONG_MAX, so we can cast it */
 		argv_written = strncpy_from_user(argv_current_end,
 						 __argv_content,
-						 argv_size);
+						 (long) argv_size);
 		if (unlikely(argv_written < 0)) {
 			if (argv_written == -EFAULT)
 				pr_err("Unable to copy one of the arguments: Page fault");
@@ -151,8 +153,8 @@ execlog_common(const char *filename,
 		}
 		/* Update the pointer and remaining size
 		 * strncpy_from_user guaranties that argv_written <= argv_size, i-e argv_size will not loop (unsigned) */
-		argv_current_end += argv_written;
-		argv_size -= argv_written;
+		argv_current_end += (unsigned long) argv_written;
+		argv_size -= (unsigned long) argv_written;
 		/* As we calculated the size before, this should never occur, except if userspace is malicious */
 		if (unlikely(argv_size == 0))
 			break;
@@ -174,8 +176,9 @@ log:
 	       CURRENT_DETAILS_ARGS(details), filename,
 	       (int)(argv_current_end - argv_buffer + 1), argv_buffer);
 #else /* ! USE_PRINK */
+	/* By construction, argv_current_end > argv_buffer, we can cast */
 	store_execlog_record(filename, argv_buffer,
-			     argv_current_end - argv_buffer + 1);
+			     (size_t)(argv_current_end - argv_buffer + 1));
 #endif /* ? USE_PRINK */
 	if (argv_buffer != default_argv)
 		kfree(argv_buffer);

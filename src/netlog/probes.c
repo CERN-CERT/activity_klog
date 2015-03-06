@@ -211,7 +211,8 @@ static int post_sys_accept(struct kretprobe_instance *ri, struct pt_regs *regs)
 	struct socket *sock;
 	int err;
 
-	sock = sockfd_lookup(regs_return_value(regs), &err);
+	/* sys_accept/sys_accept4 always return an int */
+	sock = sockfd_lookup((int)regs_return_value(regs), &err);
 
 	if (likely(sock != NULL)) {
 		if (likely(sock->sk != NULL) &&

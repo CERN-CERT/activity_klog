@@ -13,7 +13,8 @@ enum secure_log_type {
 
 
 /* Size of the buffer containing the logs */
-#define LOG_BUF_LEN (1 << 20)
+/* Make sure that '1' is big enough & unsigned */
+#define LOG_BUF_LEN (((unsigned int)1) << 20)
 
 /* Log facility and level for our devicde */
 #define LOG_FACILITY 0

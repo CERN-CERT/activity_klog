@@ -49,7 +49,8 @@ whiterow_from_string(char *str) __must_hold(whitelist_sanitylock)
 
 	/* Extract the path, in order to know its length */
 	for (pos = str; *pos != FIELD_SEPARATOR && *pos != '\0'; ++pos);
-	len = pos - str;
+	/* By construction, pos > str */
+	len = (unsigned long)(pos - str);
 	if (unlikely(len == 0))
 		return NULL;
 
@@ -83,9 +84,10 @@ whiterow_from_string(char *str) __must_hold(whitelist_sanitylock)
 			goto fail;
 		switch (temp) {
 		case 'i':
-			if (in4_pton(str, slen, new_row->ip.raw, -1, NULL) == 1)
+			/* Because on restrictions on the whole whitelist, slen can't overflow int */
+			if (in4_pton(str, (int)slen, new_row->ip.raw, -1, NULL) == 1)
 				new_row->family = AF_INET;
-			else if (in6_pton(str, slen, new_row->ip.raw, -1, NULL) == 1)
+			else if (in6_pton(str, (int)slen, new_row->ip.raw, -1, NULL) == 1)
 				new_row->family = AF_INET6;
 			else
 				goto fail;
@@ -326,7 +328,8 @@ do {						\
 		return NULL;			\
 	}					\
 	buf += change;				\
-	remaining -= change;			\
+	/* scnprintf only returns > 0 values */	\
+	remaining -= (unsigned long) change;	\
 } while (0)
 
 static char *
@@ -400,7 +403,8 @@ whitelist_param_get(char *buffer, const struct kernel_param *kp)
 done:
 	read_unlock(&whitelist_rwlock);
 
-	return (last - buffer);
+	/* last - buffer < PAGE_SIZE thus does not overflow int */
+	return (int)(last - buffer);
 }
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36)
