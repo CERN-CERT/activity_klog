@@ -348,14 +348,14 @@ secure_log_llseek(struct file *file, loff_t offset, int whence)
 do {						\
 	if (change >= remaining) {		\
 		/* Output truncated */		\
-		return -1;			\
+		return 0;			\
 	}					\
 	len += change;				\
 	remaining -= change;			\
 } while (0)
 
 
-static ssize_t
+static size_t
 netlog_print(struct netlog_log *record, char *data, size_t len)
 __must_hold(log_lock)
 {
@@ -377,13 +377,13 @@ __must_hold(log_lock)
 			      &record->src, record->src_port,
 			      &record->dst, record->dst_port);
 	if (change < 0)
-		return -1;
+		return 0;
 	UPDATE_POINTERS(change, remaining, len);
 	return len;
 }
 
 
-static ssize_t
+static size_t
 execlog_print(struct execlog_log *record, char *data, size_t len)
 __must_hold(log_lock)
 {
@@ -437,7 +437,7 @@ __must_hold(log_lock)
 	default:
 		ret = len + sprintf(buf + len, "Unknown entry");
 	}
-	if (ret < 0) {
+	if (ret == 0) {
 		sprintf(buf + (USER_BUFFER_SIZE - 7), "TRUNC");
 		len = USER_BUFFER_SIZE - 2;
 	} else {
