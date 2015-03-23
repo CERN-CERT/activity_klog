@@ -3,7 +3,7 @@
 
 Name:		activity_klog
 Version:	2.8
-Release:	1%{?dist}
+Release:	2%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
@@ -165,6 +165,9 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Mon Mar 23 2015 Vincent Brillault <vincent.brillault@cern.ch> - 2.8-2
+- Bugfix: revert a1946c6335adee2b0c78ed118928dcdaca701834
+
 * Wed Mar 04 2015 Vincent Brillault <vincent.brillault@cern.ch> - 2.8
 - Log kernel uids/gids instead of the ones inside namespaces
 - Fix some locking/atomic issues
