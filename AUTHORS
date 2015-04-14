@@ -1,0 +1,10 @@
+Panos Sakkos <panos.sakkos at gmail.com>
+- Original netlog design and implementation
+
+Remi Mollon <remi.mollon at cern.ch>
+- RPM build configuration
+
+Vincent Brillault <vincent.brillault at cern.ch>
+- Rewriting netlog (same probe system, different implementaion)
+- Execlog design and implementation (based on netlog)
+- Secure_Log implementation (based on the linux Kernel log ring buffer)
