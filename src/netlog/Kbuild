@@ -1,0 +1,6 @@
+name      = netlog
+src_files = probes.c whitelist.c netlog_module.c probes_helper.c
+ 
+obj-m += $(name).o
+$(name)-y := $(src_files:.c=.o)
+ccflags-y  += -D'MODULE_NAME="$(name)"' -D'MODULE_NETLOG'

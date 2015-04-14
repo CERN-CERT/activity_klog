@@ -1,0 +1,18 @@
+########################################
+## <summary>
+##      Read the secure logs
+## </summary>
+## <param name="domain">
+##      <summary>
+##      Domain allowed access.
+##      </summary>
+## </param>
+#
+interface(`dev_read_secure_log',`
+        gen_require(`
+                type device_t, securelog_device_t;
+        ')
+
+        read_chr_files_pattern($1, device_t, securelog_device_t)
+')
+

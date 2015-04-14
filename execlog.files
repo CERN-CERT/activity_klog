@@ -1,0 +1,4 @@
+%defattr(644,root,root,755)
+/etc/depmod.d/execlog.conf
+/lib/modules/%2-%1/extra/execlog
+%config(noreplace) %attr(755, root, root) /etc/sysconfig/modules/execlog.modules

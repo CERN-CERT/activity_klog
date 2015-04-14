@@ -2,6 +2,8 @@
 
 # Vi swap files
 .*.swp
+# Backup files
+*~
 
 *.tgz
 *.tar.gz
@@ -17,4 +19,6 @@
 *.order
 Module.symvers
 Module.markers
+SELinux/*.pp
+SELinux/tmp
 rpms

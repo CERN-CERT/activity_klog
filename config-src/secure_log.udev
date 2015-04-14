@@ -1,0 +1,1 @@
+ACTION=="add", KERNEL=="secure_log", SUBSYSTEM=="secure_log", RUN+="/sbin/restorecon /dev/secure_log"

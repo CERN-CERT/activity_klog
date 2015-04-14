@@ -11,6 +11,7 @@ RELEASE   := ${NAME}-${VERSION}
 
 rpmtopdir := $(shell rpm --eval %_topdir)
 rpmbuild  := $(shell [ -x /usr/bin/rpmbuild ] && echo rpmbuild || echo rpm)
+git       := git
 
 #
 # define DIST for non-default build dists (e.g. make DIST=.slc6 rpm)
@@ -21,25 +22,20 @@ DIST	  ?= $(shell rpm --eval %dist)
 all: srpm
 
 dist: clean 
-	-rm -rf /var/tmp/${RELEASE}
-	-rm -rf /var/tmp/${RELEASE}-buildroot
-	-mkdir /var/tmp/${RELEASE}
-	cp -r * /var/tmp/${RELEASE}
-	cd /var/tmp/ ; tar cvfz ${RELEASE}.tar.gz \
-                    --exclude-vcs --exclude='*~' --exclude='#*#' --exclude='20*' ${RELEASE}  
-	cp /var/tmp/${RELEASE}.tar.gz .
-
-
-sources: dist
+	@(cd src && git archive --format=tar --prefix=$(NAME)-$(VERSION)/ $(VERSION)) \
+		| gzip > $(NAME)-$(VERSION).tgz
+	@(cd config-src && git archive --format=tar --prefix=config/ $(VERSION)) \
+		| gzip > $(NAME)-config-$(VERSION).tgz
+	@(cd SELinux && git archive --format=tar --prefix=SELinux/ $(VERSION)) \
+		| gzip > $(NAME)-selinux-$(VERSION).tgz
 
 srpm: dist
-	$(rpmbuild) --define "dist $(DIST)" --define "_sourcedir ${PWD}" --define "_srcrpmdir ${PWD}" -bs ${NAME}.spec; \
-	rm ${NAME}-${VERSION}.tar.gz
+	$(rpmbuild) --define "dist $(DIST)" --define "_sourcedir ${PWD}" --define "_srcrpmdir ${PWD}" -bs ${NAME}.spec
 
 rpm: dist 
-	$(rpmbuild) --define "dist $(DIST)" --define "_sourcedir ${PWD}" --define "_srcrpmdir ${PWD}" -ba ${NAME}.spec; \
-        rm ${NAME}-${VERSION}.tar.gz
+	$(rpmbuild) --define "dist $(DIST)" --define "_sourcedir ${PWD}" --define "_rpmdir ${PWD}" -ba ${NAME}.spec
 
 clean:
-	@rm -f *.tar.gz
+	@rm -f *.tgz
 	@rm -f *.rpm
+	@git clean -Xdf

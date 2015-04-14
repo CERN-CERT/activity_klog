@@ -1,0 +1,1 @@
+/dev/secure_log		-c	gen_context(system_u:object_r:securelog_device_t,s0)
