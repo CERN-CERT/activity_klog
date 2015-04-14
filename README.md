@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/CERN-CERT/activity_klog.svg?branch=master)](https://travis-ci.org/CERN-CERT/activity_klog)
 # Activity_Klog: Kernel modules for logging various user activity
 
 This project contains a collection of Linux loadable kernel modules aimed to logs any user action:
