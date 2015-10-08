@@ -2,9 +2,10 @@ language: c
 compiler:
   - gcc
 #  - clang # Travis clang is too old for now
-before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -yq linux-headers-generic --fix-missing
-  - sudo apt-get install -yq sparse --fix-missing
+addons:
+  apt:
+    packages:
+      - linux-headers-3.13.0-40-generic
+      - sparse
 script: cd src && make kernel_version=\* C=2 COMPILATION_CHECKS=y CC=${CC}
 install: true
