@@ -600,12 +600,19 @@ secure_log_open(struct inode *inode, struct file *file)
 	mutex_init(&data->lock);
 
 	/* Set the format */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+	kernel_param_lock(THIS_MODULE);
+	data->simple_format = !!simple_format;
+	data->send_eof = !!send_eof;
+	kernel_param_unlock(THIS_MODULE);
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0) */
 	kparam_block_sysfs_write(simple_format);
 	data->simple_format = !!simple_format;
 	kparam_unblock_sysfs_write(simple_format);
 	kparam_block_sysfs_write(send_eof);
 	data->send_eof = !!send_eof;
 	kparam_unblock_sysfs_write(send_eof);
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(4, 2, 0) */
 
 	/* Get current state */
 	spin_lock_irqsave(&log_lock, flags);
