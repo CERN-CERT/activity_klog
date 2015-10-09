@@ -14,7 +14,11 @@ struct current_details {
 	uid_t euid /** EUID of 'current' */;
 	uid_t gid  /** GID of 'current' */;
 	uid_t egid /** EGID of 'current' */;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+	const char *tty; /** TTY, if existant, used by 'current', '\0' otherwise */;
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0) */
 	char tty[64] /** TTY, if existant, used by 'current', '\0' otherwise */;
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(4, 2, 0) */
 };
 
 #define CURRENT_DETAILS_FORMAT "p:%d s:%d pp:%d u:%d g:%d eu:%d eg:%d t:%s"
@@ -24,6 +28,7 @@ struct current_details {
 				      details.tty
 
 static const char null_tty[] = "NULL tty";
+static const char null_tty_short[] = "NULL";
 
 static inline void
 fill_current_details(struct current_details *details)
@@ -49,9 +54,15 @@ fill_current_details(struct current_details *details)
 	else
 		details->ppid = 0;
 	details->sid = task_session_vnr(current);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
+	details->tty = tty_name(current->signal->tty);
+	if (strcmp(details->tty, null_tty) == 0)
+		details->tty = null_tty_short;
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0) */
 	tty_name(current->signal->tty, details->tty);
 	if (memcmp(details->tty, null_tty, sizeof(null_tty) - 1) == 0)
 		details->tty[4] = '\0';
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(4, 2, 0) */
 }
 
 #endif /* __TOOL_CURRENT_DATA__ */
