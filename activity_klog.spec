@@ -2,8 +2,8 @@
 %define debug_package %{nil}
 
 Name:		activity_klog
-Version:	2.8
-Release:	3%{?dist}
+Version:	2.9
+Release:	1%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
@@ -165,6 +165,9 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Mon Feb 08 2016 Vincent Brillault <vincent.brillault@cern.ch> - 2.9-1
+- Replace new lines with space
+
 * Tue Apr 14 2015 Vincent Brillault <vincent.brillault@cern.ch> - 2.8-3
 - Re-release: last version compiled with wrong sources
 
