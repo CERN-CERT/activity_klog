@@ -105,7 +105,7 @@ execlog_common(const char *filename,
 	int argv_cur_pos;
 	size_t argv_size;
 	long argv_written;
-	char *argv_buffer, *argv_current_end;
+	char *argv_buffer, *argv_current_end, *argv_loop;
 #ifdef USE_PRINK
 	struct current_details details;
 #endif /* USE_PRINK */
@@ -168,6 +168,12 @@ execlog_common(const char *filename,
 		++argv_cur_pos;
 	}
 	*argv_current_end = '\0';
+
+	/* Remove any new lines as some software don't support them properly */
+	for (argv_loop = argv_buffer; argv_loop < argv_current_end; ++argv_loop) {
+		if (*argv_loop == '\n' || *argv_loop == '\r')
+			*argv_loop = ' ';
+	}
 
 log:
 #ifdef USE_PRINK
