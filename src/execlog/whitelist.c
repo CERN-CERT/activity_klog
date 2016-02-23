@@ -5,12 +5,9 @@
 #include <linux/inet.h>
 #include <linux/err.h>
 #include <linux/spinlock.h>
+#include "execlog.h"
 #include "whitelist.h"
 #include "sparse_compat.h"
-
-/* Printing function */
-#undef pr_fmt
-#define pr_fmt(fmt) MODULE_NAME ": " fmt
 
 /* Whitelist */
 struct white_process {

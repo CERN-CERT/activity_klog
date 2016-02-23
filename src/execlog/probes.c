@@ -4,6 +4,8 @@
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/version.h>
+#include "execlog.h"
+#include "probes.h"
 #include "probes_helper.h"
 #include "whitelist.h"
 #ifdef USE_PRINK
@@ -12,10 +14,6 @@
 #include "log.h"
 #endif /* ? USE_PRINK */
 
-
-/* Printing function */
-#undef pr_fmt
-#define pr_fmt(fmt) MODULE_NAME ": " fmt
 
 /**********************************/
 /*        32/64 compat            */
@@ -368,11 +366,9 @@ static struct kprobe kprobe_search_binary_handler = {
 /*             INIT MODULE          */
 /************************************/
 
-static int __init execlog_init(void)
+int probes_plant(void)
 {
 	int err;
-
-	pr_info("Light monitoring tool for execve by CERN Security Team\n");
 
 	err = plant_kprobe(&kprobe_search_binary_handler);
 	if (err < 0) {
@@ -393,8 +389,6 @@ static int __init execlog_init(void)
 		goto err_clean_kretprobe;
 	}
 #endif /* CONFIG_COMPAT */
-
-	pr_info("[+] Deployed\n");
 	return 0;
 
 #ifdef CONFIG_COMPAT
@@ -404,7 +398,6 @@ err_clean_kretprobe:
 err_clean_kprobe:
 	unplant_kprobe(&kprobe_search_binary_handler);
 err_cleaned:
-	destroy_whitelist();
 	return err;
 }
 
@@ -412,7 +405,7 @@ err_cleaned:
 /*             EXIT MODULE          */
 /************************************/
 
-static void __exit execlog_exit(void)
+void probes_unplant(void)
 {
 	unplant_kretprobe(&kretprobe_sys_execve);
 #ifdef CONFIG_COMPAT
@@ -421,30 +414,3 @@ static void __exit execlog_exit(void)
 	unplant_kprobe(&kprobe_search_binary_handler);
 	destroy_whitelist();
 }
-
-
-/**********************************/
-/*      MODULE PARAMETERS         */
-/**********************************/
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
-module_param_call(whitelist, &whitelist_param_set, &whitelist_param_get, NULL, 0600);
-#else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
-module_param_cb(whitelist, &whitelist_param, NULL, 0600);
-#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
-MODULE_PARM_DESC(whitelist, " A coma separated list of strings that contains"
-		 " the executions that " MODULE_NAME " will ignore.\n"
-		 " The format of the string must be '${executable}|${argv_start}'."
-		 " The |${argv_start} part is optional.");
-
-
-/************************************/
-/*             MODULE DEF           */
-/************************************/
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Vincent Brillault <vincent.brillault@cern.ch>");
-MODULE_DESCRIPTION("execlog logs information about every 'execve' syscall.");
-
-module_init(execlog_init)
-module_exit(execlog_exit)

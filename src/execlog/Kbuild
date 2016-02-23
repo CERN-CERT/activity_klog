@@ -1,5 +1,5 @@
 name      = execlog
-src_files = execlog_module.c probes_helper.c whitelist.c
+src_files = probes_helper.c probes.c whitelist.c module.c
  
 obj-m += $(name).o
 $(name)-y := $(src_files:.c=.o)
