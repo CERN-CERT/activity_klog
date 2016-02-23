@@ -361,7 +361,7 @@ static struct kprobe kprobe_search_binary_handler = {
 /*             INIT MODULE          */
 /************************************/
 
-static int __init plant_probes(void)
+static int __init execlog_init(void)
 {
 	int err;
 
@@ -404,7 +404,7 @@ err_cleaned:
 /*             EXIT MODULE          */
 /************************************/
 
-static void __exit unplant_probes(void)
+static void __exit execlog_exit(void)
 {
 	unplant_kretprobe(&kretprobe_sys_execve);
 #ifdef CONFIG_COMPAT
@@ -421,5 +421,5 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vincent Brillault <vincent.brillault@cern.ch>");
 MODULE_DESCRIPTION("execlog logs information about every 'execve' syscall.");
 
-module_init(plant_probes)
-module_exit(unplant_probes)
+module_init(execlog_init)
+module_exit(execlog_exit)
