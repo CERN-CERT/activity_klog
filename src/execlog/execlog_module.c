@@ -5,6 +5,7 @@
 #include <linux/tty.h>
 #include <linux/version.h>
 #include "probes_helper.h"
+#include "whitelist.h"
 #ifdef USE_PRINK
 #include "current_details.h"
 #else /* ! USE_PRINK */
@@ -180,6 +181,10 @@ execlog_common(const char *filename,
 	/* By construction, argv_current_end > argv_buffer, we can cast */
 	argv_size = (size_t)(argv_current_end - argv_buffer + 1);
 
+	/* Check whitelist */
+	if (is_whitelisted(filename, argv_buffer, argv_size))
+		goto exit;
+
 log:
 #ifdef USE_PRINK
 	fill_current_details(&details);
@@ -218,6 +223,8 @@ log:
 #else /* ! USE_PRINK */
 	store_execlog_record(filename, argv_buffer, argv_size);
 #endif /* ? USE_PRINK */
+
+exit:
 	if (argv_buffer != default_argv)
 		kfree(argv_buffer);
 }
@@ -397,6 +404,7 @@ err_clean_kretprobe:
 err_clean_kprobe:
 	unplant_kprobe(&kprobe_search_binary_handler);
 err_cleaned:
+	destroy_whitelist();
 	return err;
 }
 
@@ -411,7 +419,24 @@ static void __exit execlog_exit(void)
 	unplant_kretprobe(&kretprobe_compat_sys_execve);
 #endif /* CONFIG_COMPAT */
 	unplant_kprobe(&kprobe_search_binary_handler);
+	destroy_whitelist();
 }
+
+
+/**********************************/
+/*      MODULE PARAMETERS         */
+/**********************************/
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+module_param_call(whitelist, &whitelist_param_set, &whitelist_param_get, NULL, 0600);
+#else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+module_param_cb(whitelist, &whitelist_param, NULL, 0600);
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
+MODULE_PARM_DESC(whitelist, " A coma separated list of strings that contains"
+		 " the executions that " MODULE_NAME " will ignore.\n"
+		 " The format of the string must be '${executable}|${argv_start}'."
+		 " The |${argv_start} part is optional.");
+
 
 /************************************/
 /*             MODULE DEF           */
