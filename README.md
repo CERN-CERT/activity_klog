@@ -29,13 +29,12 @@ For distribution integration, please look at 'activity_klog.spec'.
 
 ## Compatibility mode
 
-While version 2 introduces an secure_log and new interfaces to configure netlog, it's possible to have it behave as version 1.
+While version 2 introduces a secure_log device, it's possible to keep the logs in dmesg as in version 1
 This compatibility version is the one used on Scientific Linux CERN 6 while the new version is used on Centos CERN 7.
 
 In order to enable this feature, please look inside the spec file or:
 - Add "ccflags-y += -DUSE_PRINK=1" to execlog/Kbuild and netlog/Kbuild
-- Add "print_netlog.c" and "compat_v1.c" to the list of source files in netlog/Kbuild
-- Add "ccflags-y += -DNETLOG_V1_COMPAT=1" to netlog/Kbuild
+- Add "print_netlog.c" to the list of source files in netlog/Kbuild
 
 ## Netlog configuration
 

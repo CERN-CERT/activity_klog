@@ -193,36 +193,6 @@ add_whiterow(struct white_process **head, struct white_process *last, char *raw)
 	return last;
 }
 
-#ifdef NETLOG_V1_COMPAT
-void
-set_whitelist_from_array(char **raw_array, int raw_len)
-{
-	int i;
-	unsigned long flags;
-	struct white_process *old;
-	struct white_process *head = NULL;
-	struct white_process *last = NULL;
-
-	spin_lock_irqsave(&whitelist_sanitylock, flags);
-	pr_info("[+] Creating new whitelist ...\n");
-
-	for (i = 0; i < raw_len; ++i)
-		last = add_whiterow(&head, last, raw_array[i]);
-
-	write_lock(&whitelist_rwlock);
-	old = whitelist;
-	whitelist = head;
-	write_unlock(&whitelist_rwlock);
-
-	pr_info("[+] New whitelist applied\n");
-
-	purge_whitelist(old);
-
-	spin_unlock_irqrestore(&whitelist_sanitylock, flags);
-}
-#endif /* NETLOG_V1_COMPAT */
-
-
 int
 is_whitelisted(const char *path, unsigned short family, const void *ip, int port)
 {
@@ -317,13 +287,6 @@ whitelist_param_set(const char *buf, const struct kernel_param *kp)
 	return 0;
 }
 
-#ifdef NETLOG_V1_COMPAT
-void set_whitelist_from_string(char *raw_list)
-{
-	whitelist_param_set(raw_list, NULL);
-}
-#endif /* NETLOG_V1_COMPAT */
-
 #define VERIFY_SNPRINTF(buf, remaining, change)	\
 do {						\
 	if (change == 0) {			\
@@ -416,86 +379,3 @@ const struct kernel_param_ops whitelist_param = {
 	.get = whitelist_param_get,
 };
 #endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
-
-#ifdef NETLOG_V1_COMPAT
-static void *
-whitelist_file_start(struct seq_file *m, loff_t *pos)
-__acquires(whitelist_rwlock)
-{
-	struct white_process *row;
-	loff_t curr_pos;
-
-	read_lock(&whitelist_rwlock);
-	row = whitelist;
-	curr_pos = 0;
-	while ((curr_pos < *pos) && row != NULL) {
-		row = row->next;
-		++curr_pos;
-	}
-	return row;
-}
-
-static void
-whitelist_file_stop(struct seq_file *m, void *v)
-__releases(whitelist_rwlock)
-{
-	read_unlock(&whitelist_rwlock);
-}
-
-static void *
-whitelist_file_next(struct seq_file *m, void *v, loff_t *pos)
-__must_hold(whitelist_rwlock)
-{
-	struct white_process *row;
-
-	row = (struct white_process *)v;
-	if (unlikely(v == NULL))
-		return NULL;
-	++(*pos);
-	return row->next;
-}
-
-static int
-whitelist_file_show(struct seq_file *m, void *v)
-__must_hold(whitelist_rwlock)
-{
-	int ret;
-	struct white_process *row;
-
-	row = (struct white_process *)v;
-	if (unlikely(v == NULL))
-		return -1;
-	ret = seq_printf(m, "%.*s", (int) row->path_len, row->path);
-	if (ret != 0)
-		return ret;
-	switch (row->family) {
-	case AF_INET:
-		ret = seq_printf(m, "|i<%pI4>", &row->ip.ip4);
-		break;
-	case AF_INET6:
-		ret = seq_printf(m, "|i<%pI6c>", &row->ip.ip6);
-		break;
-	default:
-		ret = 0;
-		break;
-	}
-	if (ret != 0)
-		return ret;
-	if (row->port != NO_PORT) {
-		ret = seq_printf(m, "|p<%d>", row->port);
-		if (ret != 0)
-			return ret;
-	}
-	if (row->next != NULL)
-		return seq_putc(m, ',');
-	else
-		return seq_putc(m, '\n');
-}
-
-const struct seq_operations whitelist_file = {
-	.start = &whitelist_file_start,
-	.next = &whitelist_file_next,
-	.stop = &whitelist_file_stop,
-	.show = &whitelist_file_show
-};
-#endif /* NETLOG_V1_COMPAT */

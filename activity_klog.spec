@@ -68,8 +68,6 @@ set -- *
 echo "ccflags-y += -DUSE_PRINK=1" >> execlog/Kbuild
 echo "ccflags-y += -DUSE_PRINK=1" >> netlog/Kbuild
 sed -i "s/^src_files = \(.*\)/src_files = \1 print_netlog.c/" netlog/Kbuild
-echo "ccflags-y += -DNETLOG_V1_COMPAT=1" >> netlog/Kbuild
-sed -i "s/^src_files = \(.*\)/src_files = \1 compat_v1.c/" netlog/Kbuild
 # Disable secure_log
 sed '/secure_log/d' -i Kbuild
 %endif
