@@ -176,11 +176,14 @@ execlog_common(const char *filename,
 			*argv_loop = ' ';
 	}
 
+	/* Update argv_size with real value */
+	/* By construction, argv_current_end > argv_buffer, we can cast */
+	argv_size = (size_t)(argv_current_end - argv_buffer + 1);
+
 log:
 #ifdef USE_PRINK
 	fill_current_details(&details);
-	/* By construction, argv_current_end > argv_buffer, we can cast */
-	print_size = (size_t)(argv_current_end - argv_buffer);
+	print_size = argv_size - 1;
 	filename_len = strlen(filename);
 	/* Rsyslog only reads 1000 char a time ... */
 #define DATA_MAX_LEN 900
@@ -213,9 +216,7 @@ log:
 		}
 	}
 #else /* ! USE_PRINK */
-	/* By construction, argv_current_end > argv_buffer, we can cast */
-	store_execlog_record(filename, argv_buffer,
-			     (size_t)(argv_current_end - argv_buffer + 1));
+	store_execlog_record(filename, argv_buffer, argv_size);
 #endif /* ? USE_PRINK */
 	if (argv_buffer != default_argv)
 		kfree(argv_buffer);
