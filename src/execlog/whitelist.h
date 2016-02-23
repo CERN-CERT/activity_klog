@@ -10,6 +10,11 @@
 #define WHITELISTED 1
 #define NOT_WHITELISTED 0
 
+/* Probes need to resolve those absolute path.
+ * For memory reason, those path lentgh must be bounded.
+ */
+#define MAX_EXEC_PATH 950
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
 int whitelist_param_set(const char *buf, struct kernel_param *kp);
 int whitelist_param_get(char *buffer, struct kernel_param *kp);
