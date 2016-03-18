@@ -108,6 +108,7 @@ execlog_common(const char *filename,
 	char *argv_buffer, *argv_current_end, *argv_loop;
 #ifdef USE_PRINK
 	struct current_details details;
+	size_t filename_len, printed, print_size;
 #endif /* USE_PRINK */
 
 	/* Find total argv_size */
@@ -178,9 +179,39 @@ execlog_common(const char *filename,
 log:
 #ifdef USE_PRINK
 	fill_current_details(&details);
-	printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" %s %.*s\n"),
-	       CURRENT_DETAILS_ARGS(details), filename,
-	       (int)(argv_current_end - argv_buffer + 1), argv_buffer);
+	/* By construction, argv_current_end > argv_buffer, we can cast */
+	print_size = (size_t)(argv_current_end - argv_buffer);
+	filename_len = strlen(filename);
+	/* Rsyslog only reads 1000 char a time ... */
+#define DATA_MAX_LEN 900
+	if (print_size + filename_len < DATA_MAX_LEN) {
+		printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" %s %.*s\n"),
+		       CURRENT_DETAILS_ARGS(details), filename,
+		       (int)print_size, argv_buffer);
+	} else {
+		size_t to_be_printed;
+		if (filename_len > DATA_MAX_LEN) {
+			to_be_printed = 0;
+		} else {
+			to_be_printed = DATA_MAX_LEN - filename_len;
+		}
+		printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" %.*s %.*s\n"),
+		       CURRENT_DETAILS_ARGS(details), DATA_MAX_LEN, filename,
+		       (int)to_be_printed, argv_buffer);
+		printed = to_be_printed;
+		print_size -= to_be_printed;
+		while (print_size != 0) {
+			if (print_size > DATA_MAX_LEN)
+				to_be_printed = DATA_MAX_LEN;
+			else
+				to_be_printed = print_size;
+			printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" @ %.*s\n"),
+			       CURRENT_DETAILS_ARGS(details),
+			       (int)to_be_printed, argv_buffer + printed);
+			printed += to_be_printed;
+			print_size -= to_be_printed;
+		}
+	}
 #else /* ! USE_PRINK */
 	/* By construction, argv_current_end > argv_buffer, we can cast */
 	store_execlog_record(filename, argv_buffer,
