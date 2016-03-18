@@ -2,7 +2,7 @@
 %define debug_package %{nil}
 
 Name:		activity_klog
-Version:	2.9
+Version:	2.10
 Release:	1%{?dist}
 
 Summary:	Kernel modules for logging various user activity
@@ -165,6 +165,9 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Mon Mar 18 2016 Vincent Brillault <vincent.brillault@cern.ch> - 2.10-1
+- Execlog: limit printk messages to less than 1000 chars
+
 * Mon Feb 08 2016 Vincent Brillault <vincent.brillault@cern.ch> - 2.9-1
 - Replace new lines with space
 
