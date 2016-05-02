@@ -49,7 +49,7 @@ whiterow_from_string(char *str) __must_hold(whitelist_sanitylock)
 
 	/* Extract the path, in order to know its length */
 	for (pos = str; *pos != FIELD_SEPARATOR && *pos != '\0'; ++pos);
-	/* By construction, pos > str */
+	/* By construction, pos >= str */
 	len = (unsigned long)(pos - str);
 	if (unlikely(len == 0))
 		return NULL;
@@ -174,7 +174,6 @@ add_whiterow(struct white_process **head, struct white_process *last, char *raw)
 	new_row = whiterow_from_string(raw);
 	if (new_row == NULL) {
 		pr_err("[-] Failed to whitelist %s\n", raw);
-		kfree(new_row);
 	} else if (is_already_whitelisted(*head, new_row)) {
 		pr_err("[-] Duplicate whitelist %s\n", raw);
 		kfree(new_row);

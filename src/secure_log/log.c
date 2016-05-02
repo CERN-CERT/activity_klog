@@ -81,13 +81,21 @@ struct execlog_log {
 /* Buffer */
 static char log_buf[LOG_BUF_LEN];
 
-/* index and sequence number of the first record stored in the buffer */
-static u64 log_first_seq;
-static u32 log_first_idx;
+/* index and sequence number of the first record stored in the buffer
+ * Note that there is no code to handle overflow of the sequence number
+ * as it's 64bits and even at 16K logs per second, it would need 30
+ * million years of constant running to overflow
+ */
+static u64 log_first_seq = 0;
+static u32 log_first_idx = 0;
 
-/* index and sequence number of the next record to store in the buffer */
-static u64 log_next_seq;
-static u32 log_next_idx;
+/* index and sequence number of the next record to store in the buffer
+ * Note that there is no code to handle overflow of the sequence number
+ * as it's 64bits and even at 16K logs per second, it would need 30
+ * million years of constant running to overflow
+ */
+static u64 log_next_seq = 0;
+static u32 log_next_idx = 0;
 
 /* Buffer protection */
 static DEFINE_SPINLOCK(log_lock);
@@ -163,6 +171,7 @@ static inline void
 find_new_record_place(size_t size)
 __must_hold(log_lock)
 {
+	// align size to next block
 	size += (-size) & (LOG_ALIGN - 1);
 
 	while (log_first_seq < log_next_seq) {
@@ -183,7 +192,7 @@ __must_hold(log_lock)
 
 	if (unlikely(log_next_idx + size + sizeof(struct sec_log) >= LOG_BUF_LEN)) {
 		/*
-		 * As free > size + sizeof(size_t), this mean that we had
+		 * As free > size + sizeof(struct sec_log), this mean that we had
 		 * free = max(log_buf_len - log_next_idx, log_first_idx)
 		 * But as we are too close to the end, it means that the max
 		 * is log_first_idx, thus we must wrap around.
