@@ -81,11 +81,19 @@ struct execlog_log {
 /* Buffer */
 static char log_buf[LOG_BUF_LEN];
 
-/* index and sequence number of the first record stored in the buffer */
+/* index and sequence number of the first record stored in the buffer
+ * Note that there is no code to handle overflow of the sequence number
+ * as it's 64bits and even at 16K logs per second, it would need 30
+ * million years of constant running to overflow
+ */
 static u64 log_first_seq = 0;
 static u32 log_first_idx = 0;
 
-/* index and sequence number of the next record to store in the buffer */
+/* index and sequence number of the next record to store in the buffer
+ * Note that there is no code to handle overflow of the sequence number
+ * as it's 64bits and even at 16K logs per second, it would need 30
+ * million years of constant running to overflow
+ */
 static u64 log_next_seq = 0;
 static u32 log_next_idx = 0;
 
