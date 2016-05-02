@@ -82,12 +82,12 @@ struct execlog_log {
 static char log_buf[LOG_BUF_LEN];
 
 /* index and sequence number of the first record stored in the buffer */
-static u64 log_first_seq;
-static u32 log_first_idx;
+static u64 log_first_seq = 0;
+static u32 log_first_idx = 0;
 
 /* index and sequence number of the next record to store in the buffer */
-static u64 log_next_seq;
-static u32 log_next_idx;
+static u64 log_next_seq = 0;
+static u32 log_next_idx = 0;
 
 /* Buffer protection */
 static DEFINE_SPINLOCK(log_lock);
