@@ -73,6 +73,10 @@ whiterow_from_string(char *str) __must_hold(whitelist_sanitylock)
 	/* Try to extact the next field */
 	while (*pos == FIELD_SEPARATOR) {
 		temp = *(pos + 1);
+		if (temp == '\0') {
+			/* Un-expected end of string */
+			goto fail;
+		}
 		str = pos + 2;
 		if (*str == '<')
 			++str;
