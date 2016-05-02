@@ -49,7 +49,7 @@ whiterow_from_string(char *str) __must_hold(whitelist_sanitylock)
 
 	/* Extract the path, in order to know its length */
 	for (pos = str; *pos != FIELD_SEPARATOR && *pos != '\0'; ++pos);
-	/* By construction, pos > str */
+	/* By construction, pos >= str */
 	len = (unsigned long)(pos - str);
 	if (unlikely(len == 0))
 		return NULL;

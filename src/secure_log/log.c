@@ -183,7 +183,7 @@ __must_hold(log_lock)
 
 	if (unlikely(log_next_idx + size + sizeof(struct sec_log) >= LOG_BUF_LEN)) {
 		/*
-		 * As free > size + sizeof(size_t), this mean that we had
+		 * As free > size + sizeof(struct sec_log), this mean that we had
 		 * free = max(log_buf_len - log_next_idx, log_first_idx)
 		 * But as we are too close to the end, it means that the max
 		 * is log_first_idx, thus we must wrap around.
