@@ -163,6 +163,7 @@ static inline void
 find_new_record_place(size_t size)
 __must_hold(log_lock)
 {
+	// align size to next block
 	size += (-size) & (LOG_ALIGN - 1);
 
 	while (log_first_seq < log_next_seq) {
