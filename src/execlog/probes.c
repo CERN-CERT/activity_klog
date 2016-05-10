@@ -206,7 +206,7 @@ log:
 		       (int)to_be_printed, argv_buffer);
 		printed = to_be_printed;
 		print_size -= to_be_printed;
-		while (print_size != 0) {
+		while (print_size >= 0) {
 			if (print_size > DATA_MAX_LEN)
 				to_be_printed = DATA_MAX_LEN;
 			else
