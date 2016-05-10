@@ -127,11 +127,9 @@ static void log_if_not_whitelisted(struct socket *sock, u8 protocol, u8 action)
 		break;
 	}
 
-#if WHITELISTING
 	/* Are we whitelisted ? */
 	if (is_whitelisted(path, family, dst_ip, dst_port))
 		return;
-#endif
 
 #ifdef USE_PRINK
 	fill_current_details(&details);

@@ -9,11 +9,6 @@
  */
 #define MAX_EXEC_PATH 950
 
-
-/* Set to non-zero value in order to compile the whitelisting code*/
-
-#define WHITELISTING 1
-
 /* Maximum number of whitelisted element in module parameter */
 #define MAX_WHITELIST_SIZE 100
 

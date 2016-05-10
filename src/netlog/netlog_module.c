@@ -51,7 +51,6 @@ DEFINE_PROBE_PARAM(udp_connect, 3)
 DEFINE_PROBE_PARAM(udp_bind,    4)
 DEFINE_PROBE_PARAM(udp_close,   5)
 
-#if WHITELISTING
 # if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
 module_param_call(whitelist, &whitelist_param_set, &whitelist_param_get, NULL, 0600);
 # else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
@@ -61,7 +60,6 @@ MODULE_PARM_DESC(whitelist, " A coma separated list of strings that contains"
 		 " the connections that " MODULE_NAME " will ignore.\n"
 		 " The format of the string must be '${executable}|i<${ip}>|<${port}>'."
 		 " The ip and port parts are optional.");
-#endif
 
 /************************************/
 /*             INIT MODULE          */
@@ -76,9 +74,7 @@ static int __init netlog_init(void)
 	ret = probes_init();
 	if (ret != 0) {
 		unplant_all();
-#if WHITELISTING
 		destroy_whitelist();
-#endif
 	}
 
 	return ret;
@@ -91,10 +87,7 @@ static int __init netlog_init(void)
 static void __exit netlog_exit(void)
 {
 	unplant_all();
-
-#if WHITELISTING
 	destroy_whitelist();
-#endif /* WHITELISTING */
 }
 
 
