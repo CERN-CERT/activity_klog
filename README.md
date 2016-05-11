@@ -51,7 +51,6 @@ Netlog is a highly configurable module. All its configuration is accessible via 
 ### Netlog whitelist
 
 netlog offers a whitelist system, which will ignore the whitelisted actions before they are logged.
-In order to be used, the module needs to be compiled with WHITELISTING set to 1 in netlog/netlog.h.
 This feature is controled by the 'whitelist' parameter and can be set at load time (by specifying it when loading the module) or at run time (by changing the content of /sys/module/netlog/parameters/whitelist)
 
 The whitelist itself is a coma-separated list, containing the binary path, the remote IP address (IPv4 or IPv6) and the remote port in the following format: "${/path/to/binary/}|i${remote_ip}|p${remote_port}".
