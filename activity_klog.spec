@@ -2,8 +2,8 @@
 %define debug_package %{nil}
 
 Name:		activity_klog
-Version:	2.10
-Release:	1%{?dist}
+Version:	3.0
+Release:	6%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
@@ -163,6 +163,13 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Mon May 23 2016 Vincent Brillault <vincent.brillault@cern.ch> - 3.0-6
+- Refactor execlog module into separate parts
+- Introduce whitelist feature for execlog, based on merged netlog code
+- Remove old configuration option via /proc for netlog
+- Remove broken "WHITELISTING" build option
+- Delay probe loading at initialization
+
 * Fri Mar 18 2016 Vincent Brillault <vincent.brillault@cern.ch> - 2.10-1
 - Execlog: limit printk messages to less than 1000 chars
 
