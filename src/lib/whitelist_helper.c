@@ -10,6 +10,11 @@ static DEFINE_RWLOCK(whitelist_rwlock);
 /* Sanity lock on the whitelist: only one w modification at a time ! */
 static DEFINE_SPINLOCK(whitelist_sanitylock);
 
+#ifdef ALSOROOT
+/* Also whitelist calls made by uid/euid 0 (default to false) */
+static bool also_root;
+#endif /* ALSOROOT */
+
 static void
 purge_whitelist(struct white_process *head) __must_hold(whitelist_sanitylock)
 {
@@ -170,3 +175,69 @@ const struct kernel_param_ops whitelist_param = {
 	.get = whitelist_param_get,
 };
 #endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+
+#ifdef ALSOROOT
+# if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+int
+whitelist_root_param_set(const char *buf, struct kernel_param *kp)
+# else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+static int
+whitelist_root_param_set(const char *buf, const struct kernel_param *kp)
+# endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
+{
+	int ret;
+
+	if (buf == NULL)
+		return -EBADF;
+
+	pr_info("[+] Modifying root whitelisting");
+
+	write_lock(&whitelist_rwlock);
+	ret = strtobool(buf, &also_root);
+	write_unlock(&whitelist_rwlock);
+
+	if (ret != 0)
+		pr_info("[+] Invalid input");
+	else if (also_root)
+		pr_info("[+] Root actions are ignored like other");
+	else
+		pr_info("[+] Root actions are never ignored");
+
+        return ret;
+}
+
+
+# if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+int
+whitelist_root_param_get(char *buffer, struct kernel_param *kp)
+# else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+static int
+whitelist_root_param_get(char *buffer, const struct kernel_param *kp)
+# endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
+{
+	int ret;
+
+	read_lock(&whitelist_rwlock);
+	ret = sprintf(buffer, "%c", also_root ? 'Y' : 'N');
+	read_unlock(&whitelist_rwlock);
+
+	return ret;
+}
+
+# if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36)
+const struct kernel_param_ops whitelist_root_param = {
+	.set = whitelist_root_param_set,
+	.get = whitelist_root_param_get,
+};
+# endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+
+static bool current_is_root(void)
+{
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
+	return current_uid().val == 0 || current_euid().val == 0;
+# else /* LINUX_VERSION_CODE < KERNEL_VERSION(3, 5, 0) */
+	return current_uid() == 0 || current_euid() == 0;
+# endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(3, 5, 0) */
+}
+
+#endif /* ALSOROOT */

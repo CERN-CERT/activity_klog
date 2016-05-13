@@ -18,8 +18,11 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
 int whitelist_param_set(const char *buf, struct kernel_param *kp);
 int whitelist_param_get(char *buffer, struct kernel_param *kp);
+int whitelist_root_param_set(const char *buf, struct kernel_param *kp);
+int whitelist_root_param_get(char *buffer, struct kernel_param *kp);
 #else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
 extern const struct kernel_param_ops whitelist_param;
+extern const struct kernel_param_ops whitelist_root_param;
 #endif /* if LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
 
 int is_whitelisted(const char *filename, const char *argv_start, size_t argv_size);
