@@ -357,7 +357,7 @@ static void
 unplant_probes(unsigned long removed_probes)
 __must_hold(probe_lock)
 {
-	loaded_probes ^= removed_probes;
+	loaded_probes &= ~removed_probes;
 
 	if (removed_probes & (1 << PROBE_TCP_CONNECT))
 		unplant_kretprobe(&stream_connect_kretprobe);
