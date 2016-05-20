@@ -29,7 +29,9 @@
 /*          Variables           */
 /********************************/
 
-static u8 initialized;
+static bool initialized;
+static bool setter_called;
+static unsigned long pre_init_probes;
 static unsigned long loaded_probes;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 36, 0)
 static DEFINE_SEMAPHORE(probe_lock);
@@ -439,13 +441,30 @@ __must_hold(&probe_lock)
 	return err;
 }
 
+static int
+update_probes(unsigned long wanted_probes)
+__must_hold(&probe_lock)
+{
+	unsigned long to_be_loaded;
+	unsigned long to_be_unloaded;
+
+	to_be_loaded = wanted_probes & ~loaded_probes;
+	to_be_unloaded = loaded_probes & ~wanted_probes;
+
+	unplant_probes(to_be_unloaded);
+	return plant_probes(to_be_loaded);
+}
+
 /***********************************************/
-/*               ""Initializer""               */
+/*                 Initializer                 */
 /***********************************************/
 
 /*
- * The following function only do something if initialized != 0
- * i.e if no parameter was set (yet)
+ * Initialize the probes:
+ *  - If a "setter" was called before initialization, load
+ *    the probes that were asked for
+ *  - If no "setter" was called, load default probes
+ * This code should only be called once during the init phase
 */
 
 int
@@ -454,10 +473,16 @@ probes_init(void)
 	int ret = 0;
 
 	down(&probe_lock);
-	if (initialized == 0) {
-		ret = plant_probes(DEFAULT_PROBES);
+	if (!initialized) {
+		if (setter_called)
+			ret = plant_probes(pre_init_probes);
+		else
+			ret = plant_probes(DEFAULT_PROBES);
 		if (ret >= 0)
 			initialized = 1;
+	} else {
+		pr_err("Probes initialized twice!");
+		ret = -1;
 	}
 	up(&probe_lock);
 
@@ -487,12 +512,20 @@ all_probes_param_set(const char *buf, const struct kernel_param *kp)
 	if (ret < 0)
 		return ret;
 
-	initialized = 1;
 	ret = down_interruptible(&probe_lock);
 	if (ret != 0)
 		return ret;
 
-	ret = plant_probes(wanted_probes);
+	if (initialized) {
+		ret = update_probes(wanted_probes);
+	} else if (setter_called) {
+		pre_init_probes |= wanted_probes;
+		ret = 0;
+	} else {
+		setter_called = 1;
+		pre_init_probes = wanted_probes;
+		ret = 0;
+	}
 
 	up(&probe_lock);
 
@@ -555,22 +588,24 @@ one_probe_param_set(const char *buf, const struct kernel_param *kp)
 	if (ret != 0)
 		return ret;
 
-	if (initialized == 0) {
-		ret = plant_probes(DEFAULT_PROBES);
-		if (ret < 0)
-			goto fail;
-		initialized = 1;
-	}
-
-	if (value) {
-		if (probe->mask & (~loaded_probes))
-			ret = plant_probes(probe->mask);
+	if (initialized) {
+		if (value) {
+			if (probe->mask & (~loaded_probes))
+				ret = plant_probes(probe->mask);
+		} else {
+			if (probe->mask & loaded_probes)
+				unplant_probes(probe->mask);
+		}
 	} else {
-		if (probe->mask &loaded_probes)
-			unplant_probes(probe->mask);
+		if (!setter_called)
+			pre_init_probes = DEFAULT_PROBES;
+		setter_called = 1;
+		if (value)
+			pre_init_probes |= probe->mask;
+		else
+			pre_init_probes = pre_init_probes & ~(probe->mask);
 	}
 
-fail:
 	up(&probe_lock);
 	return ret;
 }
