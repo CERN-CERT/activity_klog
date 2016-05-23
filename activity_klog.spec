@@ -163,7 +163,7 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
-* Mon Mar 18 2016 Vincent Brillault <vincent.brillault@cern.ch> - 2.10-1
+* Fri Mar 18 2016 Vincent Brillault <vincent.brillault@cern.ch> - 2.10-1
 - Execlog: limit printk messages to less than 1000 chars
 
 * Mon Feb 08 2016 Vincent Brillault <vincent.brillault@cern.ch> - 2.9-1
