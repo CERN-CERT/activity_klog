@@ -122,7 +122,7 @@ is_whitelisted(const char *filename, const char *argv_start, size_t argv_size)
 	read_lock_irqsave(&whitelist_rwlock, flags);
 
 	if ((!also_root) && current_is_root())
-		goto whitelisted;
+		goto not_whitelisted;
 
 	row = whitelist;
 	while (row != NULL) {
@@ -135,6 +135,7 @@ is_whitelisted(const char *filename, const char *argv_start, size_t argv_size)
 		row = row->next;
 	}
 
+not_whitelisted:
 	read_unlock_irqrestore(&whitelist_rwlock, flags);
 
 	return NOT_WHITELISTED;
