@@ -2,8 +2,8 @@
 %define debug_package %{nil}
 
 Name:		activity_klog
-Version:	3.0
-Release:	6%{?dist}
+Version:	3.1
+Release:	1%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
@@ -163,6 +163,10 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Wed Jul 20 2016 Vincent Brillault <vincent.brillault@cern.ch> - 3.1-1
+- Fix index reset error on buffer wrapping, leading to kernel panic
+- Properly align log records in secure_log
+
 * Mon May 23 2016 Vincent Brillault <vincent.brillault@cern.ch> - 3.0-6
 - Refactor execlog module into separate parts
 - Introduce whitelist feature for execlog, based on merged netlog code
