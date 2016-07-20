@@ -44,7 +44,7 @@ MODULE_PARM_DESC(send_eof, "Return a EOF at the current end of the buffer, only 
 
 /* Log structures of records stored the buffer */
 struct sec_log {
-	size_t len /** Total size of the record, including the strings at the end */;
+	size_t len /** Total size of the record, including the strings at the end and padding */;
 	struct current_details process /* Details of the process */;
 	enum secure_log_type type /** Type of this record (for cast)*/;
 };
@@ -171,9 +171,6 @@ static inline void
 find_new_record_place(size_t size)
 __must_hold(log_lock)
 {
-	// align size to next block
-	size += (-size) & (LOG_ALIGN - 1);
-
 	while (log_first_seq < log_next_seq) {
 		size_t free;
 
@@ -222,6 +219,8 @@ store_netlog_record(const char *path, enum netlog_action action,
 		path_len = min((LOG_BUF_LEN >> 4), (unsigned int)INT_MAX);
 	}
 	record_size = sizeof(struct netlog_log) + path_len;
+	/* Align record size to next block */
+        record_size += (-record_size) & (LOG_ALIGN - 1);
 
 	spin_lock_irqsave(&log_lock, flags);
 
@@ -283,6 +282,8 @@ store_execlog_record(const char *path,
 		argv_size = min((LOG_BUF_LEN >> 5), (unsigned int)INT_MAX);
 	}
 	record_size = sizeof(struct execlog_log) + path_len + argv_size;
+	/* Align record size to next block */
+        record_size += (-record_size) & (LOG_ALIGN - 1);
 
 	spin_lock_irqsave(&log_lock, flags);
 
