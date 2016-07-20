@@ -522,6 +522,7 @@ secure_log_read(struct file *file, char __user *buf, size_t count,
 	if (record->len == 0) {
 		/* We have cycled back to the start */
 		record = (struct sec_log *)(log_buf);
+		data->log_curr_idx = 0;
 	}
 
 	ts = record->process.nsec;
