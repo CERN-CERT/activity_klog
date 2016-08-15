@@ -136,19 +136,38 @@ __must_hold(log_lock)
 	return ((char *)log) + sizeof(struct execlog_log) + log->path_len;
 }
 
+/* get record by index; idx must point to valid msg */
+static struct sec_log *log_from_idx(u32 idx)
+{
+        struct sec_log *msg = (struct sec_log *)(log_buf + idx);
+
+        /*
+         * A length == 0 record is the end of buffer marker. Wrap around and
+         * read the message at the start of the buffer.
+         */
+        if (!msg->len)
+                return (struct sec_log *)log_buf;
+        return msg;
+}
+
+/* get next record; idx must point to valid msg */
 static u32
-next_record(u32 idx)
+log_next(u32 idx)
 __must_hold(log_lock)
 {
-	size_t *len;
+	struct sec_log *msg = (struct sec_log *)(log_buf + idx);
 
-	len = &((struct sec_log *)(log_buf + idx))->len;
-	if (*len == 0) {
-		/* We need to wrap around */
-		return 0;
+	/*
+	 * A length == 0 record is the end of buffer marker. Wrap around and
+	 * read the message at the start of the buffer as *this* one, and
+	 * return the one after that.
+	 */
+	if (msg->len == 0) {
+		msg = (struct sec_log *)log_buf;
+		return msg->len;
 	}
 	/* Length of items inside the cache can't get out of the cache */
-	return (u32)(idx + *len);
+	return (u32)(idx + msg->len);
 }
 
 /* Small tool */
@@ -183,7 +202,7 @@ __must_hold(log_lock)
 			break;
 
 		/* Drop old messages until we have enough contiuous space */
-		log_first_idx = next_record(log_first_idx);
+		log_first_idx = log_next(log_first_idx);
 		log_first_seq++;
 	}
 
@@ -193,9 +212,9 @@ __must_hold(log_lock)
 		 * free = max(log_buf_len - log_next_idx, log_first_idx)
 		 * But as we are too close to the end, it means that the max
 		 * is log_first_idx, thus we must wrap around.
-		 * Add an empty size_t to indicate the wrap around
+		 * Add an empty header with len == 0 to indicate the wrap around
 		 */
-		*((size_t *)(log_buf + log_next_idx)) = 0;
+		memset(log_buf + log_next_idx, 0, sizeof(struct sec_log));
 		log_next_idx = 0;
 	}
 }
@@ -519,12 +538,7 @@ secure_log_read(struct file *file, char __user *buf, size_t count,
 	}
 
 	/* Get the current record */
-	record = (struct sec_log *)(log_buf + data->log_curr_idx);
-	if (record->len == 0) {
-		/* We have cycled back to the start */
-		record = (struct sec_log *)(log_buf);
-		data->log_curr_idx = 0;
-	}
+	record = log_from_idx(data->log_curr_idx);
 
 	ts = record->process.nsec;
 	rem_nsec = do_div(ts, 1000000000);
@@ -544,7 +558,7 @@ secure_log_read(struct file *file, char __user *buf, size_t count,
 	len = secure_log_read_fill_record(data->buf, len, record);
 
 	/* Prepare for next iteration */
-	data->log_curr_idx = next_record(data->log_curr_idx);
+	data->log_curr_idx = log_next(data->log_curr_idx);
 	++data->log_curr_seq;
 
 	/* Unlock */
