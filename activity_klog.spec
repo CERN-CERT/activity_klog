@@ -2,7 +2,7 @@
 %define debug_package %{nil}
 
 Name:		activity_klog
-Version:	3.1
+Version:	3.2
 Release:	1%{?dist}
 
 Summary:	Kernel modules for logging various user activity
@@ -163,6 +163,9 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Tue Aug 16 2016 Vincent Brillault <vincent.brillault@cern.ch> - 3.2-1
+- Better fix for buffer wrapping, pulling code from upstream
+
 * Wed Jul 20 2016 Vincent Brillault <vincent.brillault@cern.ch> - 3.1-1
 - Fix index reset error on buffer wrapping, leading to kernel panic
 - Properly align log records in secure_log
