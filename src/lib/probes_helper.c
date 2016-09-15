@@ -4,10 +4,6 @@
 #include "sparse_compat.h"
 #include "probes_helper.h"
 
-/* Printing function */
-#undef pr_fmt
-#define pr_fmt(fmt) MODULE_NAME ": " fmt
-
 /* Interrupts/Exceptions */
 enum {
         X86_TRAP_DE = 0,        /*  0, Divide-by-zero */
