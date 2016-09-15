@@ -88,7 +88,8 @@ for flavor in %flavors_to_build ; do
 		cp $symvers obj/$flavor/Module.symvers
 	fi
 
-	make -C %{kernel_source $flavor} M=$PWD/obj/$flavor
+	make -C %{kernel_source $flavor} M=$PWD/obj/$flavor \
+	module_version=%{version}
 done
 %if 0%rhel >= 7
 #Selinux
@@ -108,7 +109,7 @@ export INSTALL_MOD_PATH=$RPM_BUILD_ROOT
 export INSTALL_MOD_DIR=extra/
 for flavor in %flavors_to_build ; do 
 	make -C %{kernel_source $flavor} modules_install \
-	M=$PWD/obj/$flavor
+	M=$PWD/obj/$flavor module_version=%{version}
 
 	# Cleanup unnecessary kernel-generated module dependency files.
 	find $INSTALL_MOD_PATH/lib/modules -iname 'modules.*' -exec rm {} \;

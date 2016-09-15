@@ -2,10 +2,12 @@ obj-m += secure_log/
 obj-m += netlog/
 obj-m += execlog/
 
+subdir-ccflags-y += -D'MOD_VER="$(MOD_VER)"'
+
 ifeq ($(COMPILATION_CHECKS),y)
 ifeq ($(CC),clang)
 
-subdir-ccflags-y := -Weverything -Werror -Wmissing-prototypes -Wstrict-prototypes -std=gnu89
+subdir-ccflags-y += -Weverything -Werror -Wmissing-prototypes -Wstrict-prototypes -std=gnu89
 
 subdir-ccflags-y += --system-header-prefix=asm
 subdir-ccflags-y += --system-header-prefix=linux

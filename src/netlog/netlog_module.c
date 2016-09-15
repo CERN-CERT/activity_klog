@@ -75,6 +75,8 @@ static int __init netlog_init(void)
 	if (ret != 0) {
 		unplant_all();
 		destroy_whitelist();
+	} else {
+		pr_info("[+] "MODULE_NAME" version "MOD_VER" deployed\n");
 	}
 
 	return ret;
@@ -101,3 +103,4 @@ module_exit(netlog_exit)
 MODULE_LICENSE(MOD_LICENSE);
 MODULE_AUTHOR(MOD_AUTHORS)
 MODULE_DESCRIPTION(MOD_DESC);
+MODULE_VERSION(MOD_VER);

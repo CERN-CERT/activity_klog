@@ -23,7 +23,7 @@ static int __init execlog_init(void)
 		destroy_whitelist();
 		return err;
 	}
-	pr_info("[+] Deployed\n");
+	pr_info("[+] "MODULE_NAME" version "MOD_VER" deployed\n");
 	return 0;
 }
 
@@ -67,6 +67,7 @@ MODULE_PARM_DESC(whitelist_include_root, "A boolean indicating if root actions"
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vincent Brillault <vincent.brillault@cern.ch>");
 MODULE_DESCRIPTION("execlog logs information about every 'execve' syscall.");
+MODULE_VERSION(MOD_VER);
 
 module_init(execlog_init)
 module_exit(execlog_exit)
