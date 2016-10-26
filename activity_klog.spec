@@ -2,7 +2,7 @@
 %define debug_package %{nil}
 
 Name:		activity_klog
-Version:	3.2
+Version:	3.3
 Release:	1%{?dist}
 
 Summary:	Kernel modules for logging various user activity
@@ -164,6 +164,10 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Wed Oct 26 2016 Vincent Brillault <vincent.brillault@cern.ch> - 3.3-1
+- Ensure that module parameter 'version' is kept up to date
+- Remove duplicated pr_fmt definition
+
 * Tue Aug 16 2016 Vincent Brillault <vincent.brillault@cern.ch> - 3.2-1
 - Better fix for buffer wrapping, pulling code from upstream
 
