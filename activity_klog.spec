@@ -3,7 +3,7 @@
 
 Name:		activity_klog
 Version:	3.3
-Release:	1%{?dist}
+Release:	2%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
@@ -89,7 +89,7 @@ for flavor in %flavors_to_build ; do
 	fi
 
 	make -C %{kernel_source $flavor} M=$PWD/obj/$flavor \
-	module_version=%{version}
+	MOD_VER=%{version}
 done
 %if 0%rhel >= 7
 #Selinux
@@ -164,6 +164,9 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Wed Dec 07 2016 Vincent Brillault <vincent.brillault@cern.ch> - 3.3-2
+- Wrong version variable set in the spec file
+
 * Wed Oct 26 2016 Vincent Brillault <vincent.brillault@cern.ch> - 3.3-1
 - Ensure that module parameter 'version' is kept up to date
 - Remove duplicated pr_fmt definition
