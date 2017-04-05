@@ -130,7 +130,7 @@ execlog_common(const char *filename,
 	if (unlikely(argv_buffer == NULL)) {
 		pr_err("Unable to allocate memory for user argv");
 		argv_buffer = (char *)default_argv;
-		argv_current_end = ((char *)default_argv) + sizeof(default_argv);
+		argv_size = sizeof(default_argv);
 		goto log;
 	}
 
