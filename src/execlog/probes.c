@@ -159,8 +159,13 @@ execlog_common(const char *filename,
 		argv_current_end += (unsigned long) argv_written;
 		argv_size -= (unsigned long) argv_written;
 		/* As we calculated the size before, this should never occur, except if userspace is malicious or had to be truncated */
-		if (unlikely(argv_size == 0))
+		if (unlikely(argv_size == 0)) {
+			if (argv_truncated == 0) {
+				pr_err("argv troncated (%zu, resized?)", argv_size);
+				argv_truncated = 1;
+			}
 			break;
+		}
 		/* Add separator ' ' between arguments
 		 * Previous check guaranties that argv_size >= 1, thus will not loop (unsigned) afterwards */
 		/* TODO: Should we have a better separator ? */
