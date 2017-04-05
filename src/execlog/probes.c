@@ -105,6 +105,7 @@ execlog_common(const char *filename,
 	size_t argv_size;
 	long argv_written;
 	char *argv_buffer, *argv_current_end, *argv_loop;
+	bool argv_truncated;
 #ifdef USE_PRINK
 	struct current_details details;
 	size_t filename_len, printed, print_size;
@@ -113,6 +114,7 @@ execlog_common(const char *filename,
 	/* Find total argv_size */
 	argv_size = 2;
 	argv_cur_pos = 0;
+	argv_truncated = 0;
 	while ((__argv_content = get_user_arg_ptr(__argv, argv_cur_pos)) != NULL) {
 		/* strlen_user always return something > 0 */
 		argv_size += (unsigned long) strlen_user(__argv_content);
@@ -120,9 +122,10 @@ execlog_common(const char *filename,
 	}
 
 	/* strncpy can only take a long as it input, check for potential overflow */
-	if (unlikely(argv_size > LONG_MAX)) {
-		pr_err("argv troncated (%zu > %lu)", argv_size, LONG_MAX);
-		argv_size = LONG_MAX;
+	if (unlikely(argv_size > ARGV_MAX_SIZE)) {
+		pr_err("argv troncated (%zu > %u)", argv_size, ARGV_MAX_SIZE);
+		argv_size = ARGV_MAX_SIZE;
+		argv_truncated = 1;
 	}
 
 	/* Allocate memory for copying the argv from userspace */
@@ -155,7 +158,7 @@ execlog_common(const char *filename,
 		 * strncpy_from_user guaranties that argv_written <= argv_size, i-e argv_size will not loop (unsigned) */
 		argv_current_end += (unsigned long) argv_written;
 		argv_size -= (unsigned long) argv_written;
-		/* As we calculated the size before, this should never occur, except if userspace is malicious */
+		/* As we calculated the size before, this should never occur, except if userspace is malicious or had to be truncated */
 		if (unlikely(argv_size == 0))
 			break;
 		/* Add separator ' ' between arguments
@@ -173,6 +176,11 @@ execlog_common(const char *filename,
 	for (argv_loop = argv_buffer; argv_loop < argv_current_end; ++argv_loop) {
 		if (*argv_loop == '\n' || *argv_loop == '\r')
 			*argv_loop = ' ';
+	}
+
+	/* Add a symbol to represent truncated output */
+	if (unlikely(argv_truncated && (argv_current_end > argv_buffer))) {
+		*(argv_current_end - 1) = '$';
 	}
 
 	/* Update argv_size with real value */
