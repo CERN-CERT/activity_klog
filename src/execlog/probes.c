@@ -123,7 +123,7 @@ execlog_common(const char *filename,
 
 	/* strncpy can only take a long as it input, check for potential overflow */
 	if (unlikely(argv_size > ARGV_MAX_SIZE)) {
-		pr_err("argv troncated (%zu > %u)", argv_size, ARGV_MAX_SIZE);
+		pr_err("argv truncated (%zu > %u)", argv_size, ARGV_MAX_SIZE);
 		argv_size = ARGV_MAX_SIZE;
 		argv_truncated = 1;
 	}
