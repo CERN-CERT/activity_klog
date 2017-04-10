@@ -2,8 +2,8 @@
 %define debug_package %{nil}
 
 Name:		activity_klog
-Version:	3.3
-Release:	2%{?dist}
+Version:	3.4
+Release:	1%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
@@ -164,6 +164,10 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Mon Apr 10 2017 Vincent Brillault <vincent.brillault@cern.ch> - 3.4-1
+- Fix out-of-bound access in memory allocation failure path
+- Better handling of truncated input
+
 * Wed Dec 07 2016 Vincent Brillault <vincent.brillault@cern.ch> - 3.3-2
 - Wrong version variable set in the spec file
 
