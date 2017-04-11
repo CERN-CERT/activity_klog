@@ -550,7 +550,7 @@ secure_log_read(struct file *file, char __user *buf, size_t count,
 			      (unsigned long)ts, rem_nsec / 1000);
 	} else {
 		/* Use a simpler header */
-		len = SPRINTF(data->buf, "%s [%5lu.%06lu]: ",
+		len = SPRINTF(data->buf, "%s [%lu.%06lu]: ",
 			      get_module_name(record->type),
 			      (unsigned long)ts, rem_nsec / 1000);
 	}
