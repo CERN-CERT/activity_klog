@@ -2,7 +2,7 @@
 # Variables needed to build the kernel module
 #
 
-module_version?= 3.4
+module_version?= 3.5
 kernel_version?= $(shell uname -r)
 kernel_build?= /lib/modules/${kernel_version}/build
 kernel_install?= /lib/modules/${kernel_version}/kernel/arch/x86/kernel

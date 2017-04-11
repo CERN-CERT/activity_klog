@@ -2,7 +2,7 @@
 %define debug_package %{nil}
 
 Name:		activity_klog
-Version:	3.4
+Version:	3.5
 Release:	1%{?dist}
 
 Summary:	Kernel modules for logging various user activity
@@ -164,6 +164,9 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Tue Apr 11 2017 Vincent Brillault <vincent.brillault@cern.ch> - 3.5-1
+- Remove leading space in secure_log 'simple' timestamp format
+
 * Mon Apr 10 2017 Vincent Brillault <vincent.brillault@cern.ch> - 3.4-1
 - Fix out-of-bound access in memory allocation failure path
 - Better handling of truncated input
