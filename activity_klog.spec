@@ -3,7 +3,7 @@
 
 Name:		activity_klog
 Version:	3.5
-Release:	1%{?dist}
+Release:	2%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
@@ -164,6 +164,9 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Thu Aug 24 2017 Vincent Brillault <vincent.brillault@cern.ch> - 3.5-2
+- Rebuild for Centos 7.4 (d_path symbol version change)
+
 * Tue Apr 11 2017 Vincent Brillault <vincent.brillault@cern.ch> - 3.5-1
 - Remove leading space in secure_log 'simple' timestamp format
 
