@@ -395,6 +395,10 @@ static struct kprobe kprobe_search_binary_handler = {
 	.fault_handler = handler_fault,
 };
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
+#warning "This kernel contains a new syscall, execveat, not supported by execlog!"
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0) */
+
 /************************************/
 /*             INIT MODULE          */
 /************************************/
