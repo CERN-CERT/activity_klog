@@ -309,6 +309,8 @@ static const char *kretprobe_missed = "@Missed";
 static int
 pre_search_binary_handler(struct kprobe *p, struct pt_regs *regs)
 {
+	char buffer[MAX_EXEC_PATH + 1];
+	const char *filename;
 	struct execve_data *priv;
 	struct linux_binprm *bprm = (struct linux_binprm *) GET_ARG_1(regs);
 
@@ -317,21 +319,28 @@ pre_search_binary_handler(struct kprobe *p, struct pt_regs *regs)
 		return 0;
 	}
 
+	/* Extract real path from file */
+	filename = d_path(&bprm->file->f_path, buffer, MAX_EXEC_PATH);
+	if (IS_ERR(filename)) {
+		/* fallback to file called */
+		filename = bprm->filename;
+	}
+
 	priv = get_current_kretprobe_data();
 	if (unlikely(priv == NULL)) {
 #ifdef USE_PRINK
 		struct current_details details;
 		fill_current_details(&details);
 		printk(KERN_DEBUG pr_fmt(CURRENT_DETAILS_FORMAT" %s %s\n"),
-		       CURRENT_DETAILS_ARGS(details), bprm->filename,
+		       CURRENT_DETAILS_ARGS(details), filename,
 		       kretprobe_missed);
 #else /* ! USE_PRINK */
-		store_execlog_record(bprm->filename, kretprobe_missed,
+		store_execlog_record(filename, kretprobe_missed,
 				     sizeof(kretprobe_missed));
 #endif /* ? USE_PRINK */
 		return 0;
 	}
-	execlog_common(bprm->filename, priv->argv);
+	execlog_common(filename, priv->argv);
 	priv->argv.ptr.native = NULL;
 	return 0;
 }
