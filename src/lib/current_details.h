@@ -33,6 +33,7 @@ static const char null_tty_short[] = "NULL";
 static inline void
 fill_current_details(struct current_details *details)
 {
+	struct task_struct * parent;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
 	kuid_t kuid;
 	kgid_t kgid;
@@ -49,10 +50,13 @@ fill_current_details(struct current_details *details)
 #endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(3, 5, 0) */
 	details->nsec = local_clock();
 	details->pid = current->pid;
-	if (likely(current->real_parent != NULL))
-		details->ppid = current->real_parent->pid;
+	rcu_read_lock();
+	parent = rcu_dereference(current->real_parent);
+	if (likely(parent != NULL))
+		details->ppid = parent->pid;
 	else
 		details->ppid = 0;
+	rcu_read_unlock();
 	details->sid = task_session_vnr(current);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
 	details->tty = tty_name(current->signal->tty);
