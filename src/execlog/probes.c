@@ -272,6 +272,10 @@ pre_sys_execve(struct kretprobe_instance *ri, struct pt_regs *regs)
 	if (unlikely(current == NULL))
 		return 1;
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 17, 0)
+	regs = (struct pt_regs *) GET_ARG_1(regs);
+#endif /* LINUX_VERSION_CODE > KERNEL_VERSION(4, 17, 0) */
+
 	priv->argv.is_compat = false;
 	priv->argv.ptr.native = (const char __user *const __user *) GET_ARG_2(regs);
 	priv->pid = current->pid;
@@ -291,6 +295,10 @@ pre_compat_sys_execve(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	if (unlikely(current == NULL))
 		return 1;
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 17, 0)
+	regs = (struct pt_regs *) GET_ARG_1(regs);
+#endif /* LINUX_VERSION_CODE > KERNEL_VERSION(4, 17, 0) */
 
 	priv->argv.is_compat = true;
 	priv->argv.ptr.compat = (const compat_uptr_t __user *) GET_ARG_2(regs);
@@ -376,7 +384,11 @@ static struct kretprobe kretprobe_sys_execve = {
 	.data_size = sizeof(struct execve_data),
 	.maxactive = 16 * NR_CPUS,
 	.kp = {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
 		.symbol_name = "sys_execve",
+#else /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0) */
+		.symbol_name = "__x64_sys_execve",
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(4, 17, 0) */
 		.fault_handler = handler_fault,
 	},
 };
@@ -390,9 +402,11 @@ static struct kretprobe kretprobe_compat_sys_execve = {
 	.kp = {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
 		.symbol_name = "sys32_execve",
-#else /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0) */
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
 		.symbol_name = "compat_sys_execve",
-#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(3, 7, 0) */
+#else /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0) */
+		.symbol_name = "__ia32_sys_execve",
+#endif /* LINUX_VERSION_CODE ? */
 		.fault_handler = handler_fault,
 	},
 };
