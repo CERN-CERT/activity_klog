@@ -55,6 +55,8 @@ struct probes probe_list[] = {
 static char *path_from_mm(struct mm_struct *mm, char *buffer, int length)
 {
 	char *p = NULL;
+	struct file * exe_file = NULL;
+
 	if (unlikely(mm == NULL))
 		return NULL;
 
@@ -62,15 +64,17 @@ static char *path_from_mm(struct mm_struct *mm, char *buffer, int length)
 		/* It's lock, we can't sleep here to get it, so just give up */
 		return NULL;
 	}
+	rcu_read_lock();
+	exe_file = rcu_dereference(mm->exe_file);
 
-	if (unlikely(mm->exe_file == NULL)) {
+	if (unlikely(exe_file == NULL)) {
 		p = NULL;
 	} else {
-		p = d_path(&mm->exe_file->f_path, buffer, length);
+		p = d_path(&exe_file->f_path, buffer, length);
 		if (IS_ERR(p))
 			p = NULL;
 	}
-
+	rcu_read_unlock();
 	up_read(&mm->mmap_sem);
 	return p;
 }
