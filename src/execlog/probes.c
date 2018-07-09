@@ -116,8 +116,25 @@ execlog_common(const char *filename,
 	argv_cur_pos = 0;
 	argv_truncated = 0;
 	while ((__argv_content = get_user_arg_ptr(__argv, argv_cur_pos)) != NULL) {
+		/* str(n)len_user includes the final \0 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
 		/* strlen_user always return something > 0 */
 		argv_size += (unsigned long) strlen_user(__argv_content);
+#else /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0) */
+		unsigned long user_len = strnlen_user(__argv_content, argv_max_len);
+		if (user_len == 0) {
+			if (!access_ok(VERIFY_READ, __argv_content, 1)) {
+				/* This will be logged later */
+				user_len += 1;
+			} else {
+				pr_err("Unable to read at most %lu from single argv", argv_max_len);
+				user_len += argv_max_len;
+				break;
+			}
+		} else {
+			argv_size += user_len;
+		}
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(4, 13, 0) */
 		++argv_cur_pos;
 	}
 
