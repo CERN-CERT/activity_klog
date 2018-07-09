@@ -1,4 +1,5 @@
 #include <linux/version.h>
+#include <linux/cred.h>
 #include <linux/err.h>
 #include <linux/spinlock.h>
 #include "execlog.h"
