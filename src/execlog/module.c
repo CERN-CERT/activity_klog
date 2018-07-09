@@ -60,6 +60,18 @@ module_param_cb(whitelist_include_root, &whitelist_root_param, NULL, 0600);
 MODULE_PARM_DESC(whitelist_include_root, "A boolean indicating if root actions"
 		 " should be whitelisted like actions from other users or not.");
 
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+module_param_call(argv_max_size, &argv_max_size_set, &argv_max_size_get, NULL, 0600);
+#else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+module_param_cb(argv_max_size, &argv_max_size_param, NULL, 0600);
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
+MODULE_PARM_DESC(argv_max_size, "An unsigned integer controling the truncation"
+                 "of the argv. Must be between " STR(ARGV_MIN_SIZE) " and "
+                 STR(ARGV_MAX_SIZE) ".");
+
 /************************************/
 /*             MODULE DEF           */
 /************************************/

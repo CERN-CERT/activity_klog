@@ -14,6 +14,64 @@
 #include "log.h"
 #endif /* ? USE_PRINK */
 
+/**********************************/
+/*         argv_max_len           */
+/**********************************/
+
+static unsigned long argv_max_len = ARGV_MAX_SIZE;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+int
+argv_max_size_set(const char *buf, struct kernel_param *kp)
+#else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+static int
+argv_max_size_set(const char *buf, const struct kernel_param *kp)
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
+{
+	unsigned long val_read;
+	int ret;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 2, 0)
+	ret = strict_strtoul(buf, 10, &val_read);
+#else /* LINUX_VERSION_CODE > KERNEL_VERSION(3, 2, 0) */
+	ret = kstrtoul(buf, 10, &val_read);
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(3, 2, 0) */
+
+	if (ret < 0)
+		return ret;
+
+	if (val_read > ARGV_MAX_SIZE) {
+		pr_err("Invalid argv_max_size %lu: max is %i", val_read,
+		       ARGV_MAX_SIZE);
+		return -EINVAL;
+	}
+	if (val_read < ARGV_MIN_SIZE) {
+		pr_err("Invalid argv_max_size %lu: min is %i", val_read,
+		       ARGV_MIN_SIZE);
+		return -EINVAL;
+	}
+
+	argv_max_len = val_read;
+	return ret;
+}
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
+int
+argv_max_size_get(char *buffer, struct kernel_param *kp)
+#else /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
+static int
+argv_max_size_get(char *buffer, const struct kernel_param *kp)
+#endif /* LINUX_VERSION_CODE ? KERNEL_VERSION(2, 6, 36) */
+{
+	return scnprintf(buffer, PAGE_SIZE, "%lu", argv_max_len);
+}
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36)
+const struct kernel_param_ops argv_max_size_param = {
+        .set = argv_max_size_set,
+        .get = argv_max_size_get,
+};
+#endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36) */
 
 /**********************************/
 /*        32/64 compat            */
@@ -138,10 +196,9 @@ execlog_common(const char *filename,
 		++argv_cur_pos;
 	}
 
-	/* strncpy can only take a long as it input, check for potential overflow */
-	if (unlikely(argv_size > ARGV_MAX_SIZE)) {
-		pr_err("argv truncated (%zu > %u)", argv_size, ARGV_MAX_SIZE);
-		argv_size = ARGV_MAX_SIZE;
+	/* Truncate argv when larger than the configured value */
+	if (argv_size > argv_max_len) {
+		argv_size = argv_max_len;
 		argv_truncated = 1;
 	}
 
@@ -176,9 +233,9 @@ execlog_common(const char *filename,
 		argv_current_end += (unsigned long) argv_written;
 		argv_size -= (unsigned long) argv_written;
 		/* As we calculated the size before, this should never occur, except if userspace is malicious or had to be truncated */
-		if (unlikely(argv_size == 0)) {
+		if (argv_size == 0) {
 			if (argv_truncated == 0) {
-				pr_err("argv troncated (%zu, resized?)", argv_size);
+				pr_err("Argv size changed between two read (malicious resize?)!");
 				argv_truncated = 1;
 			}
 			/* We still need one char to write '\0' */
@@ -204,7 +261,7 @@ execlog_common(const char *filename,
 	}
 
 	/* Add a symbol to represent truncated output */
-	if (unlikely(argv_truncated && (argv_current_end > argv_buffer))) {
+	if (argv_truncated && (argv_current_end > argv_buffer)) {
 		*(argv_current_end - 1) = '$';
 	}
 
