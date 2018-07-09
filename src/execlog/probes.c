@@ -164,6 +164,9 @@ execlog_common(const char *filename,
 				pr_err("argv troncated (%zu, resized?)", argv_size);
 				argv_truncated = 1;
 			}
+			/* We still need one char to write '\0' */
+			/* The buffer is at least of size 2, we can always go back by one */
+			--argv_current_end;
 			break;
 		}
 		/* Add separator ' ' between arguments
