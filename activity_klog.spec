@@ -2,8 +2,8 @@
 %define debug_package %{nil}
 
 Name:		activity_klog
-Version:	3.5
-Release:	3%{?dist}
+Version:	3.6
+Release:	1%{?dist}
 
 Summary:	Kernel modules for logging various user activity
 Group:		System Environment/Kernel
@@ -164,6 +164,12 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Wed Jul 11 2018 Vincent Brillault <vincent.brillault@cern.ch> - 3.6-1
+- Execlog: fix an off-by-one overflow when truncating argv
+- Ensure RCU protected fields are properly dereferenced
+- Execlog: extract real executable path when possible
+- Exelog: add a parameter to control argv truncation
+
 * Fri May 25 2018 Vincent Brillault <vincent.brillault@cern.ch> - 3.5-3
 - Rebuild for Centos 7.5 (retpoline)
 
